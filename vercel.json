@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "public": true,
   "buildCommand": "cd client && npm install && npm run build",
   "outputDirectory": "client/dist",
   "framework": null,
