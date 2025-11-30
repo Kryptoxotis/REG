@@ -6,16 +6,16 @@ dotenv.config()
 const NOTION_API_KEY = process.env.NOTION_API_KEY
 const NOTION_VERSION = '2022-06-28'
 
-// Database IDs
+// Database IDs - New consolidated 5-database structure
 export const DATABASE_IDS = {
-  AVAILABILITY: '2b1746b9-e0e8-80b9-a2c8-c3bc260c87bc',
-  DIRECTORY: '2b1746b9-e0e8-804e-8470-e355350e7d69',
-  SCOREBOARD: '2b1746b9-e0e8-800a-8666-e4f67622b49f',
-  MODEL_HOMES: '2b1746b9-e0e8-8008-a80c-c65a1a4b21f9',
-  SELLER_INQUIRY: '2b1746b9-e0e8-802b-b0a5-e141f0a9d88b',
-  MORTGAGE_CALC: '2b1746b9-e0e8-803a-96fc-f817797d0fe2',
-  STATUS_REPORT: '2b1746b9-e0e8-80b3-be1b-dc643e4da6cf',
-  MASTER_CALENDAR: '2b1746b9-e0e8-80b6-a586-dcb228bc5797'
+  TEAM_MEMBERS: '2bb746b9-e0e8-815b-a4de-d2d5aa5ef4e5',
+  PROPERTIES: '2bb746b9-e0e8-8163-9afe-cf0c567c2586',
+  PIPELINE: '2bb746b9-e0e8-81f3-90c9-d2d317085a50',
+  CLIENTS: '2bb746b9-e0e8-8176-b5ed-dfe744fc0246',
+  SCHEDULE: '2bb746b9-e0e8-810a-b85d-e1a517ca1349',
+  // Virtual views (same DB with filters)
+  MODEL_HOMES: '2bb746b9-e0e8-8163-9afe-cf0c567c2586',
+  SCOREBOARD: '2bb746b9-e0e8-81f3-90c9-d2d317085a50'
 }
 
 // Query a database

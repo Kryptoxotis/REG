@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
+import DetailModal from './DetailModal'
 
 function DatabaseViewer({ databaseKey, databaseName }) {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [selectedItem, setSelectedItem] = useState(null)
 
   useEffect(() => { fetchData() }, [databaseKey])
 
@@ -22,212 +25,189 @@ function DatabaseViewer({ databaseKey, databaseName }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-center py-20">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-400">Loading {databaseName}...</p>
+          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }} className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto" />
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="mt-4 text-gray-400">Loading {databaseName}...</motion.p>
         </div>
-      </div>
+      </motion.div>
     )
   }
 
   if (error) {
     return (
-      <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6 text-center">
-        <div className="text-4xl mb-3">⚠️</div>
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6 text-center">
+        <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ repeat: Infinity, duration: 2 }} className="text-4xl mb-3">⚠️</motion.div>
         <p className="text-red-400 font-medium">{error}</p>
-        <button onClick={fetchData} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-          Try Again
-        </button>
-      </div>
+        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={fetchData} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">Try Again</motion.button>
+      </motion.div>
     )
   }
 
   if (data.length === 0) {
     return (
-      <div className="bg-gray-800 border border-gray-700 rounded-2xl p-12 text-center">
-        <div className="text-6xl mb-4">📭</div>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gray-800 border border-gray-700 rounded-2xl p-12 text-center">
+        <motion.div animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 2 }} className="text-6xl mb-4">📭</motion.div>
         <h3 className="text-lg font-semibold text-gray-200">No Records Found</h3>
         <p className="text-gray-500 mt-2">This database is currently empty</p>
-      </div>
+      </motion.div>
     )
   }
 
-  // Filter data based on search
   const filteredData = data.filter(item =>
-    Object.values(item).some(val =>
-      String(formatValue(val)).toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    Object.values(item).some(val => String(formatValue(val)).toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">{databaseName}</h2>
-          <p className="text-gray-400">{data.length} {data.length === 1 ? 'record' : 'records'} total</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-white">{databaseName}</h2>
+          <p className="text-sm text-gray-400">{data.length} {data.length === 1 ? 'record' : 'records'} total</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search records..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl w-full md:w-64 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">🔍</span>
-          </div>
-          <button onClick={fetchData} className="p-2.5 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white hover:border-gray-600 transition-colors">
-            🔄
-          </button>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <motion.div className="relative flex-1 sm:flex-none" whileFocus={{ scale: 1.02 }}>
+            <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 sm:pl-10 pr-4 py-2 sm:py-2.5 bg-gray-800 border border-gray-700 rounded-xl w-full sm:w-64 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm" />
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">🔍</span>
+          </motion.div>
+          <motion.button whileHover={{ scale: 1.1, rotate: 180 }} whileTap={{ scale: 0.9 }} onClick={fetchData} className="p-2 sm:p-2.5 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white hover:border-gray-600 transition-colors flex-shrink-0">🔄</motion.button>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Smart Card View */}
-      <SmartCardView data={filteredData} databaseKey={databaseKey} />
+      <SmartCardView data={filteredData} databaseKey={databaseKey} onItemClick={setSelectedItem} />
 
-      {/* Footer */}
-      {filteredData.length === 0 && searchTerm && (
-        <div className="bg-gray-800 border border-gray-700 rounded-2xl p-8 text-center">
-          <p className="text-gray-400">No records match your search</p>
-        </div>
-      )}
+      <AnimatePresence>
+        {selectedItem && (
+          <DetailModal item={selectedItem} databaseKey={databaseKey} onClose={() => setSelectedItem(null)} onUpdate={fetchData} />
+        )}
+      </AnimatePresence>
 
-      <div className="flex items-center justify-between text-sm text-gray-500">
+      <AnimatePresence>
+        {filteredData.length === 0 && searchTerm && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-gray-800 border border-gray-700 rounded-2xl p-8 text-center">
+            <p className="text-gray-400">No records match your search</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
         <p>Showing {filteredData.length} of {data.length} records</p>
-      </div>
+      </motion.div>
     </div>
   )
 }
 
-// Smart view that adapts to any Notion database structure
-function SmartCardView({ data, databaseKey }) {
+function SmartCardView({ data, databaseKey, onItemClick }) {
   if (!data || data.length === 0) return null
 
-  // Get all field names from the first item (excluding meta fields)
   const metaFields = ['id', 'created_time', 'last_edited_time']
   const sampleItem = data[0]
   const fields = Object.keys(sampleItem).filter(k => !metaFields.includes(k))
 
-  // Try to identify the primary/title field (usually first non-empty string field)
+  // Database-specific field configs (matched to actual Notion field names)
+  const dbConfig = {
+    TEAM_MEMBERS: {
+      icon: '👥', gradient: 'from-violet-500 to-purple-400', iconBg: 'bg-violet-500/20',
+      titleField: 'Name', subtitleField: 'Phone', statusField: 'Status',
+      showFields: ['Email - ERA', 'Role', 'License Number']
+    },
+    PROPERTIES: {
+      icon: '🏘️', gradient: 'from-emerald-500 to-green-400', iconBg: 'bg-emerald-500/20',
+      titleField: 'Address', subtitleField: 'Subdivision', statusField: 'Status',
+      showFields: ['SqFt', 'Sales Price', 'Floorplan']
+    },
+    MODEL_HOMES: {
+      icon: '🏠', gradient: 'from-teal-500 to-cyan-400', iconBg: 'bg-teal-500/20',
+      titleField: 'Address', subtitleField: 'Subdivision', statusField: 'Status',
+      showFields: ['SqFt', 'Sales Price', 'Floorplan']
+    },
+    PIPELINE: {
+      icon: '📊', gradient: 'from-blue-500 to-cyan-400', iconBg: 'bg-blue-500/20',
+      titleField: 'Address', subtitleField: 'Buyer Name', statusField: 'Loan Status',
+      showFields: ['Sales Price', 'Agent', 'Scheduled Closing', 'Executed']
+    },
+    CLIENTS: {
+      icon: '💼', gradient: 'from-pink-500 to-rose-400', iconBg: 'bg-pink-500/20',
+      titleField: 'Property Address', subtitleField: 'Full Name', statusField: 'Status',
+      showFields: ['Phone', 'Email', 'Timeline']
+    },
+    SCHEDULE: {
+      icon: '📅', gradient: 'from-amber-500 to-orange-400', iconBg: 'bg-amber-500/20',
+      titleField: 'Date', subtitleField: 'Model Home Address', statusField: null,
+      showFields: ['Assigned Staff 1', 'Assigned Staff 2']
+    },
+    SCOREBOARD: {
+      icon: '🏆', gradient: 'from-indigo-500 to-purple-400', iconBg: 'bg-indigo-500/20',
+      titleField: 'Address', subtitleField: 'Agent', statusField: 'Loan Status',
+      showFields: ['Sales Price', 'Closed Date', 'Loan Amount']
+    }
+  }
+
+  const config = dbConfig[databaseKey] || { icon: '📋', gradient: 'from-gray-500 to-gray-400', iconBg: 'bg-gray-500/20', titleField: fields[0], showFields: fields.slice(1, 4) }
+
   const getPrimaryField = (item) => {
+    const val = item[config.titleField]
+    if (val) return { key: config.titleField, value: val }
     for (const field of fields) {
-      const val = item[field]
-      if (typeof val === 'string' && val.trim() !== '') {
-        return { key: field, value: val }
-      }
+      const v = item[field]
+      if (typeof v === 'string' && v.trim() !== '') return { key: field, value: v }
     }
     return { key: fields[0], value: formatValue(item[fields[0]]) }
   }
 
-  // Find status-like field
-  const getStatusField = (item) => {
-    const statusKeys = fields.filter(k =>
-      k.toLowerCase().includes('status') ||
-      k.toLowerCase().includes('state') ||
-      k.toLowerCase().includes('type')
-    )
-    if (statusKeys.length > 0) {
-      return { key: statusKeys[0], value: item[statusKeys[0]] }
-    }
-    return null
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20, scale: 0.95 },
+    visible: (i) => ({ opacity: 1, y: 0, scale: 1, transition: { delay: i * 0.05, duration: 0.3, ease: 'easeOut' } })
   }
-
-  // Get icon based on database type
-  const getIcon = () => {
-    const icons = {
-      'AVAILABILITY': '📅',
-      'DIRECTORY': '👤',
-      'SCOREBOARD': '🏆',
-      'MODEL_HOMES': '🏠',
-      'SELLER_INQUIRY': '💼',
-      'MORTGAGE_CALC': '💰',
-      'STATUS_REPORT': '📊',
-      'MASTER_CALENDAR': '📆'
-    }
-    return icons[databaseKey] || '📋'
-  }
-
-  // Get gradient based on database type
-  const getGradient = () => {
-    const gradients = {
-      'AVAILABILITY': 'from-blue-500 to-cyan-400',
-      'DIRECTORY': 'from-violet-500 to-purple-400',
-      'SCOREBOARD': 'from-amber-500 to-orange-400',
-      'MODEL_HOMES': 'from-emerald-500 to-green-400',
-      'SELLER_INQUIRY': 'from-pink-500 to-rose-400',
-      'MORTGAGE_CALC': 'from-indigo-500 to-blue-400',
-      'STATUS_REPORT': 'from-red-500 to-pink-400',
-      'MASTER_CALENDAR': 'from-teal-500 to-cyan-400'
-    }
-    return gradients[databaseKey] || 'from-gray-500 to-gray-400'
-  }
-
-  const iconBg = {
-    'AVAILABILITY': 'bg-blue-500/20',
-    'DIRECTORY': 'bg-violet-500/20',
-    'SCOREBOARD': 'bg-amber-500/20',
-    'MODEL_HOMES': 'bg-emerald-500/20',
-    'SELLER_INQUIRY': 'bg-pink-500/20',
-    'MORTGAGE_CALC': 'bg-indigo-500/20',
-    'STATUS_REPORT': 'bg-red-500/20',
-    'MASTER_CALENDAR': 'bg-teal-500/20'
-  }[databaseKey] || 'bg-gray-500/20'
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
       {data.map((item, idx) => {
         const primary = getPrimaryField(item)
-        const status = getStatusField(item)
-        const otherFields = fields.filter(f => f !== primary.key && f !== status?.key).slice(0, 4)
+        const status = config.statusField ? item[config.statusField] : null
+        const subtitle = config.subtitleField ? item[config.subtitleField] : null
+        const displayFields = config.showFields.filter(f => item[f] !== null && item[f] !== undefined && item[f] !== '')
 
         return (
-          <div key={item.id || idx} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden hover:border-gray-600 transition-all group">
-            {/* Gradient accent bar */}
-            <div className={`h-1.5 bg-gradient-to-r ${getGradient()}`}></div>
+          <motion.div
+            key={item.id || idx}
+            custom={idx}
+            initial="hidden"
+            animate="visible"
+            variants={cardVariants}
+            whileHover={{ scale: 1.02, y: -4 }}
+            onClick={() => onItemClick && onItemClick(item)}
+            className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden hover:border-gray-600 transition-colors group cursor-pointer"
+          >
+            <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: idx * 0.05 + 0.2 }} className={`h-1 sm:h-1.5 bg-gradient-to-r ${config.gradient} origin-left`} />
 
-            <div className="p-5">
-              {/* Header row with icon and status */}
-              <div className="flex items-start justify-between mb-3">
-                <div className={`w-10 h-10 ${iconBg} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                  <span className="text-xl">{getIcon()}</span>
-                </div>
-                {status && status.value && (
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status.value)}`}>
-                    {formatValue(status.value)}
-                  </span>
+            <div className="p-4 sm:p-5">
+              <div className="flex items-start justify-between mb-2 sm:mb-3">
+                <motion.div whileHover={{ scale: 1.2, rotate: 10 }} className={`w-8 h-8 sm:w-10 sm:h-10 ${config.iconBg} rounded-lg flex items-center justify-center`}>
+                  <span className="text-lg sm:text-xl">{config.icon}</span>
+                </motion.div>
+                {status && (
+                  <motion.span initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className={`px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                    {formatValue(status)}
+                  </motion.span>
                 )}
               </div>
 
-              {/* Primary field as title */}
-              <h4 className="font-semibold text-white mb-1 text-lg">
-                {primary.value || 'Untitled'}
-              </h4>
+              <h4 className="font-semibold text-white mb-1 text-base sm:text-lg line-clamp-2">{primary.value || 'Untitled'}</h4>
+              {subtitle && <p className="text-xs text-gray-500">{formatValue(subtitle)}</p>}
 
-              {/* Other fields */}
-              <div className="space-y-2 mt-3">
-                {otherFields.map(field => {
-                  const val = item[field]
-                  if (val === null || val === undefined || val === '') return null
-                  return (
-                    <div key={field} className="flex justify-between text-sm">
-                      <span className="text-gray-500 capitalize">{field.replace(/_/g, ' ')}</span>
-                      <span className="text-gray-300 font-medium truncate ml-2 max-w-[60%] text-right">
-                        {formatValue(val)}
-                      </span>
-                    </div>
-                  )
-                })}
+              <div className="space-y-1.5 sm:space-y-2 mt-2 sm:mt-3">
+                {displayFields.slice(0, 4).map(field => (
+                  <div key={field} className="flex justify-between text-xs sm:text-sm">
+                    <span className="text-gray-500 truncate flex-shrink-0 max-w-[40%]">{field}</span>
+                    <span className="text-gray-300 font-medium truncate ml-2 max-w-[55%] text-right">{formatValue(item[field])}</span>
+                  </div>
+                ))}
               </div>
 
-              {/* Show all fields count if there are more */}
-              {fields.length > 5 && (
-                <p className="text-xs text-gray-600 mt-3">+ {fields.length - 5} more fields</p>
-              )}
+              {fields.length > 5 && <p className="text-xs text-gray-600 mt-2 sm:mt-3">+ {fields.length - 5} more fields</p>}
             </div>
-          </div>
+          </motion.div>
         )
       })}
     </div>
@@ -238,22 +218,24 @@ function formatValue(value) {
   if (value === null || value === undefined) return '—'
   if (Array.isArray(value)) return value.join(', ')
   if (typeof value === 'object') {
-    // Handle Notion date objects
     if (value.start) return value.start
     return JSON.stringify(value)
   }
   if (typeof value === 'boolean') return value ? '✓ Yes' : '✗ No'
-  if (typeof value === 'number') return value.toLocaleString()
+  if (typeof value === 'number') {
+    if (value > 10000) return '$' + value.toLocaleString()
+    return value.toLocaleString()
+  }
   return String(value)
 }
 
 function getStatusColor(status) {
   if (!status) return 'bg-gray-600/30 text-gray-400'
   const s = String(status).toLowerCase()
-  if (s.includes('active') || s.includes('available') || s.includes('complete') || s.includes('done') || s.includes('approved') || s.includes('yes') || s.includes('confirmed')) return 'bg-emerald-500/20 text-emerald-400'
-  if (s.includes('pending') || s.includes('waiting') || s.includes('review') || s.includes('progress')) return 'bg-amber-500/20 text-amber-400'
-  if (s.includes('inactive') || s.includes('unavailable') || s.includes('cancelled') || s.includes('rejected') || s.includes('no')) return 'bg-red-500/20 text-red-400'
-  if (s.includes('new') || s.includes('open')) return 'bg-blue-500/20 text-blue-400'
+  if (s.includes('active') || s.includes('model home') || s.includes('closed') || s.includes('funded') || s.includes('done') || s.includes('yes')) return 'bg-emerald-500/20 text-emerald-400'
+  if (s.includes('pending') || s.includes('processing') || s.includes('progress') || s.includes('conditions')) return 'bg-amber-500/20 text-amber-400'
+  if (s.includes('inactive') || s.includes('cancelled') || s.includes('back on market') || s.includes('no')) return 'bg-red-500/20 text-red-400'
+  if (s.includes('inventory') || s.includes('new') || s.includes('application') || s.includes('disclosures')) return 'bg-blue-500/20 text-blue-400'
   return 'bg-gray-600/30 text-gray-400'
 }
 

@@ -1,109 +1,213 @@
+import { motion } from 'framer-motion'
+
 function StatsOverview({ stats }) {
   if (!stats) {
     return (
-      <div className="text-center py-20">
-        <div className="text-6xl mb-4">📊</div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="text-center py-20"
+      >
+        <motion.div
+          animate={{ y: [0, -10, 0] }}
+          transition={{ repeat: Infinity, duration: 2 }}
+          className="text-6xl mb-4"
+        >
+          📊
+        </motion.div>
         <p className="text-gray-400">No statistics available</p>
-      </div>
+      </motion.div>
     )
   }
 
-  const statsList = Object.entries(stats)
-
   const cardData = {
-    availability: { icon: '📅', gradient: 'from-blue-500 to-cyan-400', bg: 'bg-blue-500/20' },
-    directory: { icon: '📁', gradient: 'from-violet-500 to-purple-400', bg: 'bg-violet-500/20' },
-    scoreboard: { icon: '🏆', gradient: 'from-amber-500 to-orange-400', bg: 'bg-amber-500/20' },
-    model_homes: { icon: '🏠', gradient: 'from-emerald-500 to-green-400', bg: 'bg-emerald-500/20' },
-    seller_inquiry: { icon: '💼', gradient: 'from-pink-500 to-rose-400', bg: 'bg-pink-500/20' },
-    mortgage_calc: { icon: '💰', gradient: 'from-indigo-500 to-blue-400', bg: 'bg-indigo-500/20' },
-    status_report: { icon: '📊', gradient: 'from-red-500 to-pink-400', bg: 'bg-red-500/20' },
-    master_calendar: { icon: '📆', gradient: 'from-teal-500 to-cyan-400', bg: 'bg-teal-500/20' }
+    team_members: { icon: '👥', gradient: 'from-violet-500 to-purple-400', bg: 'bg-violet-500/20' },
+    properties: { icon: '🏘️', gradient: 'from-emerald-500 to-green-400', bg: 'bg-emerald-500/20' },
+    pipeline: { icon: '📊', gradient: 'from-blue-500 to-cyan-400', bg: 'bg-blue-500/20' },
+    clients: { icon: '💼', gradient: 'from-pink-500 to-rose-400', bg: 'bg-pink-500/20' },
+    schedule: { icon: '📅', gradient: 'from-amber-500 to-orange-400', bg: 'bg-amber-500/20' }
   }
 
+  const statsList = Object.entries(stats)
   const totalRecords = statsList.reduce((sum, [_, data]) => sum + data.count, 0)
 
+  const formatCurrency = (num) => {
+    if (!num) return '$0'
+    if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`
+    if (num >= 1000) return `$${(num / 1000).toFixed(0)}K`
+    return `$${num}`
+  }
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+  }
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { y: 0, opacity: 1, transition: { duration: 0.4 } }
+  }
+
   return (
-    <div className="space-y-8">
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6 sm:space-y-8"
+    >
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <motion.div
+        variants={itemVariants}
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+      >
         <div>
-          <h2 className="text-2xl font-bold text-white">Overview</h2>
-          <p className="text-gray-400">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-white">Overview</h2>
+          <p className="text-sm sm:text-base text-gray-400">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
-        <div className="flex gap-3">
-          <div className="bg-gray-800 rounded-xl px-4 py-2 border border-gray-700">
+        <div className="flex gap-2 sm:gap-3">
+          <motion.div whileHover={{ scale: 1.05 }} className="bg-gray-800 rounded-xl px-3 sm:px-4 py-2 border border-gray-700">
             <p className="text-xs text-gray-400 uppercase tracking-wide">Databases</p>
-            <p className="text-xl font-bold text-white">{statsList.length}</p>
-          </div>
-          <div className="bg-gray-800 rounded-xl px-4 py-2 border border-gray-700">
+            <p className="text-lg sm:text-xl font-bold text-white">{statsList.length}</p>
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.05 }} className="bg-gray-800 rounded-xl px-3 sm:px-4 py-2 border border-gray-700">
             <p className="text-xs text-gray-400 uppercase tracking-wide">Total Records</p>
-            <p className="text-xl font-bold text-indigo-400">{totalRecords.toLocaleString()}</p>
-          </div>
+            <p className="text-lg sm:text-xl font-bold text-indigo-400">{totalRecords.toLocaleString()}</p>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statsList.map(([key, data]) => {
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
+        {statsList.map(([key, data], idx) => {
           const card = cardData[key.toLowerCase()] || { icon: '📋', gradient: 'from-gray-500 to-gray-400', bg: 'bg-gray-500/20' }
           return (
-            <div key={key} className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden hover:border-gray-600 transition-all duration-300 group">
-              <div className={`h-1.5 bg-gradient-to-r ${card.gradient}`}></div>
-              <div className="p-6">
+            <motion.div
+              key={key}
+              variants={itemVariants}
+              custom={idx}
+              whileHover={{ scale: 1.03, y: -4 }}
+              className="bg-gray-800 rounded-xl sm:rounded-2xl border border-gray-700 overflow-hidden hover:border-gray-600 transition-colors group cursor-pointer"
+            >
+              <motion.div
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ delay: idx * 0.1 + 0.3 }}
+                className={`h-1 sm:h-1.5 bg-gradient-to-r ${card.gradient} origin-left`}
+              />
+              <div className="p-4 sm:p-5">
                 <div className="flex items-start justify-between">
-                  <div className={`${card.bg} w-12 h-12 rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform`}>
+                  <motion.div
+                    whileHover={{ scale: 1.2, rotate: 10 }}
+                    className={`${card.bg} w-10 h-10 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex items-center justify-center text-xl sm:text-2xl`}
+                  >
                     {card.icon}
-                  </div>
-                  <span className="text-3xl font-bold text-white">{data.count}</span>
+                  </motion.div>
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: idx * 0.1 + 0.4, type: 'spring' }}
+                    className="text-2xl sm:text-3xl font-bold text-white"
+                  >
+                    {data.count}
+                  </motion.span>
                 </div>
-                <h3 className="mt-4 font-semibold text-gray-200 capitalize">{data.name.replace(/_/g, ' ')}</h3>
-                <p className="text-sm text-gray-500">{data.count === 1 ? 'record' : 'records'}</p>
+                <h3 className="mt-3 font-semibold text-gray-200 capitalize text-sm sm:text-base">{data.name.replace(/_/g, ' ')}</h3>
+                {/* Breakdown stats */}
+                <div className="mt-2 space-y-1 text-xs text-gray-500">
+                  {key === 'TEAM_MEMBERS' && data.active !== undefined && (
+                    <p><span className="text-emerald-400">{data.active}</span> active</p>
+                  )}
+                  {key === 'PROPERTIES' && (
+                    <>
+                      {data.modelHomes !== undefined && <p><span className="text-teal-400">{data.modelHomes}</span> model homes</p>}
+                      {data.inventory !== undefined && <p><span className="text-blue-400">{data.inventory}</span> inventory</p>}
+                    </>
+                  )}
+                  {key === 'PIPELINE' && (
+                    <>
+                      {data.executed !== undefined && <p><span className="text-emerald-400">{data.executed}</span> executed</p>}
+                      {data.pending !== undefined && <p><span className="text-amber-400">{data.pending}</span> pending</p>}
+                    </>
+                  )}
+                  {key === 'SCHEDULE' && data.upcoming !== undefined && (
+                    <p><span className="text-amber-400">{data.upcoming}</span> upcoming</p>
+                  )}
+                </div>
               </div>
-            </div>
+            </motion.div>
           )
         })}
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white">
+      {/* Quick Stats - Pipeline Volume & Highlights */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+        <motion.div
+          variants={itemVariants}
+          whileHover={{ scale: 1.02 }}
+          className="bg-gradient-to-br from-blue-600 to-cyan-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-white"
+        >
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-              <span className="text-2xl">🗄️</span>
-            </div>
+            <motion.div
+              whileHover={{ rotate: 360 }}
+              transition={{ duration: 0.5 }}
+              className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center"
+            >
+              <span className="text-xl sm:text-2xl">💰</span>
+            </motion.div>
             <div>
-              <p className="text-white/80 text-sm">Active Databases</p>
-              <p className="text-3xl font-bold">{statsList.length}</p>
+              <p className="text-white/80 text-xs sm:text-sm">Pipeline Volume</p>
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-2xl sm:text-3xl font-bold">
+                {formatCurrency(stats.PIPELINE?.totalVolume)}
+              </motion.p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl p-6 text-white">
+        <motion.div
+          variants={itemVariants}
+          whileHover={{ scale: 1.02 }}
+          className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-white"
+        >
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-              <span className="text-2xl">📈</span>
-            </div>
+            <motion.div
+              whileHover={{ rotate: 360 }}
+              transition={{ duration: 0.5 }}
+              className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center"
+            >
+              <span className="text-xl sm:text-2xl">👥</span>
+            </motion.div>
             <div>
-              <p className="text-white/80 text-sm">Total Records</p>
-              <p className="text-3xl font-bold">{totalRecords.toLocaleString()}</p>
+              <p className="text-white/80 text-xs sm:text-sm">Active Agents</p>
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-2xl sm:text-3xl font-bold">
+                {stats.TEAM_MEMBERS?.active || 0}
+              </motion.p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-gradient-to-br from-amber-600 to-orange-700 rounded-2xl p-6 text-white">
+        <motion.div
+          variants={itemVariants}
+          whileHover={{ scale: 1.02 }}
+          className="bg-gradient-to-br from-amber-600 to-orange-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-white"
+        >
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-              <span className="text-2xl">⚡</span>
-            </div>
+            <motion.div
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center"
+            >
+              <span className="text-xl sm:text-2xl">⚡</span>
+            </motion.div>
             <div>
-              <p className="text-white/80 text-sm">System Status</p>
-              <p className="text-3xl font-bold">Online</p>
+              <p className="text-white/80 text-xs sm:text-sm">System Status</p>
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-2xl sm:text-3xl font-bold">
+                Online
+              </motion.p>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 

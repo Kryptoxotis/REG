@@ -3,15 +3,24 @@ import axios from 'axios'
 const NOTION_API_KEY = process.env.NOTION_API_KEY
 const NOTION_VERSION = '2022-06-28'
 
+// New consolidated database structure (5 main + 2 virtual views)
 const DATABASE_IDS = {
-  AVAILABILITY: '2b1746b9-e0e8-80b9-a2c8-c3bc260c87bc',
-  DIRECTORY: '2b1746b9-e0e8-804e-8470-e355350e7d69',
-  SCOREBOARD: '2b1746b9-e0e8-800a-8666-e4f67622b49f',
-  MODEL_HOMES: '2b1746b9-e0e8-8008-a80c-c65a1a4b21f9',
-  SELLER_INQUIRY: '2b1746b9-e0e8-802b-b0a5-e141f0a9d88b',
-  MORTGAGE_CALC: '2b1746b9-e0e8-803a-96fc-f817797d0fe2',
-  STATUS_REPORT: '2b1746b9-e0e8-80b3-be1b-dc643e4da6cf',
-  MASTER_CALENDAR: '2b1746b9-e0e8-80b6-a586-dcb228bc5797'
+  TEAM_MEMBERS: '2bb746b9-e0e8-815b-a4de-d2d5aa5ef4e5',
+  PROPERTIES: '2bb746b9-e0e8-8163-9afe-cf0c567c2586',
+  PIPELINE: '2bb746b9-e0e8-81f3-90c9-d2d317085a50',
+  CLIENTS: '2bb746b9-e0e8-8176-b5ed-dfe744fc0246',
+  SCHEDULE: '2bb746b9-e0e8-810a-b85d-e1a517ca1349',
+  // Virtual views (same DB with filters)
+  MODEL_HOMES: '2bb746b9-e0e8-8163-9afe-cf0c567c2586',
+  SCOREBOARD: '2bb746b9-e0e8-81f3-90c9-d2d317085a50'
+}
+
+// Filters for virtual views
+const VIEW_FILTERS = {
+  MODEL_HOMES: {
+    property: 'Status',
+    select: { equals: 'Model Home' }
+  }
 }
 
 function extractPlainText(richText) {
@@ -34,6 +43,21 @@ function formatPage(page) {
       case 'phone_number': properties[key] = value.phone_number; break
       case 'url': properties[key] = value.url; break
       case 'status': properties[key] = value.status?.name || null; break
+      case 'relation':
+        properties[key] = value.relation?.map(rel => rel.id) || []
+        break
+      case 'formula':
+        if (value.formula.type === 'number') properties[key] = value.formula.number
+        else if (value.formula.type === 'string') properties[key] = value.formula.string
+        else if (value.formula.type === 'boolean') properties[key] = value.formula.boolean
+        else if (value.formula.type === 'date') properties[key] = value.formula.date
+        else properties[key] = null
+        break
+      case 'rollup':
+        if (value.rollup.type === 'number') properties[key] = value.rollup.number
+        else if (value.rollup.type === 'array') properties[key] = value.rollup.array
+        else properties[key] = null
+        break
       default: properties[key] = value
     }
   }
@@ -42,16 +66,23 @@ function formatPage(page) {
 
 export default async function handler(req, res) {
   const { key } = req.query
-  const databaseId = DATABASE_IDS[key.toUpperCase()]
+  const upperKey = key.toUpperCase()
+  const databaseId = DATABASE_IDS[upperKey]
 
   if (!databaseId) {
     return res.status(404).json({ error: 'Database not found' })
   }
 
+  // Build query body with optional filters for virtual views
+  const queryBody = {}
+  if (VIEW_FILTERS[upperKey]) {
+    queryBody.filter = VIEW_FILTERS[upperKey]
+  }
+
   try {
     const response = await axios.post(
       `https://api.notion.com/v1/databases/${databaseId}/query`,
-      {},
+      queryBody,
       {
         headers: {
           'Authorization': `Bearer ${NOTION_API_KEY}`,
