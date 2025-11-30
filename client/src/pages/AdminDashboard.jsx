@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 import DatabaseViewer from '../components/DatabaseViewer'
 import StatsOverview from '../components/StatsOverview'
+import Settings from '../components/Settings'
 
 function AdminDashboard({ user, setUser }) {
   const [activeView, setActiveView] = useState('overview')
@@ -125,6 +126,22 @@ function AdminDashboard({ user, setUser }) {
             {(isMobile || !sidebarCollapsed) && <span className="text-sm font-medium">{db.name}</span>}
           </motion.button>
         ))}
+
+        {(isMobile || !sidebarCollapsed) && (
+          <p className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Admin</p>
+        )}
+
+        <motion.button
+          onClick={() => handleNavClick('settings')}
+          whileHover={{ scale: 1.02, x: 4 }}
+          whileTap={{ scale: 0.98 }}
+          className={activeView === 'settings'
+            ? 'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-gray-800 text-white'
+            : 'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 transition-all'}
+        >
+          <span className="text-lg">⚙️</span>
+          {(isMobile || !sidebarCollapsed) && <span className="text-sm font-medium">Settings</span>}
+        </motion.button>
       </nav>
 
       <div className="p-4 border-t border-gray-800">
@@ -270,6 +287,8 @@ function AdminDashboard({ user, setUser }) {
               >
                 {activeView === 'overview' ? (
                   <StatsOverview stats={stats} />
+                ) : activeView === 'settings' ? (
+                  <Settings />
                 ) : (
                   <DatabaseViewer databaseKey={activeView} databaseName={databases.find(db => db.key === activeView)?.name} />
                 )}
