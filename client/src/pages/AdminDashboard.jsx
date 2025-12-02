@@ -5,6 +5,7 @@ import DatabaseViewer from '../components/DatabaseViewer'
 import StatsOverview from '../components/StatsOverview'
 import Settings from '../components/Settings'
 import TeamKPIView from '../components/TeamKPIView'
+import ScheduleCalendar from '../components/ScheduleCalendar'
 
 function AdminDashboard({ user, setUser }) {
   const [activeView, setActiveView] = useState('overview')
@@ -292,6 +293,8 @@ function AdminDashboard({ user, setUser }) {
                   <Settings />
                 ) : activeView === 'TEAM_MEMBERS' ? (
                   <TeamKPIView />
+                ) : activeView === 'SCHEDULE' ? (
+                  <ScheduleCalendar />
                 ) : (
                   <DatabaseViewer databaseKey={activeView} databaseName={databases.find(db => db.key === activeView)?.name} />
                 )}
