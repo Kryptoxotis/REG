@@ -41,12 +41,20 @@ function ScheduleCalendar() {
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1))
   const goToToday = () => setCurrentDate(new Date())
 
+  // Parse date from "DD/MM/YYYY - Address" format
+  const parseScheduleDate = (dateStr) => {
+    if (!dateStr) return null
+    const datePart = dateStr.split(' - ')[0]
+    const [day, month, year] = datePart.split('/')
+    if (!day || !month || !year) return null
+    return { day: parseInt(day), month: parseInt(month), year: parseInt(year) }
+  }
+
   const getEventsForDay = (day) => {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     return data.filter(item => {
-      const itemDate = item.Date?.start || item.Date
-      if (!itemDate) return false
-      return itemDate.startsWith(dateStr)
+      const parsed = parseScheduleDate(item.Date)
+      if (!parsed) return false
+      return parsed.day === day && parsed.month === (month + 1) && parsed.year === year
     })
   }
 
@@ -183,18 +191,22 @@ function ScheduleCalendar() {
         <div className="divide-y divide-gray-700/50 max-h-[300px] overflow-y-auto">
           {data
             .filter(item => {
-              const itemDate = item.Date?.start || item.Date
-              return itemDate && new Date(itemDate) >= new Date(new Date().setHours(0,0,0,0))
+              const parsed = parseScheduleDate(item.Date)
+              if (!parsed) return false
+              const eventDate = new Date(parsed.year, parsed.month - 1, parsed.day)
+              return eventDate >= new Date(new Date().setHours(0,0,0,0))
             })
             .sort((a, b) => {
-              const dateA = a.Date?.start || a.Date
-              const dateB = b.Date?.start || b.Date
-              return new Date(dateA) - new Date(dateB)
+              const parsedA = parseScheduleDate(a.Date)
+              const parsedB = parseScheduleDate(b.Date)
+              const dateA = new Date(parsedA.year, parsedA.month - 1, parsedA.day)
+              const dateB = new Date(parsedB.year, parsedB.month - 1, parsedB.day)
+              return dateA - dateB
             })
             .slice(0, 10)
             .map((event, idx) => {
-              const eventDate = event.Date?.start || event.Date
-              const date = new Date(eventDate)
+              const parsed = parseScheduleDate(event.Date)
+              const date = new Date(parsed.year, parsed.month - 1, parsed.day)
               return (
                 <motion.div
                   key={event.id || idx}
@@ -229,8 +241,10 @@ function ScheduleCalendar() {
               )
             })}
           {data.filter(item => {
-            const itemDate = item.Date?.start || item.Date
-            return itemDate && new Date(itemDate) >= new Date(new Date().setHours(0,0,0,0))
+            const parsed = parseScheduleDate(item.Date)
+            if (!parsed) return false
+            const eventDate = new Date(parsed.year, parsed.month - 1, parsed.day)
+            return eventDate >= new Date(new Date().setHours(0,0,0,0))
           }).length === 0 && (
             <div className="p-8 text-center text-gray-500">
               No upcoming shifts scheduled
@@ -266,9 +280,9 @@ function ScheduleCalendar() {
                     <h2 className="text-xl font-bold text-white">Scheduled Shift</h2>
                     <p className="text-gray-400">
                       {(() => {
-                        const d = selectedEvent.Date?.start || selectedEvent.Date
-                        if (!d) return 'No date'
-                        const date = new Date(d)
+                        const parsed = parseScheduleDate(selectedEvent.Date)
+                        if (!parsed) return 'No date'
+                        const date = new Date(parsed.year, parsed.month - 1, parsed.day)
                         return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
                       })()}
                     </p>
