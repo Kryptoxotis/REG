@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import axios from 'axios'
+import CSVSync from './CSVSync'
 
 function Settings() {
   const [ipData, setIpData] = useState(null)
@@ -52,9 +53,18 @@ function Settings() {
 
   return (
     <div className="space-y-6">
+      {/* CSV Sync Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
+      >
+        <CSVSync />
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
         className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden"
       >
         <div className="p-6 border-b border-gray-700">
@@ -183,7 +193,7 @@ function Settings() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
+        transition={{ delay: 0.2 }}
         className="bg-gray-800 rounded-2xl border border-gray-700 p-6"
       >
         <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
