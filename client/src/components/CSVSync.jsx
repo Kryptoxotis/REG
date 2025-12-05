@@ -26,11 +26,12 @@ function CSVSync() {
     setDragActive(false)
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const droppedFile = e.dataTransfer.files[0]
-      if (droppedFile.name.endsWith('.csv')) {
+      const fileName = droppedFile.name.toLowerCase()
+      if (fileName.endsWith('.csv') || fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
         setFile(droppedFile)
         setError(null)
       } else {
-        setError('Please upload a CSV file')
+        setError('Please upload a CSV or Excel file (.csv, .xlsx, .xls)')
       }
     }
   }
@@ -78,8 +79,8 @@ function CSVSync() {
       <div className="flex items-center gap-3 mb-4">
         <span className="text-2xl">📤</span>
         <div>
-          <h3 className="text-lg font-semibold text-white">Sync Properties from CSV</h3>
-          <p className="text-sm text-gray-400">Upload a status report to sync with Notion database</p>
+          <h3 className="text-lg font-semibold text-white">Sync Properties from Spreadsheet</h3>
+          <p className="text-sm text-gray-400">Upload a CSV or Excel file to sync with Notion database</p>
         </div>
       </div>
 
@@ -99,7 +100,7 @@ function CSVSync() {
       >
         <input
           type="file"
-          accept=".csv"
+          accept=".csv,.xlsx,.xls"
           onChange={handleFileChange}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         />
@@ -118,8 +119,8 @@ function CSVSync() {
         ) : (
           <div>
             <span className="text-4xl mb-2 block text-gray-500">📁</span>
-            <p className="text-gray-300">Drag & drop your CSV here</p>
-            <p className="text-sm text-gray-500 mt-1">or click to browse</p>
+            <p className="text-gray-300">Drag & drop your file here</p>
+            <p className="text-sm text-gray-500 mt-1">CSV or Excel (.xlsx, .xls)</p>
           </div>
         )}
       </div>

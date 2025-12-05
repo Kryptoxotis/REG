@@ -4,10 +4,16 @@ import axios from 'axios'
 
 function ScheduleCalendar() {
   const [data, setData] = useState([])
+  const [teamKpis, setTeamKpis] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedEvent, setSelectedEvent] = useState(null)
+  const [selectedStaff, setSelectedStaff] = useState(null)
+  const [editMode, setEditMode] = useState(false)
+  const [editStaff1, setEditStaff1] = useState('')
+  const [editStaff2, setEditStaff2] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => { fetchData() }, [])
 
@@ -15,12 +21,72 @@ function ScheduleCalendar() {
     setLoading(true)
     setError(null)
     try {
-      const response = await axios.get('/api/databases/SCHEDULE', { withCredentials: true })
-      setData(response.data)
+      const [scheduleRes, kpisRes] = await Promise.all([
+        axios.get('/api/databases/SCHEDULE', { withCredentials: true }),
+        axios.get('/api/databases/team-kpis', { withCredentials: true })
+      ])
+      setData(scheduleRes.data)
+      setTeamKpis(kpisRes.data)
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch schedule')
     } finally { setLoading(false) }
   }
+
+  const findStaffKpis = (staffName) => {
+    if (!staffName) return null
+    return teamKpis.find(member =>
+      member.name && member.name.toLowerCase().includes(staffName.toLowerCase())
+    )
+  }
+
+  const handleStaffClick = (staffName, e) => {
+    e.stopPropagation()
+    const kpis = findStaffKpis(staffName)
+    if (kpis) {
+      setSelectedStaff(kpis)
+    }
+  }
+
+  const formatCurrency = (num) => '$' + (num || 0).toLocaleString()
+
+  const startEdit = () => {
+    setEditStaff1(selectedEvent['Assigned Staff 1'] || '')
+    setEditStaff2(selectedEvent['Assigned Staff 2'] || '')
+    setEditMode(true)
+  }
+
+  const cancelEdit = () => {
+    setEditMode(false)
+    setEditStaff1('')
+    setEditStaff2('')
+  }
+
+  const saveStaffChanges = async () => {
+    if (!selectedEvent?.id) return
+    setSaving(true)
+    try {
+      await axios.patch(`/api/databases/SCHEDULE/${selectedEvent.id}`, {
+        'Assigned Staff 1': editStaff1,
+        'Assigned Staff 2': editStaff2
+      }, { withCredentials: true })
+
+      // Update local data
+      setData(prev => prev.map(item =>
+        item.id === selectedEvent.id
+          ? { ...item, 'Assigned Staff 1': editStaff1, 'Assigned Staff 2': editStaff2 }
+          : item
+      ))
+      setSelectedEvent(prev => ({ ...prev, 'Assigned Staff 1': editStaff1, 'Assigned Staff 2': editStaff2 }))
+      setEditMode(false)
+    } catch (err) {
+      alert('Failed to save changes: ' + (err.response?.data?.error || err.message))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Get active team members for dropdown
+  const activeTeamMembers = teamKpis.filter(m => m.status === 'Active').map(m => m.name)
 
   const getDaysInMonth = (date) => {
     const year = date.getFullYear()
@@ -298,33 +364,201 @@ function ScheduleCalendar() {
                   )}
 
                   <div className="bg-gray-800 rounded-xl p-4">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Assigned Staff</p>
-                    <div className="space-y-2">
-                      {selectedEvent['Assigned Staff 1'] && (
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-amber-500/20 rounded-full flex items-center justify-center text-amber-400 text-sm font-bold">
-                            {selectedEvent['Assigned Staff 1'].charAt(0)}
-                          </div>
-                          <span className="text-white">{selectedEvent['Assigned Staff 1']}</span>
-                        </div>
-                      )}
-                      {selectedEvent['Assigned Staff 2'] && (
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-400 text-sm font-bold">
-                            {selectedEvent['Assigned Staff 2'].charAt(0)}
-                          </div>
-                          <span className="text-white">{selectedEvent['Assigned Staff 2']}</span>
-                        </div>
-                      )}
-                      {!selectedEvent['Assigned Staff 1'] && !selectedEvent['Assigned Staff 2'] && (
-                        <p className="text-gray-500">No staff assigned</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs text-gray-500 uppercase tracking-wider">Assigned Staff</p>
+                      {!editMode && (
+                        <button onClick={startEdit} className="text-xs text-amber-400 hover:text-amber-300">
+                          Edit
+                        </button>
                       )}
                     </div>
+
+                    {editMode ? (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs text-gray-400 mb-1 block">Staff 1</label>
+                          <select
+                            value={editStaff1}
+                            onChange={(e) => setEditStaff1(e.target.value)}
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
+                          >
+                            <option value="">-- None --</option>
+                            {activeTeamMembers.map(name => (
+                              <option key={name} value={name}>{name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-400 mb-1 block">Staff 2</label>
+                          <select
+                            value={editStaff2}
+                            onChange={(e) => setEditStaff2(e.target.value)}
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
+                          >
+                            <option value="">-- None --</option>
+                            {activeTeamMembers.map(name => (
+                              <option key={name} value={name}>{name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            onClick={saveStaffChanges}
+                            disabled={saving}
+                            className="flex-1 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-amber-800 text-white rounded-lg text-sm font-medium transition-colors"
+                          >
+                            {saving ? 'Saving...' : 'Save'}
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            disabled={saving}
+                            className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {selectedEvent['Assigned Staff 1'] && (
+                          <motion.div
+                            whileHover={{ scale: 1.02, x: 4 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={(e) => handleStaffClick(selectedEvent['Assigned Staff 1'], e)}
+                            className="flex items-center gap-3 cursor-pointer p-2 -m-2 rounded-lg hover:bg-gray-700/50 transition-colors"
+                          >
+                            <div className="w-8 h-8 bg-amber-500/20 rounded-full flex items-center justify-center text-amber-400 text-sm font-bold">
+                              {selectedEvent['Assigned Staff 1'].charAt(0)}
+                            </div>
+                            <span className="text-white">{selectedEvent['Assigned Staff 1']}</span>
+                            <span className="ml-auto text-xs text-amber-400">View Stats →</span>
+                          </motion.div>
+                        )}
+                        {selectedEvent['Assigned Staff 2'] && (
+                          <motion.div
+                            whileHover={{ scale: 1.02, x: 4 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={(e) => handleStaffClick(selectedEvent['Assigned Staff 2'], e)}
+                            className="flex items-center gap-3 cursor-pointer p-2 -m-2 rounded-lg hover:bg-gray-700/50 transition-colors"
+                          >
+                            <div className="w-8 h-8 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-400 text-sm font-bold">
+                              {selectedEvent['Assigned Staff 2'].charAt(0)}
+                            </div>
+                            <span className="text-white">{selectedEvent['Assigned Staff 2']}</span>
+                            <span className="ml-auto text-xs text-orange-400">View Stats →</span>
+                          </motion.div>
+                        )}
+                        {!selectedEvent['Assigned Staff 1'] && !selectedEvent['Assigned Staff 2'] && (
+                          <p className="text-gray-500">No staff assigned</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <button
-                  onClick={() => setSelectedEvent(null)}
+                  onClick={() => { setSelectedEvent(null); setEditMode(false) }}
+                  className="mt-6 w-full py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Staff Stats Modal */}
+      <AnimatePresence>
+        {selectedStaff && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedStaff(null)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-gray-900 rounded-2xl border border-gray-700 max-w-md w-full overflow-hidden"
+            >
+              <div className="h-2 bg-gradient-to-r from-violet-500 to-purple-400" />
+              <div className="p-6">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-14 h-14 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center text-white text-xl font-bold">
+                    {selectedStaff.name?.charAt(0) || '?'}
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">{selectedStaff.name}</h2>
+                    <p className="text-gray-400">{selectedStaff.role || 'Agent'} • {selectedStaff.status}</p>
+                  </div>
+                </div>
+
+                {/* KPI Grid */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-gray-800 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-white">{selectedStaff.kpis?.totalDeals || 0}</p>
+                    <p className="text-xs text-gray-400">Total Deals</p>
+                  </div>
+                  <div className="bg-gray-800 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-emerald-400">{selectedStaff.kpis?.closedDeals || 0}</p>
+                    <p className="text-xs text-gray-400">Closed</p>
+                  </div>
+                  <div className="bg-gray-800 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-blue-400">{selectedStaff.kpis?.executedDeals || 0}</p>
+                    <p className="text-xs text-gray-400">Executed</p>
+                  </div>
+                  <div className="bg-gray-800 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-amber-400">{selectedStaff.kpis?.pendingDeals || 0}</p>
+                    <p className="text-xs text-gray-400">Pending</p>
+                  </div>
+                </div>
+
+                {/* Volume Stats */}
+                <div className="space-y-2 bg-gray-800 rounded-xl p-4">
+                  <div className="flex justify-between py-1.5 border-b border-gray-700">
+                    <span className="text-gray-400 text-sm">Total Volume</span>
+                    <span className="text-white font-semibold">{formatCurrency(selectedStaff.kpis?.totalVolume)}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-gray-700">
+                    <span className="text-gray-400 text-sm">Closed Volume</span>
+                    <span className="text-emerald-400 font-semibold">{formatCurrency(selectedStaff.kpis?.closedVolume)}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-gray-700">
+                    <span className="text-gray-400 text-sm">Avg Deal Size</span>
+                    <span className="text-white font-semibold">{formatCurrency(selectedStaff.kpis?.avgDealSize)}</span>
+                  </div>
+                  <div className="flex justify-between py-1.5">
+                    <span className="text-gray-400 text-sm">Closing Rate</span>
+                    <span className={`font-semibold ${(selectedStaff.kpis?.closingRate || 0) >= 50 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      {selectedStaff.kpis?.closingRate || 0}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                {selectedStaff.kpis?.totalDeals > 0 && (
+                  <div className="mt-4">
+                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                      <span>Pipeline Progress</span>
+                      <span>{selectedStaff.kpis?.closedDeals}/{selectedStaff.kpis?.totalDeals}</span>
+                    </div>
+                    <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${selectedStaff.kpis?.closingRate || 0}%` }}
+                        transition={{ delay: 0.2, duration: 0.5 }}
+                        className="h-full bg-gradient-to-r from-violet-500 to-emerald-500 rounded-full"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => setSelectedStaff(null)}
                   className="mt-6 w-full py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors"
                 >
                   Close
