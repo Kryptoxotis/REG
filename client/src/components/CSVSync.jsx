@@ -8,8 +8,6 @@ function CSVSync() {
   const [error, setError] = useState(null)
   const [dragActive, setDragActive] = useState(false)
 
-  const N8N_WEBHOOK_URL = 'http://100.89.5.69:5678/webhook/properties-sync'
-
   const handleDrag = (e) => {
     e.preventDefault()
     e.stopPropagation()
@@ -52,23 +50,28 @@ function CSVSync() {
     setResult(null)
 
     try {
-      const formData = new FormData()
-      formData.append('file', file)
+      // Read file content as text
+      const csvContent = await file.text()
 
-      const response = await fetch(N8N_WEBHOOK_URL, {
+      // Use relative API endpoint (works on both local and Vercel)
+      const response = await fetch('/api/sync/properties', {
         method: 'POST',
-        body: formData
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ csv: csvContent })
       })
 
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`)
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Upload failed: ' + response.statusText)
       }
 
       const data = await response.json()
       setResult(data)
       setFile(null)
     } catch (err) {
-      setError(err.message || 'Upload failed. Make sure n8n is running and the workflow is active.')
+      setError(err.message || 'Upload failed. Please try again.')
     } finally {
       setUploading(false)
     }
