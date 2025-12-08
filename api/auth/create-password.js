@@ -59,6 +59,20 @@ async function findUserByEmail(email) {
   return null
 }
 
+async function updatePage(pageId, properties) {
+  await axios.patch(
+    `https://api.notion.com/v1/pages/${pageId}`,
+    { properties },
+    {
+      headers: {
+        'Authorization': `Bearer ${NOTION_API_KEY}`,
+        'Notion-Version': NOTION_VERSION,
+        'Content-Type': 'application/json'
+      }
+    }
+  )
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', 'true')
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -74,34 +88,49 @@ export default async function handler(req, res) {
   }
   
   try {
-    const { email, password } = req.body
+    const { email, password, confirmPassword } = req.body
     
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password required' })
     }
     
+    if (password !== confirmPassword) {
+      return res.status(400).json({ error: 'Passwords do not match' })
+    }
+    
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' })
+    }
+    
     const user = await findUserByEmail(email)
     
     if (!user) {
-      return res.status(401).json({ error: 'Account not found' })
+      return res.status(404).json({ error: 'Account not found' })
     }
     
     const status = user.status?.toLowerCase()
-    if (status !== 'active') {
-      if (status === 'pending') {
-        return res.status(401).json({ error: 'Please create a password first' })
+    if (status !== 'pending') {
+      if (status === 'active') {
+        return res.status(400).json({ error: 'Account already active. Please login.' })
       }
       if (status === 'terminated') {
-        return res.status(401).json({ error: 'Account access revoked' })
+        return res.status(400).json({ error: 'Account access revoked' })
       }
-      return res.status(401).json({ error: 'Account not active' })
+      return res.status(400).json({ error: 'Cannot create password for this account' })
     }
     
-    if (user.password !== password) {
-      return res.status(401).json({ error: 'Invalid password' })
-    }
+    // Update password and status in Notion
+    await updatePage(user.id, {
+      'Password': {
+        rich_text: [{ text: { content: password } }]
+      },
+      'Stauts': {
+        status: { name: 'Active' }
+      }
+    })
     
     return res.json({
+      message: 'Password created successfully',
       user: {
         id: user.id,
         email: user.email,
@@ -111,7 +140,7 @@ export default async function handler(req, res) {
     })
     
   } catch (error) {
-    console.error('Login error:', error.message)
-    res.status(500).json({ error: 'Login failed' })
+    console.error('Create password error:', error.message)
+    res.status(500).json({ error: 'Failed to create password' })
   }
 }

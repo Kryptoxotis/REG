@@ -60,6 +60,7 @@ async function findUserByEmail(email) {
 }
 
 export default async function handler(req, res) {
+  // Set CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true')
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
@@ -74,44 +75,52 @@ export default async function handler(req, res) {
   }
   
   try {
-    const { email, password } = req.body
+    const { email } = req.body
     
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password required' })
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' })
     }
     
     const user = await findUserByEmail(email)
     
     if (!user) {
-      return res.status(401).json({ error: 'Account not found' })
+      return res.json({
+        status: 'not_found',
+        message: 'Please contact admin to create an account'
+      })
     }
     
-    const status = user.status?.toLowerCase()
-    if (status !== 'active') {
-      if (status === 'pending') {
-        return res.status(401).json({ error: 'Please create a password first' })
-      }
-      if (status === 'terminated') {
-        return res.status(401).json({ error: 'Account access revoked' })
-      }
-      return res.status(401).json({ error: 'Account not active' })
+    const status = user.status?.toLowerCase() || 'unknown'
+    
+    if (status === 'active') {
+      return res.json({
+        status: 'active',
+        message: 'Please enter your password',
+        hasPassword: !!user.password
+      })
     }
     
-    if (user.password !== password) {
-      return res.status(401).json({ error: 'Invalid password' })
+    if (status === 'pending') {
+      return res.json({
+        status: 'pending',
+        message: 'Please create a password to activate your account'
+      })
+    }
+    
+    if (status === 'terminated') {
+      return res.json({
+        status: 'terminated',
+        message: 'You do not have access. Please contact admin.'
+      })
     }
     
     return res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role?.toLowerCase() === 'admin' ? 'admin' : 'employee',
-        fullName: user.name
-      }
+      status: 'unknown',
+      message: 'Account status unknown. Please contact admin.'
     })
     
   } catch (error) {
-    console.error('Login error:', error.message)
-    res.status(500).json({ error: 'Login failed' })
+    console.error('Check email error:', error.message)
+    res.status(500).json({ error: 'Failed to check email' })
   }
 }
