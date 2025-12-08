@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 
@@ -9,46 +9,8 @@ function Login({ setUser }) {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const [checkingIP, setCheckingIP] = useState(true)
   const [step, setStep] = useState('email') // email, password, create-password, terminated, not-found
   const [userStatus, setUserStatus] = useState(null)
-
-  // Check if IP is whitelisted for auto-login
-  useEffect(() => {
-    const checkIPAuth = async () => {
-      try {
-        const response = await axios.get('/api/auth/check-ip', { withCredentials: true })
-        if (response.data.authorized) {
-          setUser(response.data.user)
-        }
-      } catch (err) {
-        console.log('IP check failed, showing login form')
-      } finally {
-        setCheckingIP(false)
-      }
-    }
-    checkIPAuth()
-  }, [setUser])
-
-  // Show loading while checking IP
-  if (checkingIP) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center"
-        >
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-            className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto"
-          />
-          <p className="mt-4 text-gray-400">Checking access...</p>
-        </motion.div>
-      </div>
-    )
-  }
 
   // Handle email submission to check status
   const handleEmailSubmit = async (e) => {
