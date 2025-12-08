@@ -12,7 +12,7 @@ function CSVSync() {
       {/* Embedded n8n Form */}
       <div className="rounded-xl overflow-hidden border border-gray-700 bg-gray-900">
         <iframe
-          src="https://mood-anniversary-snowboard-comment.trycloudflare.com/form/b1c976ee-6717-4f42-b4c8-075ef0738c74"
+          src="https://n8n.kryptoxotis.com/form/b1c976ee-6717-4f42-b4c8-075ef0738c74"
           title="Property Sync Form"
           className="w-full border-0"
           style={{ minHeight: '500px' }}
