@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   }
 
   // n8n webhook URL - using environment variable with fallback
-  const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'http://100.89.5.69:5678/webhook/properties-sync'
+  const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://n8n.kryptoxotis.com/webhook/properties-sync'
 
   try {
     // Get CSV content from request body
