@@ -1,14 +1,63 @@
 // Vercel API proxy to n8n webhook for file sync
 // Parses xlsx/csv file and sends CSV data to n8n
 
-import formidable from 'formidable'
-import fs from 'fs'
 import * as XLSX from 'xlsx'
 
 export const config = {
   api: {
-    bodyParser: false // Disable body parser to handle file uploads
+    bodyParser: false
   }
+}
+
+// Parse multipart form data manually
+async function parseMultipartForm(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = []
+    req.on('data', chunk => chunks.push(chunk))
+    req.on('end', () => {
+      const buffer = Buffer.concat(chunks)
+      const contentType = req.headers['content-type'] || ''
+      const boundary = contentType.split('boundary=')[1]
+
+      if (!boundary) {
+        reject(new Error('No boundary found in content-type'))
+        return
+      }
+
+      const parts = buffer.toString('binary').split('--' + boundary)
+      let fileBuffer = null
+      let filename = 'upload.xlsx'
+
+      for (const part of parts) {
+        if (part.includes('Content-Disposition')) {
+          const filenameMatch = part.match(/filename="([^"]+)"/)
+          if (filenameMatch) {
+            filename = filenameMatch[1]
+          }
+
+          const nameMatch = part.match(/name="([^"]+)"/)
+          if (nameMatch && nameMatch[1] === 'file') {
+            // Find the start of file content (after double CRLF)
+            const headerEnd = part.indexOf('\r\n\r\n')
+            if (headerEnd !== -1) {
+              const content = part.slice(headerEnd + 4)
+              // Remove trailing \r\n--
+              const cleanContent = content.replace(/\r\n$/, '')
+              fileBuffer = Buffer.from(cleanContent, 'binary')
+            }
+          }
+        }
+      }
+
+      if (!fileBuffer) {
+        reject(new Error('No file found in request'))
+        return
+      }
+
+      resolve({ fileBuffer, filename })
+    })
+    req.on('error', reject)
+  })
 }
 
 // Parse file to CSV string
@@ -54,7 +103,7 @@ function parseFileToCSV(buffer, filename) {
 
 export default async function handler(req, res) {
   // CORS headers
-  res.setHeader('Access-Control-Allow-Credentials', true)
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
@@ -71,27 +120,11 @@ export default async function handler(req, res) {
   const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://n8n.kryptoxotis.com/webhook/properties-sync'
 
   try {
-    // Parse the multipart form data
-    const form = formidable({
-      maxFileSize: 10 * 1024 * 1024 // 10MB limit
-    })
-
-    const [fields, files] = await form.parse(req)
-
-    const uploadedFile = files.file?.[0]
-    if (!uploadedFile) {
-      return res.status(400).json({ error: 'No file uploaded' })
-    }
-
-    // Read the file
-    const fileBuffer = fs.readFileSync(uploadedFile.filepath)
-    const filename = fields.filename?.[0] || uploadedFile.originalFilename || 'upload.xlsx'
+    // Parse multipart form data
+    const { fileBuffer, filename } = await parseMultipartForm(req)
 
     // Parse file to CSV
     const csvContent = parseFileToCSV(fileBuffer, filename)
-
-    // Clean up temp file
-    fs.unlinkSync(uploadedFile.filepath)
 
     // Send CSV to n8n webhook as JSON (matches existing workflow)
     const response = await fetch(N8N_WEBHOOK_URL, {
