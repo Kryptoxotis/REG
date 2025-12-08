@@ -1,5 +1,48 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import * as XLSX from 'xlsx'
+
+// Parse file and return CSV string (handles both CSV and XLSX)
+const parseFile = async (file) => {
+  const fileName = file.name.toLowerCase()
+
+  if (fileName.endsWith('.csv')) {
+    return await file.text()
+  }
+
+  // For XLSX/XLS files, parse with xlsx library
+  const buffer = await file.arrayBuffer()
+  const workbook = XLSX.read(buffer, { type: 'array' })
+  const sheetName = workbook.SheetNames[0]
+  const sheet = workbook.Sheets[sheetName]
+
+  // Convert to JSON to process data
+  const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 })
+  if (jsonData.length === 0) throw new Error('Spreadsheet is empty')
+
+  // Get headers
+  const headers = jsonData[0].map(h => String(h || '').trim())
+
+  // Check for Stnum/Stname columns and add Address
+  const stnumIdx = headers.findIndex(h => h.toLowerCase() === 'stnum')
+  const stnameIdx = headers.findIndex(h => h.toLowerCase() === 'stname')
+
+  if (stnumIdx !== -1 && stnameIdx !== -1) {
+    headers.push('Address')
+    for (let i = 1; i < jsonData.length; i++) {
+      const row = jsonData[i]
+      if (row && row.length > 0) {
+        const stnum = String(row[stnumIdx] || '').trim()
+        const stname = String(row[stnameIdx] || '').trim()
+        row.push(stnum && stname ? stnum + ' ' + stname : stnum || stname)
+      }
+    }
+    jsonData[0] = headers
+  }
+
+  const newSheet = XLSX.utils.aoa_to_sheet(jsonData)
+  return XLSX.utils.sheet_to_csv(newSheet)
+}
 
 function CSVSync() {
   const [file, setFile] = useState(null)
@@ -42,6 +85,7 @@ function CSVSync() {
     }
   }
 
+
   const handleUpload = async () => {
     if (!file) return
 
@@ -50,16 +94,14 @@ function CSVSync() {
     setResult(null)
 
     try {
-      // Read file content as text
-      const csvContent = await file.text()
+      // Send the file directly to n8n via FormData
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('filename', file.name)
 
-      // Use relative API endpoint (works on both local and Vercel)
       const response = await fetch('/api/sync/properties', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ csv: csvContent })
+        body: formData
       })
 
       if (!response.ok) {
