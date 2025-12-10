@@ -67,17 +67,34 @@ function DatabaseViewer({ databaseKey, databaseName, highlightedId, onClearHighl
     )
   }
 
-  // Database-specific filter configs
+  // Database-specific filter configs - ALL Notion fields
   const filterConfigs = {
     PROPERTIES: [
       { key: 'Status', label: 'Status' },
       { key: 'Subdivision', label: 'Subdivision' },
       { key: 'Stage', label: 'Stage' },
       { key: 'Floorplan', label: 'Floorplan' },
+      { key: 'Foreman', label: 'Foreman' },
+      { key: 'Bedrooms', label: 'Bedrooms' },
+      { key: 'Bathrooms', label: 'Bathrooms' },
+      { key: 'Story', label: 'Story' },
+      { key: 'Lot', label: 'Lot' },
+      { key: 'Block', label: 'Block' },
+      { key: 'Ready In', label: 'Ready In' },
+      { key: 'Promo', label: 'Promo' },
+      { key: 'HOA', label: 'HOA' },
     ],
     PIPELINE: [
       { key: 'Loan Status', label: 'Loan Status' },
+      { key: 'Loan Type', label: 'Loan Type' },
       { key: 'Agent', label: 'Agent' },
+      { key: 'Assisting Agent', label: 'Assisting Agent' },
+      { key: 'Executed', label: 'Executed' },
+      { key: 'Buyer Name', label: 'Buyer Name' },
+      { key: 'LO Name', label: 'LO Name' },
+      { key: 'Mortgage Company', label: 'Mortgage Company' },
+      { key: 'Broker Name', label: 'Broker Name' },
+      { key: 'Realtor Partner', label: 'Realtor Partner' },
     ],
     CLIENTS: [
       { key: 'Status', label: 'Status' },
@@ -162,7 +179,7 @@ function DatabaseViewer({ databaseKey, databaseName, highlightedId, onClearHighl
             className="overflow-hidden"
           >
             <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
-              <div className={`grid gap-3 ${availableFilters.length > 2 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'}`}>
+              <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {availableFilters.map(filter => (
                   <select
                     key={filter.key}
