@@ -114,6 +114,27 @@ export default async function handler(req, res) {
         return loanStatus.toLowerCase().includes('funded') || loanStatus.toLowerCase().includes('closed')
       }).length
 
+      // Format deal summaries for the frontend
+      const formatDeal = (deal) => ({
+        id: deal.id,
+        address: extractPlainText(deal.properties.Address?.title),
+        buyerName: extractPlainText(deal.properties['Buyer Name']?.rich_text),
+        salesPrice: deal.properties['Sales Price']?.number || 0,
+        loanStatus: deal.properties['Loan Status']?.select?.name || '',
+        scheduledClosing: deal.properties['Scheduled Closing']?.date?.start || null,
+        closedDate: deal.properties['Closed Date']?.date?.start || null,
+        executed: deal.properties.Executed?.checkbox || false
+      })
+
+      // Categorize monthly deals
+      const closedDealsList = monthlyDeals.filter(d => {
+        const loanStatus = d.properties['Loan Status']?.select?.name || ''
+        return loanStatus.toLowerCase().includes('funded') || loanStatus.toLowerCase().includes('closed')
+      }).map(formatDeal)
+
+      const pendingDealsList = monthlyDeals.filter(d => d.properties.Executed?.checkbox === false).map(formatDeal)
+      const executedDealsList = monthlyDeals.filter(d => d.properties.Executed?.checkbox === true).map(formatDeal)
+
       return {
         id: member.id,
         name,
@@ -134,6 +155,13 @@ export default async function handler(req, res) {
           // All-time stats (secondary)
           allTimeDeals,
           allTimeClosed
+        },
+        // Deal lists for drilling down
+        deals: {
+          all: monthlyDeals.map(formatDeal),
+          closed: closedDealsList,
+          pending: pendingDealsList,
+          executed: executedDealsList
         }
       }
     })

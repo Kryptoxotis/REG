@@ -36,15 +36,11 @@ function PipelineBoard() {
     setLoading(true)
     try {
       const response = await axios.get('/api/databases/PIPELINE', { withCredentials: true })
-      setDeals(response.data.results || [])
+      // API returns array directly, not { results: [...] }
+      setDeals(Array.isArray(response.data) ? response.data : [])
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch pipeline')
     } finally { setLoading(false) }
-  }
-
-  const extractText = (richText) => {
-    if (!richText || !Array.isArray(richText)) return ''
-    return richText.map(t => t.plain_text).join('')
   }
 
   const formatCurrency = (num) => num ? '$' + num.toLocaleString() : '-'
@@ -54,16 +50,17 @@ function PipelineBoard() {
   }
 
   // Group deals by loan status
+  // API formats data flat: deal['Loan Status'] instead of deal.properties['Loan Status'].select.name
   const groupedDeals = LOAN_STATUS_COLUMNS.reduce((acc, col) => {
     acc[col.key] = deals.filter(deal => {
-      const status = deal.properties?.['Loan Status']?.select?.name || ''
+      const status = deal['Loan Status'] || ''
       return status === col.key
     })
     return acc
   }, {})
 
   // Count deals without status
-  const unassigned = deals.filter(deal => !deal.properties?.['Loan Status']?.select?.name)
+  const unassigned = deals.filter(deal => !deal['Loan Status'])
 
   if (loading) {
     return (
@@ -126,12 +123,13 @@ function PipelineBoard() {
                     <p className="text-center text-gray-500 text-sm py-8">No deals</p>
                   ) : (
                     columnDeals.map((deal, idx) => {
-                      const address = extractText(deal.properties?.Address?.title)
-                      const buyer = extractText(deal.properties?.['Buyer Name']?.rich_text)
-                      const agent = extractText(deal.properties?.Agent?.rich_text)
-                      const price = deal.properties?.['Sales Price']?.number
-                      const closingDate = deal.properties?.['Scheduled Closing']?.date
-                      const executed = deal.properties?.Executed?.checkbox
+                      // API returns flat structure
+                      const address = deal.Address || ''
+                      const buyer = deal['Buyer Name'] || ''
+                      const agent = deal.Agent || ''
+                      const price = deal['Sales Price']
+                      const closingDate = deal['Scheduled Closing']
+                      const executed = deal.Executed
 
                       return (
                         <motion.div
@@ -206,20 +204,20 @@ function PipelineBoard() {
             <div className="h-2 bg-gradient-to-r from-blue-500 to-cyan-400" />
             <div className="p-6">
               <h2 className="text-xl font-bold text-white mb-4">
-                {extractText(selectedDeal.properties?.Address?.title) || 'Deal Details'}
+                {selectedDeal.Address || 'Deal Details'}
               </h2>
 
               <div className="space-y-3">
-                <DetailRow label="Buyer" value={extractText(selectedDeal.properties?.['Buyer Name']?.rich_text)} />
-                <DetailRow label="Agent" value={extractText(selectedDeal.properties?.Agent?.rich_text)} />
-                <DetailRow label="Sales Price" value={formatCurrency(selectedDeal.properties?.['Sales Price']?.number)} />
-                <DetailRow label="Loan Status" value={selectedDeal.properties?.['Loan Status']?.select?.name} />
-                <DetailRow label="Loan Type" value={selectedDeal.properties?.['Loan Type']?.select?.name} />
-                <DetailRow label="Scheduled Closing" value={formatDate(selectedDeal.properties?.['Scheduled Closing']?.date)} />
-                <DetailRow label="Closed Date" value={formatDate(selectedDeal.properties?.['Closed Date']?.date)} />
-                <DetailRow label="Executed" value={selectedDeal.properties?.Executed?.checkbox ? 'Yes' : 'No'} />
-                <DetailRow label="LO Name" value={extractText(selectedDeal.properties?.['LO Name']?.rich_text)} />
-                <DetailRow label="Mortgage Company" value={extractText(selectedDeal.properties?.['Mortgage Company']?.rich_text)} />
+                <DetailRow label="Buyer" value={selectedDeal['Buyer Name']} />
+                <DetailRow label="Agent" value={selectedDeal.Agent} />
+                <DetailRow label="Sales Price" value={formatCurrency(selectedDeal['Sales Price'])} />
+                <DetailRow label="Loan Status" value={selectedDeal['Loan Status']} />
+                <DetailRow label="Loan Type" value={selectedDeal['Loan Type']} />
+                <DetailRow label="Scheduled Closing" value={formatDate(selectedDeal['Scheduled Closing'])} />
+                <DetailRow label="Closed Date" value={formatDate(selectedDeal['Closed Date'])} />
+                <DetailRow label="Executed" value={selectedDeal.Executed ? 'Yes' : 'No'} />
+                <DetailRow label="LO Name" value={selectedDeal['LO Name']} />
+                <DetailRow label="Mortgage Company" value={selectedDeal['Mortgage Company']} />
               </div>
 
               <button

@@ -7,6 +7,7 @@ function TeamKPIView() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [selectedMember, setSelectedMember] = useState(null)
+  const [selectedDealType, setSelectedDealType] = useState(null) // 'all' | 'closed' | 'pending' | 'executed'
 
   useEffect(() => { fetchData() }, [])
 
@@ -197,7 +198,7 @@ function TeamKPIView() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setSelectedMember(null)}
+            onClick={() => { setSelectedMember(null); setSelectedDealType(null) }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           >
             <motion.div
@@ -235,25 +236,45 @@ function TeamKPIView() {
                   )}
                 </div>
 
-                {/* Detailed KPIs */}
-                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Performance Metrics</h3>
+                {/* Detailed KPIs - Clickable */}
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Performance Metrics (click to view deals)</h3>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-gray-800 rounded-xl p-4">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setSelectedDealType('all')}
+                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-4 text-left transition-colors"
+                  >
                     <p className="text-3xl font-bold text-white">{selectedMember.kpis.totalDeals}</p>
                     <p className="text-sm text-gray-400">Total Deals</p>
-                  </div>
-                  <div className="bg-gray-800 rounded-xl p-4">
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setSelectedDealType('closed')}
+                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-4 text-left transition-colors"
+                  >
                     <p className="text-3xl font-bold text-emerald-400">{selectedMember.kpis.closedDeals}</p>
                     <p className="text-sm text-gray-400">Closed Deals</p>
-                  </div>
-                  <div className="bg-gray-800 rounded-xl p-4">
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setSelectedDealType('executed')}
+                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-4 text-left transition-colors"
+                  >
                     <p className="text-3xl font-bold text-blue-400">{selectedMember.kpis.executedDeals}</p>
                     <p className="text-sm text-gray-400">Executed</p>
-                  </div>
-                  <div className="bg-gray-800 rounded-xl p-4">
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setSelectedDealType('pending')}
+                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-4 text-left transition-colors"
+                  >
                     <p className="text-3xl font-bold text-amber-400">{selectedMember.kpis.pendingDeals}</p>
                     <p className="text-sm text-gray-400">Pending</p>
-                  </div>
+                  </motion.button>
                 </div>
 
                 <div className="mt-4 space-y-3">
@@ -278,10 +299,86 @@ function TeamKPIView() {
                 </div>
 
                 <button
-                  onClick={() => setSelectedMember(null)}
+                  onClick={() => { setSelectedMember(null); setSelectedDealType(null) }}
                   className="mt-6 w-full py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors"
                 >
                   Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Deal List Modal */}
+        {selectedMember && selectedDealType && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedDealType(null)}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-gray-900 rounded-2xl border border-gray-700 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
+            >
+              <div className={`h-2 ${
+                selectedDealType === 'closed' ? 'bg-emerald-500' :
+                selectedDealType === 'executed' ? 'bg-blue-500' :
+                selectedDealType === 'pending' ? 'bg-amber-500' : 'bg-violet-500'
+              }`} />
+              <div className="p-6 flex-1 overflow-y-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-white">
+                    {selectedMember.name}'s {selectedDealType === 'all' ? 'All' : selectedDealType.charAt(0).toUpperCase() + selectedDealType.slice(1)} Deals
+                  </h2>
+                  <button onClick={() => setSelectedDealType(null)} className="text-gray-400 hover:text-white text-xl">✕</button>
+                </div>
+
+                {selectedMember.deals?.[selectedDealType]?.length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">No deals in this category</p>
+                ) : (
+                  <div className="space-y-3">
+                    {selectedMember.deals?.[selectedDealType]?.map((deal) => (
+                      <a
+                        key={deal.id}
+                        href={`https://notion.so/${deal.id.replace(/-/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block bg-gray-800 hover:bg-gray-700 rounded-xl p-4 transition-colors"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium text-white">{deal.address || 'No Address'}</p>
+                            {deal.buyerName && <p className="text-sm text-gray-400 mt-1">{deal.buyerName}</p>}
+                          </div>
+                          <span className="text-emerald-400 font-semibold">{formatCurrency(deal.salesPrice)}</span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-3 text-sm">
+                          {deal.loanStatus && (
+                            <span className="px-2 py-1 bg-gray-700 rounded text-gray-300">{deal.loanStatus}</span>
+                          )}
+                          {deal.scheduledClosing && (
+                            <span className="text-gray-500">Closing: {new Date(deal.scheduledClosing).toLocaleDateString()}</span>
+                          )}
+                          {deal.executed && (
+                            <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded">Executed</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-violet-400 mt-2">Click to open in Notion →</p>
+                      </a>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  onClick={() => setSelectedDealType(null)}
+                  className="mt-6 w-full py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors"
+                >
+                  Back to Member Details
                 </button>
               </div>
             </motion.div>
