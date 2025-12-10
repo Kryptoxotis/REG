@@ -72,7 +72,7 @@ export default function DatabaseViewer({ dbKey, data, isLoading }) {
 
   const renderCardView = () => (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{filteredData.map((item, idx) => dbKey === 'TEAM_MEMBERS' ? <TeamMemberCard key={item.id || idx} item={item} config={config} onClick={() => setSelectedItem(item)} /> : <SmartCardView key={item.id || idx} item={item} config={config} onClick={() => setSelectedItem(item)} />)}</div>)
 
-  const renderContent = () => { if (config.mobileLayout === 'table') return renderTableView(); if (config.mobileLayout === 'list') return (<><div className="sm:hidden">{renderListView()}</div><div className="hidden sm:block">{renderCardView()}</div></>); return renderCardView() }
+  const renderContent = () => { if (config.mobileLayout === 'table') return (<><div className="sm:hidden">{renderCardView()}</div><div className="hidden sm:block">{renderTableView()}</div></>); if (config.mobileLayout === 'list') return (<><div className="sm:hidden">{renderListView()}</div><div className="hidden sm:block">{renderCardView()}</div></>); return renderCardView() }
 
   if (isLoading) return (<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"><div className="animate-pulse space-y-4"><div className="h-6 bg-gray-200 rounded w-1/4"></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{[1, 2, 3].map(i => <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>)}</div></div></div>)
 
