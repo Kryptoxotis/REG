@@ -58,15 +58,15 @@ function TeamKPIView() {
 
   return (
     <div className="space-y-6">
-      {/* Team Summary Cards */}
+      {/* Team Summary Cards - Monthly */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-br from-violet-600 to-purple-700 rounded-2xl p-5">
-          <p className="text-violet-200 text-sm">Total Team Deals</p>
+          <p className="text-violet-200 text-sm">Monthly Deals</p>
           <p className="text-3xl font-bold text-white mt-1">{teamTotals.totalDeals}</p>
-          <p className="text-violet-300 text-xs mt-1">{teamTotals.closedDeals} closed</p>
+          <p className="text-violet-300 text-xs mt-1">{teamTotals.closedDeals} closed this month</p>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-gradient-to-br from-emerald-600 to-green-700 rounded-2xl p-5">
-          <p className="text-emerald-200 text-sm">Total Volume</p>
+          <p className="text-emerald-200 text-sm">Monthly Volume</p>
           <p className="text-3xl font-bold text-white mt-1">{formatCompact(teamTotals.totalVolume)}</p>
           <p className="text-emerald-300 text-xs mt-1">{formatCompact(teamTotals.closedVolume)} closed</p>
         </motion.div>
@@ -78,7 +78,7 @@ function TeamKPIView() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-gradient-to-br from-amber-600 to-orange-700 rounded-2xl p-5">
           <p className="text-amber-200 text-sm">Avg Deal Size</p>
           <p className="text-3xl font-bold text-white mt-1">{formatCompact(teamTotals.totalDeals > 0 ? teamTotals.totalVolume / teamTotals.totalDeals : 0)}</p>
-          <p className="text-amber-300 text-xs mt-1">per transaction</p>
+          <p className="text-amber-300 text-xs mt-1">this month</p>
         </motion.div>
       </div>
 
@@ -86,7 +86,9 @@ function TeamKPIView() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white">Team Performance</h2>
-          <p className="text-sm text-gray-400">Individual agent KPIs and metrics</p>
+          <p className="text-sm text-gray-400">
+            {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })} stats
+          </p>
         </div>
         <motion.button whileHover={{ scale: 1.1, rotate: 180 }} whileTap={{ scale: 0.9 }} onClick={fetchData} className="p-2.5 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white">
           🔄
@@ -177,11 +179,10 @@ function TeamKPIView() {
                 </div>
               )}
 
-              {/* Recent Activity Badge */}
-              {member.kpis.recentDeals > 0 && (
+              {/* All-time Stats */}
+              {member.kpis.allTimeDeals > 0 && (
                 <div className="mt-3 flex items-center gap-2">
-                  <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                  <span className="text-xs text-emerald-400">{member.kpis.recentDeals} deal{member.kpis.recentDeals > 1 ? 's' : ''} in last 30 days</span>
+                  <span className="text-xs text-gray-500">All-time: {member.kpis.allTimeDeals} deals ({member.kpis.allTimeClosed} closed)</span>
                 </div>
               )}
             </div>
