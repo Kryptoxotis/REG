@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
+import { Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react'
 
 function TeamKPIView({ onNavigate }) {
   const [data, setData] = useState([])
@@ -8,6 +9,8 @@ function TeamKPIView({ onNavigate }) {
   const [error, setError] = useState(null)
   const [selectedMember, setSelectedMember] = useState(null)
   const [selectedDealType, setSelectedDealType] = useState(null) // 'all' | 'closed' | 'pending' | 'executed'
+  const [showTerminated, setShowTerminated] = useState(false)
+  const [expandedCards, setExpandedCards] = useState({})
 
   useEffect(() => { fetchData() }, [])
 
@@ -21,6 +24,10 @@ function TeamKPIView({ onNavigate }) {
       setError(err.response?.data?.error || 'Failed to fetch team KPIs')
     } finally { setLoading(false) }
   }
+
+  const terminatedCount = useMemo(() => data.filter(m => m.status?.toLowerCase() === 'terminated').length, [data])
+  const filteredData = useMemo(() => showTerminated ? data : data.filter(m => m.status?.toLowerCase() !== 'terminated'), [data, showTerminated])
+  const toggleExpanded = (id) => setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }))
 
   if (loading) {
     return (
@@ -42,12 +49,12 @@ function TeamKPIView({ onNavigate }) {
     )
   }
 
-  // Calculate team totals
-  const teamTotals = data.reduce((acc, member) => ({
-    totalDeals: acc.totalDeals + member.kpis.totalDeals,
-    closedDeals: acc.closedDeals + member.kpis.closedDeals,
-    totalVolume: acc.totalVolume + member.kpis.totalVolume,
-    closedVolume: acc.closedVolume + member.kpis.closedVolume
+  // Calculate team totals from filtered data
+  const teamTotals = filteredData.reduce((acc, member) => ({
+    totalDeals: acc.totalDeals + (member.kpis?.totalDeals || 0),
+    closedDeals: acc.closedDeals + (member.kpis?.closedDeals || 0),
+    totalVolume: acc.totalVolume + (member.kpis?.totalVolume || 0),
+    closedVolume: acc.closedVolume + (member.kpis?.closedVolume || 0)
   }), { totalDeals: 0, closedDeals: 0, totalVolume: 0, closedVolume: 0 })
 
   const formatCurrency = (num) => '$' + num.toLocaleString()
@@ -73,8 +80,8 @@ function TeamKPIView({ onNavigate }) {
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-gradient-to-br from-blue-600 to-cyan-700 rounded-2xl p-5">
           <p className="text-blue-200 text-sm">Active Agents</p>
-          <p className="text-3xl font-bold text-white mt-1">{data.filter(m => m.status === 'Active').length}</p>
-          <p className="text-blue-300 text-xs mt-1">of {data.length} total</p>
+          <p className="text-3xl font-bold text-white mt-1">{filteredData.filter(m => m.status === 'Active').length}</p>
+          <p className="text-blue-300 text-xs mt-1">of {filteredData.length} shown</p>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-gradient-to-br from-amber-600 to-orange-700 rounded-2xl p-5">
           <p className="text-amber-200 text-sm">Avg Deal Size</p>
@@ -84,21 +91,34 @@ function TeamKPIView({ onNavigate }) {
       </div>
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl font-bold text-white">Team Performance</h2>
           <p className="text-sm text-gray-400">
-            {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })} stats
+            {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })} stats · {filteredData.length} members
           </p>
         </div>
-        <motion.button whileHover={{ scale: 1.1, rotate: 180 }} whileTap={{ scale: 0.9 }} onClick={fetchData} className="p-2.5 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white">
-          🔄
-        </motion.button>
+        <div className="flex items-center gap-2">
+          {terminatedCount > 0 && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowTerminated(!showTerminated)}
+              className={(showTerminated ? 'bg-red-500/20 text-red-400' : 'bg-gray-800 text-gray-300 hover:bg-gray-700') + " flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors border border-gray-700"}
+            >
+              {showTerminated ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showTerminated ? 'Hide' : 'Show'} Terminated ({terminatedCount})
+            </motion.button>
+          )}
+          <motion.button whileHover={{ scale: 1.1, rotate: 180 }} whileTap={{ scale: 0.9 }} onClick={fetchData} className="p-2.5 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white">
+            🔄
+          </motion.button>
+        </div>
       </div>
 
       {/* Team Member Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {data.map((member, idx) => (
+        {filteredData.map((member, idx) => (
           <motion.div
             key={member.id}
             initial={{ opacity: 0, y: 20 }}
@@ -187,6 +207,62 @@ function TeamKPIView({ onNavigate }) {
                 </div>
               )}
             </div>
+
+            {/* Expand Button for Extra Fields */}
+            {(member.phone || member.email || member.notes || member.hireDate || member.team) && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleExpanded(member.id); }}
+                  className="w-full px-5 py-2.5 bg-gray-900 border-t border-gray-700 flex items-center justify-center gap-2 text-sm text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
+                >
+                  {expandedCards[member.id] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  {expandedCards[member.id] ? 'Show Less' : 'Show More Details'}
+                </button>
+                <AnimatePresence>
+                  {expandedCards[member.id] && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-5 py-4 bg-gray-900 border-t border-gray-700 space-y-2">
+                        {member.phone && (
+                          <div className="flex items-center gap-3 text-sm">
+                            <span className="text-gray-500">📱 Phone:</span>
+                            <span className="text-gray-300">{member.phone}</span>
+                          </div>
+                        )}
+                        {member.email && (
+                          <div className="flex items-center gap-3 text-sm">
+                            <span className="text-gray-500">✉️ Email:</span>
+                            <span className="text-gray-300">{member.email}</span>
+                          </div>
+                        )}
+                        {member.hireDate && (
+                          <div className="flex items-center gap-3 text-sm">
+                            <span className="text-gray-500">📅 Hire Date:</span>
+                            <span className="text-gray-300">{member.hireDate}</span>
+                          </div>
+                        )}
+                        {member.team && (
+                          <div className="flex items-center gap-3 text-sm">
+                            <span className="text-gray-500">👥 Team:</span>
+                            <span className="text-gray-300">{member.team}</span>
+                          </div>
+                        )}
+                        {member.notes && (
+                          <div className="text-sm">
+                            <span className="text-gray-500">📝 Notes:</span>
+                            <p className="text-gray-300 mt-1">{member.notes}</p>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </>
+            )}
           </motion.div>
         ))}
       </div>
@@ -394,11 +470,11 @@ function TeamKPIView({ onNavigate }) {
         )}
       </AnimatePresence>
 
-      {data.length === 0 && (
+      {filteredData.length === 0 && (
         <div className="bg-gray-800 rounded-2xl p-12 text-center">
           <p className="text-6xl mb-4">👥</p>
-          <h3 className="text-lg font-semibold text-gray-200">No Team Members Found</h3>
-          <p className="text-gray-500 mt-2">Add team members to see their performance metrics</p>
+          <h3 className="text-lg font-semibold text-gray-200">{data.length === 0 ? 'No Team Members Found' : 'No Active Members'}</h3>
+          <p className="text-gray-500 mt-2">{data.length === 0 ? 'Add team members to see their performance metrics' : 'All members are terminated. Click "Show Terminated" to see them.'}</p>
         </div>
       )}
     </div>
