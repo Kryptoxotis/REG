@@ -14,6 +14,7 @@ function AdminDashboard({ user, setUser }) {
   const [loading, setLoading] = useState(true)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [highlightedDealId, setHighlightedDealId] = useState(null)
 
   useEffect(() => { fetchStats() }, [])
 
@@ -42,6 +43,13 @@ function AdminDashboard({ user, setUser }) {
   const handleNavClick = (view) => {
     setActiveView(view)
     setMobileMenuOpen(false)
+    setHighlightedDealId(null) // Clear highlight when navigating normally
+  }
+
+  // Navigate to a view and highlight a specific deal
+  const handleDealNavigate = (view, dealId) => {
+    setHighlightedDealId(dealId)
+    setActiveView(view)
   }
 
   const databases = [
@@ -293,13 +301,13 @@ function AdminDashboard({ user, setUser }) {
                 ) : activeView === 'settings' ? (
                   <Settings />
                 ) : activeView === 'TEAM_MEMBERS' ? (
-                  <TeamKPIView />
+                  <TeamKPIView onNavigate={handleDealNavigate} />
                 ) : activeView === 'SCHEDULE' ? (
                   <ScheduleCalendar />
                 ) : activeView === 'PIPELINE' ? (
-                  <PipelineBoard />
+                  <PipelineBoard highlightedDealId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} />
                 ) : (
-                  <DatabaseViewer databaseKey={activeView} databaseName={databases.find(db => db.key === activeView)?.name} />
+                  <DatabaseViewer databaseKey={activeView} databaseName={databases.find(db => db.key === activeView)?.name} highlightedId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} />
                 )}
               </motion.div>
             )}

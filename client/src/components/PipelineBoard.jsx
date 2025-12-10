@@ -24,13 +24,24 @@ const colorMap = {
   red: { bg: 'bg-red-500/20', border: 'border-red-500/30', text: 'text-red-400', header: 'bg-red-600' }
 }
 
-function PipelineBoard() {
+function PipelineBoard({ highlightedDealId, onClearHighlight }) {
   const [deals, setDeals] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [selectedDeal, setSelectedDeal] = useState(null)
 
   useEffect(() => { fetchDeals() }, [])
+
+  // Auto-select deal when highlightedDealId changes
+  useEffect(() => {
+    if (highlightedDealId && deals.length > 0) {
+      const deal = deals.find(d => d.id === highlightedDealId)
+      if (deal) {
+        setSelectedDeal(deal)
+        if (onClearHighlight) onClearHighlight()
+      }
+    }
+  }, [highlightedDealId, deals, onClearHighlight])
 
   const fetchDeals = async () => {
     setLoading(true)

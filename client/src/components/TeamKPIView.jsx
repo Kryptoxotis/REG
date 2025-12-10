@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 
-function TeamKPIView() {
+function TeamKPIView({ onNavigate }) {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -343,12 +343,20 @@ function TeamKPIView() {
                 ) : (
                   <div className="space-y-3">
                     {selectedMember.deals?.[selectedDealType]?.map((deal) => (
-                      <a
+                      <motion.button
                         key={deal.id}
-                        href={`https://notion.so/${deal.id.replace(/-/g, '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block bg-gray-800 hover:bg-gray-700 rounded-xl p-4 transition-colors"
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
+                        onClick={() => {
+                          // Navigate to Pipeline if deal has loan status, otherwise Properties
+                          const targetView = deal.loanStatus ? 'PIPELINE' : 'PROPERTIES'
+                          if (onNavigate) {
+                            onNavigate(targetView, deal.id)
+                          }
+                          setSelectedDealType(null)
+                          setSelectedMember(null)
+                        }}
+                        className="w-full text-left bg-gray-800 hover:bg-gray-700 rounded-xl p-4 transition-colors"
                       >
                         <div className="flex justify-between items-start">
                           <div>
@@ -368,8 +376,8 @@ function TeamKPIView() {
                             <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded">Executed</span>
                           )}
                         </div>
-                        <p className="text-xs text-violet-400 mt-2">Click to open in Notion →</p>
-                      </a>
+                        <p className="text-xs text-violet-400 mt-2">Click to view in {deal.loanStatus ? 'Pipeline' : 'Properties'} →</p>
+                      </motion.button>
                     ))}
                   </div>
                 )}

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 import DetailModal from './DetailModal'
 
-function DatabaseViewer({ databaseKey, databaseName }) {
+function DatabaseViewer({ databaseKey, databaseName, highlightedId, onClearHighlight }) {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -11,6 +11,17 @@ function DatabaseViewer({ databaseKey, databaseName }) {
   const [selectedItem, setSelectedItem] = useState(null)
 
   useEffect(() => { fetchData() }, [databaseKey])
+
+  // Auto-select item when highlightedId changes
+  useEffect(() => {
+    if (highlightedId && data.length > 0) {
+      const item = data.find(d => d.id === highlightedId)
+      if (item) {
+        setSelectedItem(item)
+        if (onClearHighlight) onClearHighlight()
+      }
+    }
+  }, [highlightedId, data, onClearHighlight])
 
   const fetchData = async () => {
     setLoading(true)
