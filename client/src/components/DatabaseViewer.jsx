@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, ChevronUp, Users, Building2, TrendingUp, UserCheck, Calendar, X, Filter, ChevronRight, Eye, EyeOff } from 'lucide-react'
+import axios from 'axios'
 
 const dbConfig = {
   TEAM_MEMBERS: { title: 'Team Members', icon: Users, primaryField: 'Name', secondaryFields: ['Role', 'Phone', 'Email'], statusField: 'Status', mobileLayout: 'card' },
@@ -55,14 +56,33 @@ function SmartCardView({ item, config, onClick }) {
   )
 }
 
-export default function DatabaseViewer({ dbKey, data = [], isLoading }) {
-  const config = dbConfig[dbKey] || dbConfig.TEAM_MEMBERS
+export default function DatabaseViewer({ databaseKey }) {
+  const config = dbConfig[databaseKey] || dbConfig.TEAM_MEMBERS
   const Icon = config.icon
+  const [data, setData] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
   const [selectedItem, setSelectedItem] = useState(null)
   const [showTerminated, setShowTerminated] = useState(false)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true)
+      try {
+        const response = await axios.get(`/api/databases/${databaseKey}`, { withCredentials: true })
+        setData(response.data || [])
+      } catch (error) {
+        console.error('Failed to fetch database:', error)
+        setData([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    if (databaseKey) fetchData()
+  }, [databaseKey])
+
   const safeData = data || []
-  const terminatedCount = useMemo(() => { if (dbKey !== 'TEAM_MEMBERS') return 0; return safeData.filter(item => { const status = item[config.statusField]; return status && status.toLowerCase().includes('terminated') }).length }, [safeData, dbKey, config.statusField])
-  const filteredData = useMemo(() => { if (dbKey !== 'TEAM_MEMBERS' || showTerminated) return safeData; return safeData.filter(item => { const status = item[config.statusField]; return !status || !status.toLowerCase().includes('terminated') }) }, [safeData, dbKey, showTerminated, config.statusField])
+  const terminatedCount = useMemo(() => { if (databaseKey !== 'TEAM_MEMBERS') return 0; return safeData.filter(item => { const status = item[config.statusField]; return status && status.toLowerCase().includes('terminated') }).length }, [safeData, databaseKey, config.statusField])
+  const filteredData = useMemo(() => { if (databaseKey !== 'TEAM_MEMBERS' || showTerminated) return safeData; return safeData.filter(item => { const status = item[config.statusField]; return !status || !status.toLowerCase().includes('terminated') }) }, [safeData, databaseKey, showTerminated, config.statusField])
 
   const renderTableView = () => {
     const columns = config.tableColumns || [config.primaryField, ...config.secondaryFields]
@@ -71,7 +91,7 @@ export default function DatabaseViewer({ dbKey, data = [], isLoading }) {
 
   const renderListView = () => (<div className="space-y-2">{filteredData.map((item, idx) => <motion.div key={item.id || idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 cursor-pointer hover:bg-gray-50" onClick={() => setSelectedItem(item)}><div className="flex items-center justify-between"><div className="flex-1 min-w-0"><p className="font-medium text-gray-900 truncate">{item[config.primaryField] || 'Untitled'}</p><p className="text-sm text-gray-500 truncate">{config.secondaryFields.map(f => item[f]).filter(Boolean).join(' . ')}</p></div><ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" /></div></motion.div>)}</div>)
 
-  const renderCardView = () => (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{filteredData.map((item, idx) => dbKey === 'TEAM_MEMBERS' ? <TeamMemberCard key={item.id || idx} item={item} config={config} onClick={() => setSelectedItem(item)} /> : <SmartCardView key={item.id || idx} item={item} config={config} onClick={() => setSelectedItem(item)} />)}</div>)
+  const renderCardView = () => (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{filteredData.map((item, idx) => databaseKey === 'TEAM_MEMBERS' ? <TeamMemberCard key={item.id || idx} item={item} config={config} onClick={() => setSelectedItem(item)} /> : <SmartCardView key={item.id || idx} item={item} config={config} onClick={() => setSelectedItem(item)} />)}</div>)
 
   const renderContent = () => { if (config.mobileLayout === 'table') return (<><div className="sm:hidden">{renderCardView()}</div><div className="hidden sm:block">{renderTableView()}</div></>); if (config.mobileLayout === 'list') return (<><div className="sm:hidden">{renderListView()}</div><div className="hidden sm:block">{renderCardView()}</div></>); return renderCardView() }
 
@@ -81,7 +101,7 @@ export default function DatabaseViewer({ dbKey, data = [], isLoading }) {
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">
         <div className="flex items-center gap-3"><div className="p-2 bg-blue-100 rounded-lg"><Icon className="w-5 h-5 text-blue-600" /></div><div><h2 className="font-semibold text-gray-900">{config.title}</h2><p className="text-sm text-gray-500">{filteredData.length} records</p></div></div>
-        {dbKey === 'TEAM_MEMBERS' && terminatedCount > 0 && <button onClick={() => setShowTerminated(!showTerminated)} className={(showTerminated ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200') + " flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"}>{showTerminated ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}{showTerminated ? 'Hide' : 'Show'} Terminated ({terminatedCount})</button>}
+        {databaseKey === 'TEAM_MEMBERS' && terminatedCount > 0 && <button onClick={() => setShowTerminated(!showTerminated)} className={(showTerminated ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200') + " flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"}>{showTerminated ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}{showTerminated ? 'Hide' : 'Show'} Terminated ({terminatedCount})</button>}
       </div>
       <div className="p-4">{filteredData.length === 0 ? <div className="text-center py-8 text-gray-500"><Icon className="w-12 h-12 mx-auto mb-3 text-gray-300" /><p>No records found</p></div> : renderContent()}</div>
       <AnimatePresence>
