@@ -1,499 +1,98 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import axios from 'axios'
-import DetailModal from './DetailModal'
+import { ChevronDown, ChevronUp, Users, Building2, TrendingUp, UserCheck, Calendar, X, Filter, ChevronRight, Eye, EyeOff } from 'lucide-react'
 
-function DatabaseViewer({ databaseKey, databaseName, highlightedId, onClearHighlight }) {
-  const [data, setData] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedItem, setSelectedItem] = useState(null)
-  const [showFilters, setShowFilters] = useState(false)
-  const [filters, setFilters] = useState({})
-
-  useEffect(() => { fetchData(); setFilters({}) }, [databaseKey])
-
-  // Auto-select item when highlightedId changes
-  useEffect(() => {
-    if (highlightedId && data.length > 0) {
-      const item = data.find(d => d.id === highlightedId)
-      if (item) {
-        setSelectedItem(item)
-        if (onClearHighlight) onClearHighlight()
-      }
-    }
-  }, [highlightedId, data, onClearHighlight])
-
-  const fetchData = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const response = await axios.get("/api/databases/" + databaseKey, { withCredentials: true })
-      setData(response.data)
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to fetch data')
-    } finally { setLoading(false) }
-  }
-
-  if (loading) {
-    return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-center py-20">
-        <div className="text-center">
-          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }} className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto" />
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="mt-4 text-gray-400">Loading {databaseName}...</motion.p>
-        </div>
-      </motion.div>
-    )
-  }
-
-  if (error) {
-    return (
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6 text-center">
-        <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ repeat: Infinity, duration: 2 }} className="text-4xl mb-3">⚠️</motion.div>
-        <p className="text-red-400 font-medium">{error}</p>
-        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={fetchData} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">Try Again</motion.button>
-      </motion.div>
-    )
-  }
-
-  if (data.length === 0) {
-    return (
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gray-800 border border-gray-700 rounded-2xl p-12 text-center">
-        <motion.div animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 2 }} className="text-6xl mb-4">📭</motion.div>
-        <h3 className="text-lg font-semibold text-gray-200">No Records Found</h3>
-        <p className="text-gray-500 mt-2">This database is currently empty</p>
-      </motion.div>
-    )
-  }
-
-  // Database-specific filter configs - ALL Notion fields
-  const filterConfigs = {
-    PROPERTIES: [
-      { key: 'Status', label: 'Status' },
-      { key: 'Subdivision', label: 'Subdivision' },
-      { key: 'Stage', label: 'Stage' },
-      { key: 'Floorplan', label: 'Floorplan' },
-      { key: 'Foreman', label: 'Foreman' },
-      { key: 'Bedrooms', label: 'Bedrooms' },
-      { key: 'Bathrooms', label: 'Bathrooms' },
-      { key: 'Story', label: 'Story' },
-      { key: 'Lot', label: 'Lot' },
-      { key: 'Block', label: 'Block' },
-      { key: 'Ready In', label: 'Ready In' },
-      { key: 'Promo', label: 'Promo' },
-      { key: 'HOA', label: 'HOA' },
-    ],
-    PIPELINE: [
-      { key: 'Loan Status', label: 'Loan Status' },
-      { key: 'Loan Type', label: 'Loan Type' },
-      { key: 'Agent', label: 'Agent' },
-      { key: 'Assisting Agent', label: 'Assisting Agent' },
-      { key: 'Executed', label: 'Executed' },
-      { key: 'Buyer Name', label: 'Buyer Name' },
-      { key: 'LO Name', label: 'LO Name' },
-      { key: 'Mortgage Company', label: 'Mortgage Company' },
-      { key: 'Broker Name', label: 'Broker Name' },
-      { key: 'Realtor Partner', label: 'Realtor Partner' },
-    ],
-    CLIENTS: [
-      { key: 'Status', label: 'Status' },
-    ],
-    TEAM_MEMBERS: [
-      { key: 'Status', label: 'Status' },
-      { key: 'Role', label: 'Role' },
-    ],
-  }
-
-  const availableFilters = filterConfigs[databaseKey] || []
-
-  // Get unique values for each filter
-  const getUniqueValues = (key) => {
-    return [...new Set(data.map(item => item[key]).filter(Boolean))].sort()
-  }
-
-  // Apply search and filters
-  const filteredData = data.filter(item => {
-    // Search filter
-    if (searchTerm) {
-      const match = Object.values(item).some(val =>
-        String(formatValue(val)).toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      if (!match) return false
-    }
-
-    // Apply each active filter
-    for (const [key, value] of Object.entries(filters)) {
-      if (value && item[key] !== value) return false
-    }
-
-    return true
-  })
-
-  const clearFilters = () => {
-    setSearchTerm('')
-    setFilters({})
-  }
-
-  const hasActiveFilters = searchTerm || Object.values(filters).some(v => v)
-
-  return (
-    <div className="space-y-4 sm:space-y-6">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white">{databaseName}</h2>
-          <p className="text-sm text-gray-400">
-            {filteredData.length} of {data.length} {data.length === 1 ? 'record' : 'records'}
-            {hasActiveFilters && ' (filtered)'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <motion.div className="relative flex-1 sm:flex-none" whileFocus={{ scale: 1.02 }}>
-            <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 sm:pl-10 pr-4 py-2 sm:py-2.5 bg-gray-800 border border-gray-700 rounded-xl w-full sm:w-64 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm" />
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">🔍</span>
-          </motion.div>
-          {availableFilters.length > 0 && (
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setShowFilters(!showFilters)}
-              className={`p-2 sm:p-2.5 border rounded-xl transition-colors flex-shrink-0 ${
-                showFilters || hasActiveFilters
-                  ? 'bg-indigo-600 border-indigo-500 text-white'
-                  : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'
-              }`}
-            >
-              ⚙️
-            </motion.button>
-          )}
-          <motion.button whileHover={{ scale: 1.1, rotate: 180 }} whileTap={{ scale: 0.9 }} onClick={fetchData} className="p-2 sm:p-2.5 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white hover:border-gray-600 transition-colors flex-shrink-0">🔄</motion.button>
-        </div>
-      </motion.div>
-
-      {/* Filter Panel */}
-      <AnimatePresence>
-        {showFilters && availableFilters.length > 0 && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
-              <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                {availableFilters.map(filter => (
-                  <select
-                    key={filter.key}
-                    value={filters[filter.key] || ''}
-                    onChange={(e) => setFilters(f => ({ ...f, [filter.key]: e.target.value }))}
-                    className="px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">All {filter.label}</option>
-                    {getUniqueValues(filter.key).map(val => (
-                      <option key={val} value={val}>{val}</option>
-                    ))}
-                  </select>
-                ))}
-              </div>
-              {hasActiveFilters && (
-                <motion.button
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  onClick={clearFilters}
-                  className="w-full mt-3 py-2 text-sm text-gray-400 hover:text-white transition-colors"
-                >
-                  ✕ Clear all filters
-                </motion.button>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <SmartCardView data={filteredData} databaseKey={databaseKey} onItemClick={setSelectedItem} />
-
-      <AnimatePresence>
-        {selectedItem && (
-          <DetailModal item={selectedItem} databaseKey={databaseKey} onClose={() => setSelectedItem(null)} onUpdate={fetchData} />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {filteredData.length === 0 && searchTerm && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-gray-800 border border-gray-700 rounded-2xl p-8 text-center">
-            <p className="text-gray-400">No records match your search</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
-        <p>Showing {filteredData.length} of {data.length} records</p>
-      </motion.div>
-    </div>
-  )
+const dbConfig = {
+  TEAM_MEMBERS: { title: 'Team Members', icon: Users, primaryField: 'Name', secondaryFields: ['Role', 'Phone', 'Email'], statusField: 'Status', mobileLayout: 'card' },
+  PROPERTIES: { title: 'Properties', icon: Building2, primaryField: 'Property Name', secondaryFields: ['Status', 'Type', 'Address'], statusField: 'Status', mobileLayout: 'table', tableColumns: ['Property Name', 'Status', 'Type', 'Address', 'Price'] },
+  PIPELINE: { title: 'Pipeline', icon: TrendingUp, primaryField: 'Deal Name', secondaryFields: ['Stage', 'Value', 'Agent'], statusField: 'Stage', mobileLayout: 'card' },
+  CLIENTS: { title: 'Clients', icon: UserCheck, primaryField: 'Name', secondaryFields: ['Email', 'Phone', 'Source'], statusField: 'Status', mobileLayout: 'card' },
+  SCHEDULE: { title: 'Schedule', icon: Calendar, primaryField: 'Date', secondaryFields: ['Model Home Address', 'Assigned Staff 1', 'Assigned Staff 2'], statusField: null, mobileLayout: 'list' }
 }
 
-function SmartCardView({ data, databaseKey, onItemClick }) {
-  if (!data || data.length === 0) return null
-
-  const metaFields = ['id', 'created_time', 'last_edited_time']
-  const sampleItem = data[0]
-  const fields = Object.keys(sampleItem).filter(k => !metaFields.includes(k))
-
-  // Database-specific field configs (matched to actual Notion field names)
-  const dbConfig = {
-    TEAM_MEMBERS: {
-      icon: '👥', gradient: 'from-violet-500 to-purple-400', iconBg: 'bg-violet-500/20',
-      titleField: 'Name', subtitleField: 'Phone', statusField: 'Status',
-      showFields: ['Email - ERA', 'Role', 'License Number'],
-      mobileLayout: 'card'
-    },
-    PROPERTIES: {
-      icon: '🏘️', gradient: 'from-emerald-500 to-green-400', iconBg: 'bg-emerald-500/20',
-      titleField: 'Address', subtitleField: 'Subdivision', statusField: 'Status',
-      showFields: ['SqFt', 'Sales Price', 'Floorplan', 'Stage'],
-      mobileLayout: 'list' // Compact list view for properties
-    },
-    MODEL_HOMES: {
-      icon: '🏠', gradient: 'from-teal-500 to-cyan-400', iconBg: 'bg-teal-500/20',
-      titleField: 'Address', subtitleField: 'Subdivision', statusField: 'Status',
-      showFields: ['SqFt', 'Sales Price', 'Floorplan'],
-      mobileLayout: 'card'
-    },
-    PIPELINE: {
-      icon: '📊', gradient: 'from-blue-500 to-cyan-400', iconBg: 'bg-blue-500/20',
-      titleField: 'Address', subtitleField: 'Buyer Name', statusField: 'Loan Status',
-      showFields: ['Sales Price', 'Agent', 'Scheduled Closing', 'Executed'],
-      mobileLayout: 'card'
-    },
-    CLIENTS: {
-      icon: '💼', gradient: 'from-pink-500 to-rose-400', iconBg: 'bg-pink-500/20',
-      titleField: 'Property Address', subtitleField: 'Full Name', statusField: 'Status',
-      showFields: ['Phone', 'Email', 'Timeline'],
-      mobileLayout: 'card'
-    },
-    SCHEDULE: {
-      icon: '📅', gradient: 'from-amber-500 to-orange-400', iconBg: 'bg-amber-500/20',
-      titleField: 'Date', subtitleField: 'Model Home Address', statusField: null,
-      showFields: ['Assigned Staff 1', 'Assigned Staff 2'],
-      mobileLayout: 'card'
-    },
-    SCOREBOARD: {
-      icon: '🏆', gradient: 'from-indigo-500 to-purple-400', iconBg: 'bg-indigo-500/20',
-      titleField: 'Address', subtitleField: 'Agent', statusField: 'Loan Status',
-      showFields: ['Sales Price', 'Closed Date', 'Loan Amount'],
-      mobileLayout: 'card'
-    }
-  }
-
-  const config = dbConfig[databaseKey] || { icon: '📋', gradient: 'from-gray-500 to-gray-400', iconBg: 'bg-gray-500/20', titleField: fields[0], showFields: fields.slice(1, 4), mobileLayout: 'card' }
-
-  const getPrimaryField = (item) => {
-    const val = item[config.titleField]
-    if (val) return { key: config.titleField, value: val }
-    for (const field of fields) {
-      const v = item[field]
-      if (typeof v === 'string' && v.trim() !== '') return { key: field, value: v }
-    }
-    return { key: fields[0], value: formatValue(item[fields[0]]) }
-  }
-
-  // Properties get a compact list view on mobile
-  if (config.mobileLayout === 'list') {
-    return (
-      <>
-        {/* Mobile List View for Properties */}
-        <div className="sm:hidden space-y-2">
-          {data.map((item, idx) => {
-            const primary = getPrimaryField(item)
-            const status = config.statusField ? item[config.statusField] : null
-            const price = item['Sales Price']
-            const sqft = item['SqFt']
-            const stage = item['Stage']
-
-            return (
-              <motion.div
-                key={item.id || idx}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: Math.min(idx * 0.02, 0.5) }}
-                onClick={() => onItemClick && onItemClick(item)}
-                className="bg-gray-800 rounded-xl border border-gray-700 p-3 active:bg-gray-700 cursor-pointer"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-medium text-white truncate">{primary.value || 'Untitled'}</h4>
-                      {status && (
-                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${getStatusColor(status)}`}>
-                          {formatValue(status)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
-                      {sqft && <span>{sqft.toLocaleString()} sqft</span>}
-                      {stage && <span className="text-blue-400">{stage}</span>}
-                    </div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    {price && (
-                      <span className="text-emerald-400 font-semibold">
-                        ${price.toLocaleString()}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            )
-          })}
-        </div>
-
-        {/* Desktop Card View */}
-        <div className="hidden sm:grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {data.map((item, idx) => (
-            <PropertyCard
-              key={item.id || idx}
-              item={item}
-              idx={idx}
-              config={config}
-              fields={fields}
-              getPrimaryField={getPrimaryField}
-              onItemClick={onItemClick}
-            />
-          ))}
-        </div>
-      </>
-    )
-  }
-
-  // Default card view for other databases
-  const cardVariants = {
-    hidden: { opacity: 0, y: 20, scale: 0.95 },
-    visible: (i) => ({ opacity: 1, y: 0, scale: 1, transition: { delay: Math.min(i * 0.03, 0.5), duration: 0.3, ease: 'easeOut' } })
-  }
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-      {data.map((item, idx) => {
-        const primary = getPrimaryField(item)
-        const status = config.statusField ? item[config.statusField] : null
-        const subtitle = config.subtitleField ? item[config.subtitleField] : null
-        const displayFields = config.showFields.filter(f => item[f] !== null && item[f] !== undefined && item[f] !== '')
-
-        return (
-          <motion.div
-            key={item.id || idx}
-            custom={idx}
-            initial="hidden"
-            animate="visible"
-            variants={cardVariants}
-            whileHover={{ scale: 1.02, y: -4 }}
-            onClick={() => onItemClick && onItemClick(item)}
-            className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden hover:border-gray-600 active:bg-gray-700 transition-colors group cursor-pointer"
-          >
-            <div className={`h-1 bg-gradient-to-r ${config.gradient}`} />
-
-            <div className="p-3 sm:p-4">
-              <div className="flex items-start justify-between mb-2">
-                <div className={`w-8 h-8 ${config.iconBg} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                  <span className="text-lg">{config.icon}</span>
-                </div>
-                {status && (
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
-                    {formatValue(status)}
-                  </span>
-                )}
-              </div>
-
-              <h4 className="font-semibold text-white mb-0.5 text-sm sm:text-base truncate">{primary.value || 'Untitled'}</h4>
-              {subtitle && <p className="text-xs text-gray-500 truncate">{formatValue(subtitle)}</p>}
-
-              <div className="space-y-1 mt-2">
-                {displayFields.slice(0, 3).map(field => (
-                  <div key={field} className="flex justify-between text-xs">
-                    <span className="text-gray-500 truncate max-w-[40%]">{field}</span>
-                    <span className="text-gray-300 font-medium truncate ml-2 max-w-[55%] text-right">{formatValue(item[field])}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )
-      })}
-    </div>
-  )
+function getStatusColor(status) {
+  if (!status) return 'bg-gray-100 text-gray-800'
+  const s = status.toLowerCase()
+  if (s.includes('active') || s.includes('won') || s.includes('closed')) return 'bg-green-100 text-green-800'
+  if (s.includes('pending') || s.includes('negotiation') || s.includes('showing')) return 'bg-yellow-100 text-yellow-800'
+  if (s.includes('new') || s.includes('lead') || s.includes('prospect')) return 'bg-blue-100 text-blue-800'
+  if (s.includes('inactive') || s.includes('lost') || s.includes('terminated')) return 'bg-red-100 text-red-800'
+  return 'bg-gray-100 text-gray-800'
 }
 
-// Separate card component for Properties desktop view
-function PropertyCard({ item, idx, config, fields, getPrimaryField, onItemClick }) {
-  const primary = getPrimaryField(item)
-  const status = config.statusField ? item[config.statusField] : null
-  const subtitle = config.subtitleField ? item[config.subtitleField] : null
-  const displayFields = config.showFields.filter(f => item[f] !== null && item[f] !== undefined && item[f] !== '')
-
+function TeamMemberCard({ item, config, onClick }) {
+  const [expanded, setExpanded] = useState(false)
+  const displayedFields = [config.primaryField, ...config.secondaryFields, config.statusField].filter(Boolean)
+  const extraFields = Object.entries(item).filter(([key, value]) => !displayedFields.includes(key) && key !== 'id' && key !== 'created_time' && key !== 'last_edited_time' && value !== null && value !== '' && value !== undefined)
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(idx * 0.03, 0.5) }}
-      whileHover={{ scale: 1.02, y: -4 }}
-      onClick={() => onItemClick && onItemClick(item)}
-      className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden hover:border-gray-600 transition-colors cursor-pointer"
-    >
-      <div className={`h-1.5 bg-gradient-to-r ${config.gradient}`} />
-
-      <div className="p-4">
-        <div className="flex items-start justify-between mb-3">
-          <div className={`w-10 h-10 ${config.iconBg} rounded-lg flex items-center justify-center`}>
-            <span className="text-xl">{config.icon}</span>
-          </div>
-          {status && (
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
-              {formatValue(status)}
-            </span>
-          )}
+    <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="p-4 cursor-pointer hover:bg-gray-50" onClick={onClick}>
+        <div className="flex justify-between items-start mb-2">
+          <h3 className="font-semibold text-gray-900 truncate flex-1">{item[config.primaryField] || 'Untitled'}</h3>
+          {config.statusField && item[config.statusField] && <span className={"ml-2 px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(item[config.statusField])}>{item[config.statusField]}</span>}
         </div>
-
-        <h4 className="font-semibold text-white mb-1 text-lg">{primary.value || 'Untitled'}</h4>
-        {subtitle && <p className="text-xs text-gray-500">{formatValue(subtitle)}</p>}
-
-        <div className="space-y-2 mt-3">
-          {displayFields.slice(0, 4).map(field => (
-            <div key={field} className="flex justify-between text-sm">
-              <span className="text-gray-500">{field}</span>
-              <span className="text-gray-300 font-medium">{formatValue(item[field])}</span>
-            </div>
-          ))}
-        </div>
-
-        {fields.length > 5 && <p className="text-xs text-gray-600 mt-3">+ {fields.length - 5} more fields</p>}
+        <div className="space-y-1">{config.secondaryFields.map(field => item[field] && <p key={field} className="text-sm text-gray-600 truncate"><span className="text-gray-400">{field}:</span> {String(item[field])}</p>)}</div>
       </div>
+      {extraFields.length > 0 && (<>
+        <button onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }} className="w-full px-4 py-2 bg-gray-50 border-t border-gray-200 flex items-center justify-center gap-2 text-sm text-gray-600 hover:bg-gray-100">
+          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}{expanded ? 'Show Less' : 'Show ' + extraFields.length + ' More Fields'}
+        </button>
+        <AnimatePresence>{expanded && <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden"><div className="px-4 py-3 bg-gray-50 border-t border-gray-200 space-y-2">{extraFields.map(([key, value]) => <p key={key} className="text-sm text-gray-600"><span className="text-gray-400 font-medium">{key}:</span> {String(value)}</p>)}</div></motion.div>}</AnimatePresence>
+      </>)}
     </motion.div>
   )
 }
 
-function formatValue(value) {
-  if (value === null || value === undefined) return '—'
-  if (Array.isArray(value)) return value.join(', ')
-  if (typeof value === 'object') {
-    if (value.start) return value.start
-    return JSON.stringify(value)
-  }
-  if (typeof value === 'boolean') return value ? '✓ Yes' : '✗ No'
-  if (typeof value === 'number') {
-    if (value > 10000) return '$' + value.toLocaleString()
-    return value.toLocaleString()
-  }
-  return String(value)
+function SmartCardView({ item, config, onClick }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={onClick}>
+      <div className="flex justify-between items-start mb-2">
+        <h3 className="font-semibold text-gray-900 truncate flex-1">{item[config.primaryField] || 'Untitled'}</h3>
+        {config.statusField && item[config.statusField] && <span className={"ml-2 px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(item[config.statusField])}>{item[config.statusField]}</span>}
+      </div>
+      <div className="space-y-1">{config.secondaryFields.map(field => item[field] && <p key={field} className="text-sm text-gray-600 truncate"><span className="text-gray-400">{field}:</span> {String(item[field])}</p>)}</div>
+    </motion.div>
+  )
 }
 
-function getStatusColor(status) {
-  if (!status) return 'bg-gray-600/30 text-gray-400'
-  const s = String(status).toLowerCase()
-  if (s.includes('active') || s.includes('model home') || s.includes('closed') || s.includes('funded') || s.includes('done') || s.includes('yes')) return 'bg-emerald-500/20 text-emerald-400'
-  if (s.includes('pending') || s.includes('processing') || s.includes('progress') || s.includes('conditions')) return 'bg-amber-500/20 text-amber-400'
-  if (s.includes('inactive') || s.includes('cancelled') || s.includes('back on market') || s.includes('no')) return 'bg-red-500/20 text-red-400'
-  if (s.includes('inventory') || s.includes('new') || s.includes('application') || s.includes('disclosures')) return 'bg-blue-500/20 text-blue-400'
-  return 'bg-gray-600/30 text-gray-400'
-}
+export default function DatabaseViewer({ dbKey, data, isLoading }) {
+  const config = dbConfig[dbKey] || dbConfig.TEAM_MEMBERS
+  const Icon = config.icon
+  const [selectedItem, setSelectedItem] = useState(null)
+  const [showTerminated, setShowTerminated] = useState(false)
+  const terminatedCount = useMemo(() => { if (dbKey !== 'TEAM_MEMBERS') return 0; return data.filter(item => { const status = item[config.statusField]; return status && status.toLowerCase().includes('terminated') }).length }, [data, dbKey, config.statusField])
+  const filteredData = useMemo(() => { if (dbKey !== 'TEAM_MEMBERS' || showTerminated) return data; return data.filter(item => { const status = item[config.statusField]; return !status || !status.toLowerCase().includes('terminated') }) }, [data, dbKey, showTerminated, config.statusField])
 
-export default DatabaseViewer
+  const renderTableView = () => {
+    const columns = config.tableColumns || [config.primaryField, ...config.secondaryFields]
+    return (<div className="overflow-x-auto"><table className="min-w-full divide-y divide-gray-200"><thead className="bg-gray-50"><tr>{columns.map(col => <th key={col} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{col}</th>)}</tr></thead><tbody className="bg-white divide-y divide-gray-200">{filteredData.map((item, idx) => <tr key={item.id || idx} className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedItem(item)}>{columns.map(col => <td key={col} className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">{col === config.statusField && item[col] ? <span className={"px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(item[col])}>{item[col]}</span> : String(item[col] || '-')}</td>)}</tr>)}</tbody></table></div>)
+  }
+
+  const renderListView = () => (<div className="space-y-2">{filteredData.map((item, idx) => <motion.div key={item.id || idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 cursor-pointer hover:bg-gray-50" onClick={() => setSelectedItem(item)}><div className="flex items-center justify-between"><div className="flex-1 min-w-0"><p className="font-medium text-gray-900 truncate">{item[config.primaryField] || 'Untitled'}</p><p className="text-sm text-gray-500 truncate">{config.secondaryFields.map(f => item[f]).filter(Boolean).join(' . ')}</p></div><ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" /></div></motion.div>)}</div>)
+
+  const renderCardView = () => (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{filteredData.map((item, idx) => dbKey === 'TEAM_MEMBERS' ? <TeamMemberCard key={item.id || idx} item={item} config={config} onClick={() => setSelectedItem(item)} /> : <SmartCardView key={item.id || idx} item={item} config={config} onClick={() => setSelectedItem(item)} />)}</div>)
+
+  const renderContent = () => { if (config.mobileLayout === 'table') return renderTableView(); if (config.mobileLayout === 'list') return (<><div className="sm:hidden">{renderListView()}</div><div className="hidden sm:block">{renderCardView()}</div></>); return renderCardView() }
+
+  if (isLoading) return (<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"><div className="animate-pulse space-y-4"><div className="h-6 bg-gray-200 rounded w-1/4"></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{[1, 2, 3].map(i => <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>)}</div></div></div>)
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="flex items-center gap-3"><div className="p-2 bg-blue-100 rounded-lg"><Icon className="w-5 h-5 text-blue-600" /></div><div><h2 className="font-semibold text-gray-900">{config.title}</h2><p className="text-sm text-gray-500">{filteredData.length} records</p></div></div>
+        {dbKey === 'TEAM_MEMBERS' && terminatedCount > 0 && <button onClick={() => setShowTerminated(!showTerminated)} className={(showTerminated ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200') + " flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"}>{showTerminated ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}{showTerminated ? 'Hide' : 'Show'} Terminated ({terminatedCount})</button>}
+      </div>
+      <div className="p-4">{filteredData.length === 0 ? <div className="text-center py-8 text-gray-500"><Icon className="w-12 h-12 mx-auto mb-3 text-gray-300" /><p>No records found</p></div> : renderContent()}</div>
+      <AnimatePresence>
+        {selectedItem && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setSelectedItem(null)}>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="p-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white"><h3 className="font-semibold text-lg text-gray-900">{selectedItem[config.primaryField] || 'Details'}</h3><button onClick={() => setSelectedItem(null)} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button></div>
+              <div className="p-4 space-y-3">{Object.entries(selectedItem).filter(([key]) => key !== 'id' && key !== 'created_time' && key !== 'last_edited_time').map(([key, value]) => value !== null && value !== '' && value !== undefined && <div key={key}><p className="text-sm text-gray-500">{key}</p><p className="text-gray-900">{key === config.statusField ? <span className={"px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(value)}>{String(value)}</span> : String(value)}</p></div>)}</div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
