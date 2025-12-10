@@ -51,8 +51,8 @@ function ScheduleCalendar({ onNavigate }) {
   const formatCurrency = (num) => '$' + (num || 0).toLocaleString()
 
   const startEdit = () => {
-    setEditStaff1(getEntryStaff1(selectedEvent))
-    setEditStaff2(getEntryStaff2(selectedEvent))
+    setEditStaff1(selectedEvent['Assigned Staff 1'] || '')
+    setEditStaff2(selectedEvent['Assigned Staff 2'] || '')
     setEditMode(true)
   }
 
@@ -108,65 +108,14 @@ function ScheduleCalendar({ onNavigate }) {
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1))
   const goToToday = () => setCurrentDate(new Date())
 
-  // Parse date from "DD/MM/YYYY - Address - Staff1 & Staff2" format
+  // Parse date from "DD/MM/YYYY" format (proper separate fields)
   const parseScheduleDate = (dateStr) => {
     if (!dateStr) return null
-    const datePart = dateStr.split(' - ')[0]
+    // Handle both old combined format "DD/MM/YYYY - Address" and new proper format "DD/MM/YYYY"
+    const datePart = dateStr.includes(' - ') ? dateStr.split(' - ')[0] : dateStr
     const [day, month, year] = datePart.split('/')
     if (!day || !month || !year) return null
     return { day: parseInt(day), month: parseInt(month), year: parseInt(year) }
-  }
-
-  // Parse full entry from combined title format "DD/MM/YYYY - Address - Staff1 & Staff2"
-  const parseScheduleEntry = (item) => {
-    const dateStr = item.Date || ''
-    const parts = dateStr.split(' - ')
-    
-    // Date is always first part
-    const datePart = parts[0] || ''
-    const [day, monthNum, yearNum] = datePart.split('/')
-    
-    // Address: prefer explicit field, fallback to second part of title
-    const address = item['Model Home Address'] || parts[1] || ''
-    
-    // Staff: prefer explicit fields, fallback to parsing third part of title
-    let staff1 = item['Assigned Staff 1'] || ''
-    let staff2 = item['Assigned Staff 2'] || ''
-    
-    // If no explicit staff fields but we have a third part, parse "Staff1 & Staff2"
-    if (!staff1 && !staff2 && parts[2]) {
-      const staffPart = parts[2]
-      const staffNames = staffPart.split(' & ')
-      staff1 = staffNames[0]?.trim() || ''
-      staff2 = staffNames[1]?.trim() || ''
-    }
-    
-    return {
-      date: day && monthNum && yearNum 
-        ? { day: parseInt(day), month: parseInt(monthNum), year: parseInt(yearNum) } 
-        : null,
-      address,
-      staff1,
-      staff2
-    }
-  }
-
-  // Helper to get address from item (handles combined title format)
-  const getEntryAddress = (item) => {
-    const entry = parseScheduleEntry(item)
-    return entry.address || 'Shift'
-  }
-
-  // Helper to get staff1 from item (handles combined title format)
-  const getEntryStaff1 = (item) => {
-    const entry = parseScheduleEntry(item)
-    return entry.staff1
-  }
-
-  // Helper to get staff2 from item (handles combined title format)
-  const getEntryStaff2 = (item) => {
-    const entry = parseScheduleEntry(item)
-    return entry.staff2
   }
 
   const getEventsForDay = (day) => {
@@ -285,7 +234,7 @@ function ScheduleCalendar({ onNavigate }) {
                           onClick={() => setSelectedEvent(event)}
                           className="px-1.5 py-1 bg-amber-500/20 border border-amber-500/30 rounded text-[10px] sm:text-xs text-amber-300 truncate cursor-pointer hover:bg-amber-500/30 transition-colors"
                         >
-                          {getEntryAddress(event)}
+                          {event['Model Home Address'] || 'Shift'}
                         </motion.div>
                       ))}
                       {events.length > 2 && (
@@ -331,8 +280,6 @@ function ScheduleCalendar({ onNavigate }) {
             .map((event, idx) => {
               const parsed = parseScheduleDate(event.Date)
               const date = new Date(parsed.year, parsed.month - 1, parsed.day)
-              const staff1 = getEntryStaff1(event)
-              const staff2 = getEntryStaff2(event)
               return (
                 <motion.div
                   key={event.id || idx}
@@ -348,16 +295,16 @@ function ScheduleCalendar({ onNavigate }) {
                       <span className="text-amber-300 text-lg font-bold">{date.getDate()}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-white font-medium truncate">{getEntryAddress(event)}</p>
+                      <p className="text-white font-medium truncate">{event['Model Home Address'] || 'Scheduled Shift'}</p>
                       <div className="flex flex-wrap gap-2 mt-1">
-                        {staff1 && (
+                        {event['Assigned Staff 1'] && (
                           <span className="text-xs text-gray-400">
-                            👤 {staff1}
+                            👤 {event['Assigned Staff 1']}
                           </span>
                         )}
-                        {staff2 && (
+                        {event['Assigned Staff 2'] && (
                           <span className="text-xs text-gray-400">
-                            👤 {staff2}
+                            👤 {event['Assigned Staff 2']}
                           </span>
                         )}
                       </div>
@@ -381,11 +328,7 @@ function ScheduleCalendar({ onNavigate }) {
 
       {/* Event Detail Modal */}
       <AnimatePresence>
-        {selectedEvent && (() => {
-          const eventAddress = getEntryAddress(selectedEvent)
-          const eventStaff1 = getEntryStaff1(selectedEvent)
-          const eventStaff2 = getEntryStaff2(selectedEvent)
-          return (
+        {selectedEvent && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -420,7 +363,7 @@ function ScheduleCalendar({ onNavigate }) {
                 </div>
 
                 <div className="space-y-4">
-                  {eventAddress && eventAddress !== 'Shift' && (
+                  {selectedEvent['Model Home Address'] && (
                     <motion.div
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
@@ -434,7 +377,7 @@ function ScheduleCalendar({ onNavigate }) {
                       className="bg-gray-800 rounded-xl p-4 cursor-pointer hover:bg-gray-700/50 transition-colors group"
                     >
                       <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Location</p>
-                      <p className="text-white font-medium">{eventAddress}</p>
+                      <p className="text-white font-medium">{selectedEvent['Model Home Address']}</p>
                       <p className="text-xs text-amber-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">Click to view in Pipeline →</p>
                     </motion.div>
                   )}
@@ -496,35 +439,35 @@ function ScheduleCalendar({ onNavigate }) {
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {eventStaff1 && (
+                        {selectedEvent['Assigned Staff 1'] && (
                           <motion.div
                             whileHover={{ scale: 1.02, x: 4 }}
                             whileTap={{ scale: 0.98 }}
-                            onClick={(e) => handleStaffClick(eventStaff1, e)}
+                            onClick={(e) => handleStaffClick(selectedEvent['Assigned Staff 1'], e)}
                             className="flex items-center gap-3 cursor-pointer p-2 -m-2 rounded-lg hover:bg-gray-700/50 transition-colors"
                           >
                             <div className="w-8 h-8 bg-amber-500/20 rounded-full flex items-center justify-center text-amber-400 text-sm font-bold">
-                              {eventStaff1.charAt(0)}
+                              {selectedEvent['Assigned Staff 1'].charAt(0)}
                             </div>
-                            <span className="text-white">{eventStaff1}</span>
+                            <span className="text-white">{selectedEvent['Assigned Staff 1']}</span>
                             <span className="ml-auto text-xs text-amber-400">View Stats →</span>
                           </motion.div>
                         )}
-                        {eventStaff2 && (
+                        {selectedEvent['Assigned Staff 2'] && (
                           <motion.div
                             whileHover={{ scale: 1.02, x: 4 }}
                             whileTap={{ scale: 0.98 }}
-                            onClick={(e) => handleStaffClick(eventStaff2, e)}
+                            onClick={(e) => handleStaffClick(selectedEvent['Assigned Staff 2'], e)}
                             className="flex items-center gap-3 cursor-pointer p-2 -m-2 rounded-lg hover:bg-gray-700/50 transition-colors"
                           >
                             <div className="w-8 h-8 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-400 text-sm font-bold">
-                              {eventStaff2.charAt(0)}
+                              {selectedEvent['Assigned Staff 2'].charAt(0)}
                             </div>
-                            <span className="text-white">{eventStaff2}</span>
+                            <span className="text-white">{selectedEvent['Assigned Staff 2']}</span>
                             <span className="ml-auto text-xs text-orange-400">View Stats →</span>
                           </motion.div>
                         )}
-                        {!eventStaff1 && !eventStaff2 && (
+                        {!selectedEvent['Assigned Staff 1'] && !selectedEvent['Assigned Staff 2'] && (
                           <p className="text-gray-500">No staff assigned</p>
                         )}
                       </div>
@@ -541,8 +484,7 @@ function ScheduleCalendar({ onNavigate }) {
               </div>
             </motion.div>
           </motion.div>
-          )
-        })()}
+        )}
       </AnimatePresence>
 
       {/* Staff Stats Modal */}
@@ -678,10 +620,7 @@ function ScheduleCalendar({ onNavigate }) {
                 </div>
 
                 <div className="space-y-3 max-h-[50vh] overflow-y-auto">
-                  {selectedDayEvents.events.map((event, idx) => {
-                    const staff1 = getEntryStaff1(event)
-                    const staff2 = getEntryStaff2(event)
-                    return (
+                  {selectedDayEvents.events.map((event, idx) => (
                     <motion.div
                       key={event.id || idx}
                       initial={{ opacity: 0, x: -10 }}
@@ -694,16 +633,16 @@ function ScheduleCalendar({ onNavigate }) {
                       }}
                       className="bg-gray-800 rounded-xl p-4 cursor-pointer hover:bg-gray-700/50 transition-colors group"
                     >
-                      <p className="text-white font-medium">{getEntryAddress(event)}</p>
+                      <p className="text-white font-medium">{event['Model Home Address'] || 'Scheduled Shift'}</p>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {staff1 && (
+                        {event['Assigned Staff 1'] && (
                           <span className="text-xs text-gray-400 bg-gray-700/50 px-2 py-1 rounded">
-                            👤 {staff1}
+                            👤 {event['Assigned Staff 1']}
                           </span>
                         )}
-                        {staff2 && (
+                        {event['Assigned Staff 2'] && (
                           <span className="text-xs text-gray-400 bg-gray-700/50 px-2 py-1 rounded">
-                            👤 {staff2}
+                            👤 {event['Assigned Staff 2']}
                           </span>
                         )}
                       </div>
@@ -711,8 +650,7 @@ function ScheduleCalendar({ onNavigate }) {
                         Click to view details & edit staff →
                       </p>
                     </motion.div>
-                    )
-                  })}
+                  ))}
                 </div>
 
                 <button
