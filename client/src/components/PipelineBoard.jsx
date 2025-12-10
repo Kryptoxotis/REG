@@ -31,6 +31,9 @@ function PipelineBoard({ highlightedDealId, onClearHighlight }) {
   const [selectedDeal, setSelectedDeal] = useState(null)
   const [viewMode, setViewMode] = useState('monthly') // 'monthly' or 'all'
   const [expandedColumns, setExpandedColumns] = useState({}) // For mobile accordion
+  const [searchTerm, setSearchTerm] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
+  const [filters, setFilters] = useState({ agent: '', loanStatus: '' })
 
   useEffect(() => { fetchDeals() }, [])
 
@@ -82,9 +85,39 @@ function PipelineBoard({ highlightedDealId, onClearHighlight }) {
     return !dateFields.some(d => d?.start)
   }
 
-  const filteredDeals = viewMode === 'monthly'
-    ? deals.filter(isThisMonth)
-    : deals
+  // Get unique values for filter dropdowns
+  const uniqueAgents = [...new Set(deals.map(d => d.Agent).filter(Boolean))].sort()
+  const uniqueLoanStatuses = LOAN_STATUS_COLUMNS.map(c => c.key)
+
+  // Apply all filters
+  const filteredDeals = deals.filter(deal => {
+    // Time filter
+    if (viewMode === 'monthly' && !isThisMonth(deal)) return false
+
+    // Search filter (address, buyer, agent)
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase()
+      const matchAddress = (deal.Address || '').toLowerCase().includes(search)
+      const matchBuyer = (deal['Buyer Name'] || '').toLowerCase().includes(search)
+      const matchAgent = (deal.Agent || '').toLowerCase().includes(search)
+      if (!matchAddress && !matchBuyer && !matchAgent) return false
+    }
+
+    // Agent filter
+    if (filters.agent && deal.Agent !== filters.agent) return false
+
+    // Loan status filter
+    if (filters.loanStatus && deal['Loan Status'] !== filters.loanStatus) return false
+
+    return true
+  })
+
+  const clearFilters = () => {
+    setSearchTerm('')
+    setFilters({ agent: '', loanStatus: '' })
+  }
+
+  const hasActiveFilters = searchTerm || filters.agent || filters.loanStatus
 
   // Group deals by loan status
   const groupedDeals = LOAN_STATUS_COLUMNS.reduce((acc, col) => {
@@ -135,6 +168,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight }) {
           <p className="text-sm text-gray-400">
             {filteredDeals.length} deal{filteredDeals.length !== 1 ? 's' : ''}
             {viewMode === 'monthly' ? ` in ${currentMonthName}` : ' total'}
+            {hasActiveFilters && ' (filtered)'}
           </p>
         </div>
 
@@ -164,6 +198,19 @@ function PipelineBoard({ highlightedDealId, onClearHighlight }) {
             </button>
           </div>
 
+          {/* Filter Toggle */}
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setShowFilters(!showFilters)}
+            className={`p-2.5 border rounded-xl transition-colors ${
+              showFilters || hasActiveFilters
+                ? 'bg-blue-600 border-blue-500 text-white'
+                : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'
+            }`}
+          >
+            🔍
+          </motion.button>
+
           {/* Refresh */}
           <motion.button
             whileTap={{ scale: 0.9 }}
@@ -174,6 +221,69 @@ function PipelineBoard({ highlightedDealId, onClearHighlight }) {
           </motion.button>
         </div>
       </div>
+
+      {/* Search and Filters */}
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 space-y-3">
+              {/* Search */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search address, buyer, agent..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">🔍</span>
+              </div>
+
+              {/* Filter Dropdowns */}
+              <div className="grid grid-cols-2 gap-3">
+                <select
+                  value={filters.agent}
+                  onChange={(e) => setFilters(f => ({ ...f, agent: e.target.value }))}
+                  className="px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">All Agents</option>
+                  {uniqueAgents.map(agent => (
+                    <option key={agent} value={agent}>{agent}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={filters.loanStatus}
+                  onChange={(e) => setFilters(f => ({ ...f, loanStatus: e.target.value }))}
+                  className="px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">All Statuses</option>
+                  {uniqueLoanStatuses.map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Clear Filters */}
+              {hasActiveFilters && (
+                <motion.button
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  onClick={clearFilters}
+                  className="w-full py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                  ✕ Clear all filters
+                </motion.button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Quick Stats - Mobile Summary */}
       <div className="grid grid-cols-4 sm:hidden gap-2">

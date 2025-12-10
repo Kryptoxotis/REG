@@ -9,8 +9,10 @@ function DatabaseViewer({ databaseKey, databaseName, highlightedId, onClearHighl
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedItem, setSelectedItem] = useState(null)
+  const [showFilters, setShowFilters] = useState(false)
+  const [filters, setFilters] = useState({})
 
-  useEffect(() => { fetchData() }, [databaseKey])
+  useEffect(() => { fetchData(); setFilters({}) }, [databaseKey])
 
   // Auto-select item when highlightedId changes
   useEffect(() => {
@@ -65,25 +67,130 @@ function DatabaseViewer({ databaseKey, databaseName, highlightedId, onClearHighl
     )
   }
 
-  const filteredData = data.filter(item =>
-    Object.values(item).some(val => String(formatValue(val)).toLowerCase().includes(searchTerm.toLowerCase()))
-  )
+  // Database-specific filter configs
+  const filterConfigs = {
+    PROPERTIES: [
+      { key: 'Status', label: 'Status' },
+      { key: 'Subdivision', label: 'Subdivision' },
+      { key: 'Stage', label: 'Stage' },
+      { key: 'Floorplan', label: 'Floorplan' },
+    ],
+    PIPELINE: [
+      { key: 'Loan Status', label: 'Loan Status' },
+      { key: 'Agent', label: 'Agent' },
+    ],
+    CLIENTS: [
+      { key: 'Status', label: 'Status' },
+    ],
+    TEAM_MEMBERS: [
+      { key: 'Status', label: 'Status' },
+      { key: 'Role', label: 'Role' },
+    ],
+  }
+
+  const availableFilters = filterConfigs[databaseKey] || []
+
+  // Get unique values for each filter
+  const getUniqueValues = (key) => {
+    return [...new Set(data.map(item => item[key]).filter(Boolean))].sort()
+  }
+
+  // Apply search and filters
+  const filteredData = data.filter(item => {
+    // Search filter
+    if (searchTerm) {
+      const match = Object.values(item).some(val =>
+        String(formatValue(val)).toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      if (!match) return false
+    }
+
+    // Apply each active filter
+    for (const [key, value] of Object.entries(filters)) {
+      if (value && item[key] !== value) return false
+    }
+
+    return true
+  })
+
+  const clearFilters = () => {
+    setSearchTerm('')
+    setFilters({})
+  }
+
+  const hasActiveFilters = searchTerm || Object.values(filters).some(v => v)
 
   return (
     <div className="space-y-4 sm:space-y-6">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-white">{databaseName}</h2>
-          <p className="text-sm text-gray-400">{data.length} {data.length === 1 ? 'record' : 'records'} total</p>
+          <p className="text-sm text-gray-400">
+            {filteredData.length} of {data.length} {data.length === 1 ? 'record' : 'records'}
+            {hasActiveFilters && ' (filtered)'}
+          </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <motion.div className="relative flex-1 sm:flex-none" whileFocus={{ scale: 1.02 }}>
             <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 sm:pl-10 pr-4 py-2 sm:py-2.5 bg-gray-800 border border-gray-700 rounded-xl w-full sm:w-64 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm" />
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">🔍</span>
           </motion.div>
+          {availableFilters.length > 0 && (
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setShowFilters(!showFilters)}
+              className={`p-2 sm:p-2.5 border rounded-xl transition-colors flex-shrink-0 ${
+                showFilters || hasActiveFilters
+                  ? 'bg-indigo-600 border-indigo-500 text-white'
+                  : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'
+              }`}
+            >
+              ⚙️
+            </motion.button>
+          )}
           <motion.button whileHover={{ scale: 1.1, rotate: 180 }} whileTap={{ scale: 0.9 }} onClick={fetchData} className="p-2 sm:p-2.5 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white hover:border-gray-600 transition-colors flex-shrink-0">🔄</motion.button>
         </div>
       </motion.div>
+
+      {/* Filter Panel */}
+      <AnimatePresence>
+        {showFilters && availableFilters.length > 0 && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
+              <div className={`grid gap-3 ${availableFilters.length > 2 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'}`}>
+                {availableFilters.map(filter => (
+                  <select
+                    key={filter.key}
+                    value={filters[filter.key] || ''}
+                    onChange={(e) => setFilters(f => ({ ...f, [filter.key]: e.target.value }))}
+                    className="px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">All {filter.label}</option>
+                    {getUniqueValues(filter.key).map(val => (
+                      <option key={val} value={val}>{val}</option>
+                    ))}
+                  </select>
+                ))}
+              </div>
+              {hasActiveFilters && (
+                <motion.button
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  onClick={clearFilters}
+                  className="w-full mt-3 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                  ✕ Clear all filters
+                </motion.button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <SmartCardView data={filteredData} databaseKey={databaseKey} onItemClick={setSelectedItem} />
 
