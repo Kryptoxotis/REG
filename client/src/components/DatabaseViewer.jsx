@@ -120,41 +120,48 @@ function SmartCardView({ data, databaseKey, onItemClick }) {
     TEAM_MEMBERS: {
       icon: '👥', gradient: 'from-violet-500 to-purple-400', iconBg: 'bg-violet-500/20',
       titleField: 'Name', subtitleField: 'Phone', statusField: 'Status',
-      showFields: ['Email - ERA', 'Role', 'License Number']
+      showFields: ['Email - ERA', 'Role', 'License Number'],
+      mobileLayout: 'card'
     },
     PROPERTIES: {
       icon: '🏘️', gradient: 'from-emerald-500 to-green-400', iconBg: 'bg-emerald-500/20',
       titleField: 'Address', subtitleField: 'Subdivision', statusField: 'Status',
-      showFields: ['SqFt', 'Sales Price', 'Floorplan']
+      showFields: ['SqFt', 'Sales Price', 'Floorplan', 'Stage'],
+      mobileLayout: 'list' // Compact list view for properties
     },
     MODEL_HOMES: {
       icon: '🏠', gradient: 'from-teal-500 to-cyan-400', iconBg: 'bg-teal-500/20',
       titleField: 'Address', subtitleField: 'Subdivision', statusField: 'Status',
-      showFields: ['SqFt', 'Sales Price', 'Floorplan']
+      showFields: ['SqFt', 'Sales Price', 'Floorplan'],
+      mobileLayout: 'card'
     },
     PIPELINE: {
       icon: '📊', gradient: 'from-blue-500 to-cyan-400', iconBg: 'bg-blue-500/20',
       titleField: 'Address', subtitleField: 'Buyer Name', statusField: 'Loan Status',
-      showFields: ['Sales Price', 'Agent', 'Scheduled Closing', 'Executed']
+      showFields: ['Sales Price', 'Agent', 'Scheduled Closing', 'Executed'],
+      mobileLayout: 'card'
     },
     CLIENTS: {
       icon: '💼', gradient: 'from-pink-500 to-rose-400', iconBg: 'bg-pink-500/20',
       titleField: 'Property Address', subtitleField: 'Full Name', statusField: 'Status',
-      showFields: ['Phone', 'Email', 'Timeline']
+      showFields: ['Phone', 'Email', 'Timeline'],
+      mobileLayout: 'card'
     },
     SCHEDULE: {
       icon: '📅', gradient: 'from-amber-500 to-orange-400', iconBg: 'bg-amber-500/20',
       titleField: 'Date', subtitleField: 'Model Home Address', statusField: null,
-      showFields: ['Assigned Staff 1', 'Assigned Staff 2']
+      showFields: ['Assigned Staff 1', 'Assigned Staff 2'],
+      mobileLayout: 'card'
     },
     SCOREBOARD: {
       icon: '🏆', gradient: 'from-indigo-500 to-purple-400', iconBg: 'bg-indigo-500/20',
       titleField: 'Address', subtitleField: 'Agent', statusField: 'Loan Status',
-      showFields: ['Sales Price', 'Closed Date', 'Loan Amount']
+      showFields: ['Sales Price', 'Closed Date', 'Loan Amount'],
+      mobileLayout: 'card'
     }
   }
 
-  const config = dbConfig[databaseKey] || { icon: '📋', gradient: 'from-gray-500 to-gray-400', iconBg: 'bg-gray-500/20', titleField: fields[0], showFields: fields.slice(1, 4) }
+  const config = dbConfig[databaseKey] || { icon: '📋', gradient: 'from-gray-500 to-gray-400', iconBg: 'bg-gray-500/20', titleField: fields[0], showFields: fields.slice(1, 4), mobileLayout: 'card' }
 
   const getPrimaryField = (item) => {
     const val = item[config.titleField]
@@ -166,9 +173,78 @@ function SmartCardView({ data, databaseKey, onItemClick }) {
     return { key: fields[0], value: formatValue(item[fields[0]]) }
   }
 
+  // Properties get a compact list view on mobile
+  if (config.mobileLayout === 'list') {
+    return (
+      <>
+        {/* Mobile List View for Properties */}
+        <div className="sm:hidden space-y-2">
+          {data.map((item, idx) => {
+            const primary = getPrimaryField(item)
+            const status = config.statusField ? item[config.statusField] : null
+            const price = item['Sales Price']
+            const sqft = item['SqFt']
+            const stage = item['Stage']
+
+            return (
+              <motion.div
+                key={item.id || idx}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: Math.min(idx * 0.02, 0.5) }}
+                onClick={() => onItemClick && onItemClick(item)}
+                className="bg-gray-800 rounded-xl border border-gray-700 p-3 active:bg-gray-700 cursor-pointer"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-medium text-white truncate">{primary.value || 'Untitled'}</h4>
+                      {status && (
+                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${getStatusColor(status)}`}>
+                          {formatValue(status)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                      {sqft && <span>{sqft.toLocaleString()} sqft</span>}
+                      {stage && <span className="text-blue-400">{stage}</span>}
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    {price && (
+                      <span className="text-emerald-400 font-semibold">
+                        ${price.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+
+        {/* Desktop Card View */}
+        <div className="hidden sm:grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {data.map((item, idx) => (
+            <PropertyCard
+              key={item.id || idx}
+              item={item}
+              idx={idx}
+              config={config}
+              fields={fields}
+              getPrimaryField={getPrimaryField}
+              onItemClick={onItemClick}
+            />
+          ))}
+        </div>
+      </>
+    )
+  }
+
+  // Default card view for other databases
   const cardVariants = {
     hidden: { opacity: 0, y: 20, scale: 0.95 },
-    visible: (i) => ({ opacity: 1, y: 0, scale: 1, transition: { delay: i * 0.05, duration: 0.3, ease: 'easeOut' } })
+    visible: (i) => ({ opacity: 1, y: 0, scale: 1, transition: { delay: Math.min(i * 0.03, 0.5), duration: 0.3, ease: 'easeOut' } })
   }
 
   return (
@@ -188,40 +264,86 @@ function SmartCardView({ data, databaseKey, onItemClick }) {
             variants={cardVariants}
             whileHover={{ scale: 1.02, y: -4 }}
             onClick={() => onItemClick && onItemClick(item)}
-            className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden hover:border-gray-600 transition-colors group cursor-pointer"
+            className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden hover:border-gray-600 active:bg-gray-700 transition-colors group cursor-pointer"
           >
-            <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: idx * 0.05 + 0.2 }} className={`h-1 sm:h-1.5 bg-gradient-to-r ${config.gradient} origin-left`} />
+            <div className={`h-1 bg-gradient-to-r ${config.gradient}`} />
 
-            <div className="p-4 sm:p-5">
-              <div className="flex items-start justify-between mb-2 sm:mb-3">
-                <motion.div whileHover={{ scale: 1.2, rotate: 10 }} className={`w-8 h-8 sm:w-10 sm:h-10 ${config.iconBg} rounded-lg flex items-center justify-center`}>
-                  <span className="text-lg sm:text-xl">{config.icon}</span>
-                </motion.div>
+            <div className="p-3 sm:p-4">
+              <div className="flex items-start justify-between mb-2">
+                <div className={`w-8 h-8 ${config.iconBg} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                  <span className="text-lg">{config.icon}</span>
+                </div>
                 {status && (
-                  <motion.span initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className={`px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
                     {formatValue(status)}
-                  </motion.span>
+                  </span>
                 )}
               </div>
 
-              <h4 className="font-semibold text-white mb-1 text-base sm:text-lg line-clamp-2">{primary.value || 'Untitled'}</h4>
-              {subtitle && <p className="text-xs text-gray-500">{formatValue(subtitle)}</p>}
+              <h4 className="font-semibold text-white mb-0.5 text-sm sm:text-base truncate">{primary.value || 'Untitled'}</h4>
+              {subtitle && <p className="text-xs text-gray-500 truncate">{formatValue(subtitle)}</p>}
 
-              <div className="space-y-1.5 sm:space-y-2 mt-2 sm:mt-3">
-                {displayFields.slice(0, 4).map(field => (
-                  <div key={field} className="flex justify-between text-xs sm:text-sm">
-                    <span className="text-gray-500 truncate flex-shrink-0 max-w-[40%]">{field}</span>
+              <div className="space-y-1 mt-2">
+                {displayFields.slice(0, 3).map(field => (
+                  <div key={field} className="flex justify-between text-xs">
+                    <span className="text-gray-500 truncate max-w-[40%]">{field}</span>
                     <span className="text-gray-300 font-medium truncate ml-2 max-w-[55%] text-right">{formatValue(item[field])}</span>
                   </div>
                 ))}
               </div>
-
-              {fields.length > 5 && <p className="text-xs text-gray-600 mt-2 sm:mt-3">+ {fields.length - 5} more fields</p>}
             </div>
           </motion.div>
         )
       })}
     </div>
+  )
+}
+
+// Separate card component for Properties desktop view
+function PropertyCard({ item, idx, config, fields, getPrimaryField, onItemClick }) {
+  const primary = getPrimaryField(item)
+  const status = config.statusField ? item[config.statusField] : null
+  const subtitle = config.subtitleField ? item[config.subtitleField] : null
+  const displayFields = config.showFields.filter(f => item[f] !== null && item[f] !== undefined && item[f] !== '')
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(idx * 0.03, 0.5) }}
+      whileHover={{ scale: 1.02, y: -4 }}
+      onClick={() => onItemClick && onItemClick(item)}
+      className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden hover:border-gray-600 transition-colors cursor-pointer"
+    >
+      <div className={`h-1.5 bg-gradient-to-r ${config.gradient}`} />
+
+      <div className="p-4">
+        <div className="flex items-start justify-between mb-3">
+          <div className={`w-10 h-10 ${config.iconBg} rounded-lg flex items-center justify-center`}>
+            <span className="text-xl">{config.icon}</span>
+          </div>
+          {status && (
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+              {formatValue(status)}
+            </span>
+          )}
+        </div>
+
+        <h4 className="font-semibold text-white mb-1 text-lg">{primary.value || 'Untitled'}</h4>
+        {subtitle && <p className="text-xs text-gray-500">{formatValue(subtitle)}</p>}
+
+        <div className="space-y-2 mt-3">
+          {displayFields.slice(0, 4).map(field => (
+            <div key={field} className="flex justify-between text-sm">
+              <span className="text-gray-500">{field}</span>
+              <span className="text-gray-300 font-medium">{formatValue(item[field])}</span>
+            </div>
+          ))}
+        </div>
+
+        {fields.length > 5 && <p className="text-xs text-gray-600 mt-3">+ {fields.length - 5} more fields</p>}
+      </div>
+    </motion.div>
   )
 }
 
