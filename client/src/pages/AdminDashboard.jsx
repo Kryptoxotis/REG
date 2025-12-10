@@ -297,13 +297,13 @@ function AdminDashboard({ user, setUser }) {
                 transition={{ duration: 0.3 }}
               >
                 {activeView === 'overview' ? (
-                  <StatsOverview stats={stats} />
+                  <StatsOverview stats={stats} onNavigate={handleNavClick} />
                 ) : activeView === 'settings' ? (
                   <Settings />
                 ) : activeView === 'TEAM_MEMBERS' ? (
                   <TeamKPIView onNavigate={handleDealNavigate} />
                 ) : activeView === 'SCHEDULE' ? (
-                  <ScheduleCalendar />
+                  <ScheduleCalendar onNavigate={handleNavClick} />
                 ) : activeView === 'PIPELINE' ? (
                   <PipelineBoard highlightedDealId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} />
                 ) : (

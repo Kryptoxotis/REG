@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 
-function ScheduleCalendar() {
+function ScheduleCalendar({ onNavigate }) {
   const [data, setData] = useState([])
   const [teamKpis, setTeamKpis] = useState([])
   const [loading, setLoading] = useState(true)
@@ -10,6 +10,7 @@ function ScheduleCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [selectedStaff, setSelectedStaff] = useState(null)
+  const [selectedDayEvents, setSelectedDayEvents] = useState(null) // For "Show More" modal
   const [editMode, setEditMode] = useState(false)
   const [editStaff1, setEditStaff1] = useState('')
   const [editStaff2, setEditStaff2] = useState('')
@@ -236,9 +237,14 @@ function ScheduleCalendar() {
                         </motion.div>
                       ))}
                       {events.length > 2 && (
-                        <div className="text-[10px] sm:text-xs text-gray-500 pl-1">
-                          +{events.length - 2} more
-                        </div>
+                        <motion.div
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setSelectedDayEvents({ day, events })}
+                          className="text-[10px] sm:text-xs text-amber-400 pl-1 cursor-pointer hover:text-amber-300"
+                        >
+                          +{events.length - 2} more →
+                        </motion.div>
                       )}
                     </div>
                   </>
@@ -357,10 +363,22 @@ function ScheduleCalendar() {
 
                 <div className="space-y-4">
                   {selectedEvent['Model Home Address'] && (
-                    <div className="bg-gray-800 rounded-xl p-4">
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        if (onNavigate) {
+                          // Navigate to Pipeline view - the address can be searched there
+                          onNavigate('PIPELINE', null)
+                          setSelectedEvent(null)
+                        }
+                      }}
+                      className="bg-gray-800 rounded-xl p-4 cursor-pointer hover:bg-gray-700/50 transition-colors group"
+                    >
                       <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Location</p>
                       <p className="text-white font-medium">{selectedEvent['Model Home Address']}</p>
-                    </div>
+                      <p className="text-xs text-amber-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">Click to view in Pipeline →</p>
+                    </motion.div>
                   )}
 
                   <div className="bg-gray-800 rounded-xl p-4">
@@ -559,6 +577,83 @@ function ScheduleCalendar() {
 
                 <button
                   onClick={() => setSelectedStaff(null)}
+                  className="mt-6 w-full py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Day Events Modal (Show More) */}
+      <AnimatePresence>
+        {selectedDayEvents && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedDayEvents(null)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-gray-900 rounded-2xl border border-gray-700 max-w-lg w-full max-h-[80vh] overflow-hidden"
+            >
+              <div className="h-2 bg-gradient-to-r from-amber-500 to-orange-400" />
+              <div className="p-6">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-14 h-14 bg-amber-500/20 rounded-2xl flex items-center justify-center">
+                    <span className="text-3xl">📅</span>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">
+                      {monthNames[month]} {selectedDayEvents.day}, {year}
+                    </h2>
+                    <p className="text-gray-400">{selectedDayEvents.events.length} scheduled shifts</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 max-h-[50vh] overflow-y-auto">
+                  {selectedDayEvents.events.map((event, idx) => (
+                    <motion.div
+                      key={event.id || idx}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      whileHover={{ scale: 1.02 }}
+                      onClick={() => {
+                        setSelectedDayEvents(null)
+                        setSelectedEvent(event)
+                      }}
+                      className="bg-gray-800 rounded-xl p-4 cursor-pointer hover:bg-gray-700/50 transition-colors group"
+                    >
+                      <p className="text-white font-medium">{event['Model Home Address'] || 'Scheduled Shift'}</p>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {event['Assigned Staff 1'] && (
+                          <span className="text-xs text-gray-400 bg-gray-700/50 px-2 py-1 rounded">
+                            👤 {event['Assigned Staff 1']}
+                          </span>
+                        )}
+                        {event['Assigned Staff 2'] && (
+                          <span className="text-xs text-gray-400 bg-gray-700/50 px-2 py-1 rounded">
+                            👤 {event['Assigned Staff 2']}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-amber-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        Click to view details & edit staff →
+                      </p>
+                    </motion.div>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setSelectedDayEvents(null)}
                   className="mt-6 w-full py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors"
                 >
                   Close

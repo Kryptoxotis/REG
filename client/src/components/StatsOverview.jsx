@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 
-function StatsOverview({ stats }) {
+function StatsOverview({ stats, onNavigate }) {
   if (!stats) {
     return (
       <motion.div
@@ -30,6 +30,22 @@ function StatsOverview({ stats }) {
 
   const statsList = Object.entries(stats)
   const totalRecords = statsList.reduce((sum, [_, data]) => sum + data.count, 0)
+
+  // Map stats keys to navigation views
+  const navMap = {
+    'TEAM_MEMBERS': 'TEAM_MEMBERS',
+    'PROPERTIES': 'PROPERTIES',
+    'PIPELINE': 'PIPELINE',
+    'CLIENTS': 'CLIENTS',
+    'SCHEDULE': 'SCHEDULE'
+  }
+
+  const handleCardClick = (key) => {
+    const view = navMap[key]
+    if (view && onNavigate) {
+      onNavigate(view)
+    }
+  }
 
   const formatCurrency = (num) => {
     if (!num) return '$0'
@@ -86,6 +102,7 @@ function StatsOverview({ stats }) {
               variants={itemVariants}
               custom={idx}
               whileHover={{ scale: 1.03, y: -4 }}
+              onClick={() => handleCardClick(key)}
               className="bg-gray-800 rounded-xl sm:rounded-2xl border border-gray-700 overflow-hidden hover:border-gray-600 transition-colors group cursor-pointer"
             >
               <motion.div
@@ -112,6 +129,7 @@ function StatsOverview({ stats }) {
                   </motion.span>
                 </div>
                 <h3 className="mt-3 font-semibold text-gray-200 capitalize text-sm sm:text-base">{data.name.replace(/_/g, ' ')}</h3>
+                <p className="text-xs text-indigo-400 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">Click to view →</p>
                 {/* Breakdown stats */}
                 <div className="mt-2 space-y-1 text-xs text-gray-500">
                   {key === 'TEAM_MEMBERS' && data.active !== undefined && (
