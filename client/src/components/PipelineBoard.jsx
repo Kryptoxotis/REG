@@ -33,7 +33,17 @@ function PipelineBoard({ highlightedDealId, onClearHighlight }) {
   const [expandedColumns, setExpandedColumns] = useState({}) // For mobile accordion
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
-  const [filters, setFilters] = useState({ agent: '', loanStatus: '' })
+  const [filters, setFilters] = useState({
+    agent: '',
+    loanStatus: '',
+    loanType: '',
+    assistingAgent: '',
+    executed: '',
+    loName: '',
+    mortgageCompany: '',
+    brokerName: '',
+    realtorPartner: ''
+  })
 
   useEffect(() => { fetchDeals() }, [])
 
@@ -88,6 +98,12 @@ function PipelineBoard({ highlightedDealId, onClearHighlight }) {
   // Get unique values for filter dropdowns
   const uniqueAgents = [...new Set(deals.map(d => d.Agent).filter(Boolean))].sort()
   const uniqueLoanStatuses = LOAN_STATUS_COLUMNS.map(c => c.key)
+  const uniqueLoanTypes = [...new Set(deals.map(d => d['Loan Type']).filter(Boolean))].sort()
+  const uniqueAssistingAgents = [...new Set(deals.map(d => d['Assisting Agent']).filter(Boolean))].sort()
+  const uniqueLONames = [...new Set(deals.map(d => d['LO Name']).filter(Boolean))].sort()
+  const uniqueMortgageCompanies = [...new Set(deals.map(d => d['Mortgage Company']).filter(Boolean))].sort()
+  const uniqueBrokerNames = [...new Set(deals.map(d => d['Broker Name']).filter(Boolean))].sort()
+  const uniqueRealtorPartners = [...new Set(deals.map(d => d['Realtor Partner']).filter(Boolean))].sort()
 
   // Apply all filters
   const filteredDeals = deals.filter(deal => {
@@ -109,15 +125,49 @@ function PipelineBoard({ highlightedDealId, onClearHighlight }) {
     // Loan status filter
     if (filters.loanStatus && deal['Loan Status'] !== filters.loanStatus) return false
 
+    // Loan type filter
+    if (filters.loanType && deal['Loan Type'] !== filters.loanType) return false
+
+    // Assisting agent filter
+    if (filters.assistingAgent && deal['Assisting Agent'] !== filters.assistingAgent) return false
+
+    // Executed filter
+    if (filters.executed) {
+      const isExecuted = deal.Executed ? 'Yes' : 'No'
+      if (isExecuted !== filters.executed) return false
+    }
+
+    // LO Name filter
+    if (filters.loName && deal['LO Name'] !== filters.loName) return false
+
+    // Mortgage Company filter
+    if (filters.mortgageCompany && deal['Mortgage Company'] !== filters.mortgageCompany) return false
+
+    // Broker Name filter
+    if (filters.brokerName && deal['Broker Name'] !== filters.brokerName) return false
+
+    // Realtor Partner filter
+    if (filters.realtorPartner && deal['Realtor Partner'] !== filters.realtorPartner) return false
+
     return true
   })
 
   const clearFilters = () => {
     setSearchTerm('')
-    setFilters({ agent: '', loanStatus: '' })
+    setFilters({
+      agent: '',
+      loanStatus: '',
+      loanType: '',
+      assistingAgent: '',
+      executed: '',
+      loName: '',
+      mortgageCompany: '',
+      brokerName: '',
+      realtorPartner: ''
+    })
   }
 
-  const hasActiveFilters = searchTerm || filters.agent || filters.loanStatus
+  const hasActiveFilters = searchTerm || Object.values(filters).some(v => v)
 
   // Group deals by loan status
   const groupedDeals = LOAN_STATUS_COLUMNS.reduce((acc, col) => {
@@ -245,7 +295,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight }) {
               </div>
 
               {/* Filter Dropdowns */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 <select
                   value={filters.agent}
                   onChange={(e) => setFilters(f => ({ ...f, agent: e.target.value }))}
@@ -265,6 +315,71 @@ function PipelineBoard({ highlightedDealId, onClearHighlight }) {
                   <option value="">All Statuses</option>
                   {uniqueLoanStatuses.map(status => (
                     <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={filters.loanType}
+                  onChange={(e) => setFilters(f => ({ ...f, loanType: e.target.value }))}
+                  className="px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">All Loan Types</option>
+                  {uniqueLoanTypes.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={filters.executed}
+                  onChange={(e) => setFilters(f => ({ ...f, executed: e.target.value }))}
+                  className="px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Executed?</option>
+                  <option value="Yes">Executed</option>
+                  <option value="No">Not Executed</option>
+                </select>
+
+                <select
+                  value={filters.assistingAgent}
+                  onChange={(e) => setFilters(f => ({ ...f, assistingAgent: e.target.value }))}
+                  className="px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">All Assisting Agents</option>
+                  {uniqueAssistingAgents.map(agent => (
+                    <option key={agent} value={agent}>{agent}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={filters.loName}
+                  onChange={(e) => setFilters(f => ({ ...f, loName: e.target.value }))}
+                  className="px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">All LO Names</option>
+                  {uniqueLONames.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={filters.mortgageCompany}
+                  onChange={(e) => setFilters(f => ({ ...f, mortgageCompany: e.target.value }))}
+                  className="px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">All Mortgage Co.</option>
+                  {uniqueMortgageCompanies.map(company => (
+                    <option key={company} value={company}>{company}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={filters.realtorPartner}
+                  onChange={(e) => setFilters(f => ({ ...f, realtorPartner: e.target.value }))}
+                  className="px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">All Realtor Partners</option>
+                  {uniqueRealtorPartners.map(partner => (
+                    <option key={partner} value={partner}>{partner}</option>
                   ))}
                 </select>
               </div>
