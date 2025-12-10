@@ -55,13 +55,14 @@ function SmartCardView({ item, config, onClick }) {
   )
 }
 
-export default function DatabaseViewer({ dbKey, data, isLoading }) {
+export default function DatabaseViewer({ dbKey, data = [], isLoading }) {
   const config = dbConfig[dbKey] || dbConfig.TEAM_MEMBERS
   const Icon = config.icon
   const [selectedItem, setSelectedItem] = useState(null)
   const [showTerminated, setShowTerminated] = useState(false)
-  const terminatedCount = useMemo(() => { if (dbKey !== 'TEAM_MEMBERS') return 0; return data.filter(item => { const status = item[config.statusField]; return status && status.toLowerCase().includes('terminated') }).length }, [data, dbKey, config.statusField])
-  const filteredData = useMemo(() => { if (dbKey !== 'TEAM_MEMBERS' || showTerminated) return data; return data.filter(item => { const status = item[config.statusField]; return !status || !status.toLowerCase().includes('terminated') }) }, [data, dbKey, showTerminated, config.statusField])
+  const safeData = data || []
+  const terminatedCount = useMemo(() => { if (dbKey !== 'TEAM_MEMBERS') return 0; return safeData.filter(item => { const status = item[config.statusField]; return status && status.toLowerCase().includes('terminated') }).length }, [safeData, dbKey, config.statusField])
+  const filteredData = useMemo(() => { if (dbKey !== 'TEAM_MEMBERS' || showTerminated) return safeData; return safeData.filter(item => { const status = item[config.statusField]; return !status || !status.toLowerCase().includes('terminated') }) }, [safeData, dbKey, showTerminated, config.statusField])
 
   const renderTableView = () => {
     const columns = config.tableColumns || [config.primaryField, ...config.secondaryFields]
