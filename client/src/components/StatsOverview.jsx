@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import OfficeOverview from './OfficeOverview'
 
 function StatsOverview({ stats, onNavigate }) {
   if (!stats) {
@@ -225,6 +226,11 @@ function StatsOverview({ stats, onNavigate }) {
           </div>
         </motion.div>
       </div>
+
+      {/* Office Overview Section */}
+      <motion.div variants={itemVariants} className="mt-8">
+        <OfficeOverview onNavigate={onNavigate} />
+      </motion.div>
     </motion.div>
   )
 }

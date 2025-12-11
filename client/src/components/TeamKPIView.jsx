@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
-import { Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react'
+import { Eye, EyeOff, ChevronDown, ChevronUp, Search, X } from 'lucide-react'
 
 function TeamKPIView({ onNavigate }) {
   const [data, setData] = useState([])
@@ -11,6 +11,8 @@ function TeamKPIView({ onNavigate }) {
   const [selectedDealType, setSelectedDealType] = useState(null) // 'all' | 'closed' | 'pending' | 'executed'
   const [showTerminated, setShowTerminated] = useState(false)
   const [showAllFields, setShowAllFields] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [expandedCards, setExpandedCards] = useState({})
 
   useEffect(() => { fetchData() }, [])
 
@@ -26,7 +28,24 @@ function TeamKPIView({ onNavigate }) {
   }
 
   const terminatedCount = useMemo(() => data.filter(m => m.status?.toLowerCase() === 'terminated').length, [data])
-  const filteredData = useMemo(() => showTerminated ? data : data.filter(m => m.status?.toLowerCase() !== 'terminated'), [data, showTerminated])
+  const filteredData = useMemo(() => {
+    let result = showTerminated ? data : data.filter(m => m.status?.toLowerCase() !== 'terminated')
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      result = result.filter(m =>
+        m.name?.toLowerCase().includes(query) ||
+        m.role?.toLowerCase().includes(query) ||
+        m.email?.toLowerCase().includes(query) ||
+        m.phone?.toLowerCase().includes(query)
+      )
+    }
+    return result
+  }, [data, showTerminated, searchQuery])
+
+  const toggleCardExpand = (memberId, e) => {
+    e.stopPropagation()
+    setExpandedCards(prev => ({ ...prev, [memberId]: !prev[memberId] }))
+  }
 
   if (loading) {
     return (
@@ -98,6 +117,26 @@ function TeamKPIView({ onNavigate }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search team members..."
+              className="pl-10 pr-10 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:border-violet-500 w-48 sm:w-64"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
           {terminatedCount > 0 && (
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -140,11 +179,22 @@ function TeamKPIView({ onNavigate }) {
                     <p className="text-xs text-gray-500">{member.role || 'Agent'}</p>
                   </div>
                 </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  member.status === 'Active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-600/30 text-gray-400'
-                }`}>
-                  {member.status}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    member.status === 'Active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-600/30 text-gray-400'
+                  }`}>
+                    {member.status}
+                  </span>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={(e) => toggleCardExpand(member.id, e)}
+                    className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-400 hover:text-white transition-colors"
+                    title={expandedCards[member.id] ? 'Collapse' : 'Expand'}
+                  >
+                    {expandedCards[member.id] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </motion.button>
+                </div>
               </div>
 
               {/* KPI Grid - Clickable */}
@@ -218,6 +268,67 @@ function TeamKPIView({ onNavigate }) {
               {member.kpis.allTimeDeals > 0 && (
                 <div className="mt-3 flex items-center gap-2">
                   <span className="text-xs text-gray-500">All-time: {member.kpis.allTimeDeals} deals ({member.kpis.allTimeClosed} closed)</span>
+
+              {/* Expandable Section */}
+              <AnimatePresence>
+                {expandedCards[member.id] && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-4 pt-4 border-t border-gray-700 space-y-3">
+                      {/* Contact Info */}
+                      <div className="space-y-2">
+                        {member.phone && (
+                          <div className="flex items-center gap-2 text-sm text-gray-300">
+                            <span>📱</span>
+                            <span>{member.phone}</span>
+                          </div>
+                        )}
+                        {member.email && (
+                          <div className="flex items-center gap-2 text-sm text-gray-300">
+                            <span>✉️</span>
+                            <span className="truncate">{member.email}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Additional Stats */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-gray-900 rounded-lg p-2 text-center">
+                          <p className="text-lg font-bold text-blue-400">{member.kpis.executedDeals}</p>
+                          <p className="text-xs text-gray-500">Executed</p>
+                        </div>
+                        <div className="bg-gray-900 rounded-lg p-2 text-center">
+                          <p className="text-lg font-bold text-gray-300">{formatCompact(member.kpis.closedVolume)}</p>
+                          <p className="text-xs text-gray-500">Closed Vol.</p>
+                        </div>
+                      </div>
+
+                      {/* Recent Activity */}
+                      {member.kpis.recentDeals > 0 && (
+                        <div className="flex items-center gap-2 text-xs text-gray-400">
+                          <span className="text-emerald-400">●</span>
+                          <span>{member.kpis.recentDeals} deals in last 30 days</span>
+                        </div>
+                      )}
+
+                      {/* View Full Profile Button */}
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={(e) => { e.stopPropagation(); setSelectedMember(member); }}
+                        className="w-full py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-sm font-medium transition-colors"
+                      >
+                        View Full Profile
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
                 </div>
               )}
             </div>
@@ -472,8 +583,24 @@ function TeamKPIView({ onNavigate }) {
       {filteredData.length === 0 && (
         <div className="bg-gray-800 rounded-2xl p-12 text-center">
           <p className="text-6xl mb-4">👥</p>
-          <h3 className="text-lg font-semibold text-gray-200">{data.length === 0 ? 'No Team Members Found' : 'No Active Members'}</h3>
-          <p className="text-gray-500 mt-2">{data.length === 0 ? 'Add team members to see their performance metrics' : 'All members are terminated. Click "Show Terminated" to see them.'}</p>
+          <h3 className="text-lg font-semibold text-gray-200">
+            {searchQuery ? 'No Matching Members' : data.length === 0 ? 'No Team Members Found' : 'No Active Members'}
+          </h3>
+          <p className="text-gray-500 mt-2">
+            {searchQuery
+              ? `No team members match "${searchQuery}". Try a different search.`
+              : data.length === 0
+                ? 'Add team members to see their performance metrics'
+                : 'All members are terminated. Click "Show Terminated" to see them.'}
+          </p>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="mt-4 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-sm"
+            >
+              Clear Search
+            </button>
+          )}
         </div>
       )}
     </div>

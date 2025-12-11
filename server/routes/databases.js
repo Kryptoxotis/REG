@@ -167,6 +167,121 @@ router.get('/stats', requireAuth, async (req, res) => {
   }
 })
 
+// Get stats grouped by office location - MUST come before /:databaseKey route
+router.get('/stats/by-office', requireAuth, async (req, res) => {
+  try {
+    // Fetch pipeline data
+    const pipelineData = await queryDatabase(DATABASE_IDS.PIPELINE)
+    const formattedPipeline = pipelineData.map(formatPage)
+
+    // Office locations
+    const offices = ['El Paso', 'Las Cruces', 'McAllen', 'San Antonio']
+
+    // Status categories
+    const statusCategories = {
+      active: ['active', 'new', 'prospect', 'in progress'],
+      pending: ['pending', 'under contract', 'awaiting'],
+      sold: ['sold', 'closed', 'completed', 'won'],
+      executed: ['executed']
+    }
+
+    // Helper to categorize status
+    const getStatusCategory = (status) => {
+      const s = (status || '').toLowerCase()
+      for (const [category, keywords] of Object.entries(statusCategories)) {
+        if (keywords.some(kw => s.includes(kw))) return category
+      }
+      return 'active' // default
+    }
+
+    // Helper to get volume
+    const getVolume = (deal) => {
+      const price = deal.Price || deal.price || deal['Sale Price'] || deal['Contract Price'] || deal.Volume || 0
+      return typeof price === 'number' ? price : parseFloat(price) || 0
+    }
+
+    // Helper to detect office from deal data
+    const getOffice = (deal) => {
+      // Check common field names for office/market/location
+      const officeField = deal.Office || deal.office || deal.Market || deal.market ||
+                          deal.Location || deal.location || deal.City || deal.city || ''
+      const address = deal.Address || deal.address || deal['Property Address'] || ''
+
+      const combined = `${officeField} ${address}`.toLowerCase()
+
+      for (const office of offices) {
+        if (combined.includes(office.toLowerCase())) return office
+      }
+
+      // Try to match by city names in address
+      if (combined.includes('el paso')) return 'El Paso'
+      if (combined.includes('las cruces')) return 'Las Cruces'
+      if (combined.includes('mcallen') || combined.includes('mc allen')) return 'McAllen'
+      if (combined.includes('san antonio')) return 'San Antonio'
+
+      return 'Other'
+    }
+
+    // Build office stats
+    const officeStats = {}
+
+    for (const office of [...offices, 'Other']) {
+      officeStats[office] = {
+        active: 0,
+        pending: 0,
+        sold: 0,
+        executed: 0,
+        closes: 0,
+        volume: 0,
+        deals: []
+      }
+    }
+
+    // Process each deal
+    for (const deal of formattedPipeline) {
+      const office = getOffice(deal)
+      const category = getStatusCategory(deal.Status || deal.status)
+      const volume = getVolume(deal)
+
+      officeStats[office][category]++
+      officeStats[office].volume += volume
+
+      // Count closes (sold + executed)
+      if (category === 'sold' || category === 'executed') {
+        officeStats[office].closes++
+      }
+    }
+
+    // Calculate totals
+    const totals = {
+      active: 0,
+      pending: 0,
+      sold: 0,
+      executed: 0,
+      closes: 0,
+      volume: 0
+    }
+
+    for (const office of Object.keys(officeStats)) {
+      totals.active += officeStats[office].active
+      totals.pending += officeStats[office].pending
+      totals.sold += officeStats[office].sold
+      totals.executed += officeStats[office].executed
+      totals.closes += officeStats[office].closes
+      totals.volume += officeStats[office].volume
+    }
+
+    res.json({
+      offices: officeStats,
+      totals,
+      officeList: offices
+    })
+  } catch (error) {
+    console.error('Error fetching office stats:', error)
+    res.status(500).json({ error: 'Failed to fetch office stats' })
+  }
+})
+
 // Get data from a specific database
 router.get('/:databaseKey', requireAuth, async (req, res) => {
   try {
