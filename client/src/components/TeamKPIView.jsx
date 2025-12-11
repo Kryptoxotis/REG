@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
-import { Eye, EyeOff, ChevronDown, ChevronUp, Search, X } from 'lucide-react'
+import { Eye, EyeOff, Search, X } from 'lucide-react'
 
 function TeamKPIView({ onNavigate }) {
   const [data, setData] = useState([])
@@ -10,9 +10,7 @@ function TeamKPIView({ onNavigate }) {
   const [selectedMember, setSelectedMember] = useState(null)
   const [selectedDealType, setSelectedDealType] = useState(null) // 'all' | 'closed' | 'pending' | 'executed'
   const [showTerminated, setShowTerminated] = useState(false)
-  const [showAllFields, setShowAllFields] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [expandedCards, setExpandedCards] = useState({})
 
   useEffect(() => { fetchData() }, [])
 
@@ -41,11 +39,6 @@ function TeamKPIView({ onNavigate }) {
     }
     return result
   }, [data, showTerminated, searchQuery])
-
-  const toggleCardExpand = (memberId, e) => {
-    e.stopPropagation()
-    setExpandedCards(prev => ({ ...prev, [memberId]: !prev[memberId] }))
-  }
 
   if (loading) {
     return (
@@ -179,160 +172,40 @@ function TeamKPIView({ onNavigate }) {
                     <p className="text-xs text-gray-500">{member.role || 'Agent'}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    member.status === 'Active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-600/30 text-gray-400'
-                  }`}>
-                    {member.status}
-                  </span>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={(e) => toggleCardExpand(member.id, e)}
-                    className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-400 hover:text-white transition-colors"
-                    title={expandedCards[member.id] ? 'Collapse' : 'Expand'}
-                  >
-                    {expandedCards[member.id] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </motion.button>
-                </div>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  member.status === 'Active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-600/30 text-gray-400'
+                }`}>
+                  {member.status}
+                </span>
               </div>
 
-              {/* KPI Grid - Clickable */}
+              {/* KPI Grid */}
               <div className="grid grid-cols-3 gap-3 mb-4">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={(e) => { e.stopPropagation(); setSelectedMember(member); setSelectedDealType('all'); }}
-                  className="bg-gray-900 hover:bg-violet-900/30 rounded-xl p-3 text-center transition-colors border border-transparent hover:border-violet-500/50 cursor-pointer"
-                >
+                <div className="bg-gray-900 rounded-xl p-3 text-center">
                   <p className="text-2xl font-bold text-white">{member.kpis.totalDeals}</p>
                   <p className="text-xs text-gray-500">Total Deals</p>
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={(e) => { e.stopPropagation(); setSelectedMember(member); setSelectedDealType('closed'); }}
-                  className="bg-gray-900 hover:bg-emerald-900/30 rounded-xl p-3 text-center transition-colors border border-transparent hover:border-emerald-500/50 cursor-pointer"
-                >
+                </div>
+                <div className="bg-gray-900 rounded-xl p-3 text-center">
                   <p className="text-2xl font-bold text-emerald-400">{member.kpis.closedDeals}</p>
                   <p className="text-xs text-gray-500">Closed</p>
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={(e) => { e.stopPropagation(); setSelectedMember(member); setSelectedDealType('pending'); }}
-                  className="bg-gray-900 hover:bg-amber-900/30 rounded-xl p-3 text-center transition-colors border border-transparent hover:border-amber-500/50 cursor-pointer"
-                >
+                </div>
+                <div className="bg-gray-900 rounded-xl p-3 text-center">
                   <p className="text-2xl font-bold text-amber-400">{member.kpis.pendingDeals}</p>
                   <p className="text-xs text-gray-500">Pending</p>
-                </motion.button>
-              </div>
-
-              {/* Volume & Metrics */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-400">Total Volume</span>
-                  <span className="text-sm font-semibold text-white">{formatCurrency(member.kpis.totalVolume)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-400">Avg Deal Size</span>
-                  <span className="text-sm font-semibold text-gray-300">{formatCurrency(member.kpis.avgDealSize)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-400">Closing Rate</span>
-                  <span className={`text-sm font-semibold ${member.kpis.closingRate >= 50 ? 'text-emerald-400' : member.kpis.closingRate >= 25 ? 'text-amber-400' : 'text-gray-400'}`}>
-                    {member.kpis.closingRate}%
-                  </span>
                 </div>
               </div>
 
-              {/* Progress Bar */}
-              {member.kpis.totalDeals > 0 && (
-                <div className="mt-4">
-                  <div className="flex justify-between text-xs text-gray-500 mb-1">
-                    <span>Pipeline Progress</span>
-                    <span>{member.kpis.closedDeals}/{member.kpis.totalDeals}</span>
-                  </div>
-                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${member.kpis.closingRate}%` }}
-                      transition={{ delay: 0.3, duration: 0.5 }}
-                      className="h-full bg-gradient-to-r from-violet-500 to-emerald-500 rounded-full"
-                    />
-                  </div>
-                </div>
-              )}
+              {/* Volume & Closing Rate */}
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-400">Volume: <span className="text-white font-semibold">{formatCompact(member.kpis.totalVolume)}</span></span>
+                <span className={`font-semibold ${member.kpis.closingRate >= 50 ? 'text-emerald-400' : member.kpis.closingRate >= 25 ? 'text-amber-400' : 'text-gray-400'}`}>
+                  {member.kpis.closingRate}% closing
+                </span>
+              </div>
 
-              {/* All-time Stats */}
-              {member.kpis.allTimeDeals > 0 && (
-                <div className="mt-3 flex items-center gap-2">
-                  <span className="text-xs text-gray-500">All-time: {member.kpis.allTimeDeals} deals ({member.kpis.allTimeClosed} closed)</span>
-
-              {/* Expandable Section */}
-              <AnimatePresence>
-                {expandedCards[member.id] && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="mt-4 pt-4 border-t border-gray-700 space-y-3">
-                      {/* Contact Info */}
-                      <div className="space-y-2">
-                        {member.phone && (
-                          <div className="flex items-center gap-2 text-sm text-gray-300">
-                            <span>📱</span>
-                            <span>{member.phone}</span>
-                          </div>
-                        )}
-                        {member.email && (
-                          <div className="flex items-center gap-2 text-sm text-gray-300">
-                            <span>✉️</span>
-                            <span className="truncate">{member.email}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Additional Stats */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="bg-gray-900 rounded-lg p-2 text-center">
-                          <p className="text-lg font-bold text-blue-400">{member.kpis.executedDeals}</p>
-                          <p className="text-xs text-gray-500">Executed</p>
-                        </div>
-                        <div className="bg-gray-900 rounded-lg p-2 text-center">
-                          <p className="text-lg font-bold text-gray-300">{formatCompact(member.kpis.closedVolume)}</p>
-                          <p className="text-xs text-gray-500">Closed Vol.</p>
-                        </div>
-                      </div>
-
-                      {/* Recent Activity */}
-                      {member.kpis.recentDeals > 0 && (
-                        <div className="flex items-center gap-2 text-xs text-gray-400">
-                          <span className="text-emerald-400">●</span>
-                          <span>{member.kpis.recentDeals} deals in last 30 days</span>
-                        </div>
-                      )}
-
-                      {/* View Full Profile Button */}
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={(e) => { e.stopPropagation(); setSelectedMember(member); }}
-                        className="w-full py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-sm font-medium transition-colors"
-                      >
-                        View Full Profile
-                      </motion.button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-                </div>
-              )}
+              {/* Click hint */}
+              <p className="text-xs text-violet-400 mt-3 opacity-60">Click to view full profile</p>
             </div>
-
           </motion.div>
         ))}
       </div>
@@ -344,7 +217,7 @@ function TeamKPIView({ onNavigate }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => { setSelectedMember(null); setSelectedDealType(null); setShowAllFields(false) }}
+            onClick={() => { setSelectedMember(null); setSelectedDealType(null) }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           >
             <motion.div
@@ -352,10 +225,11 @@ function TeamKPIView({ onNavigate }) {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={e => e.stopPropagation()}
-              className="bg-gray-900 rounded-2xl border border-gray-700 max-w-lg w-full overflow-hidden"
+              className="bg-gray-900 rounded-2xl border border-gray-700 max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col"
             >
               <div className="h-2 bg-gradient-to-r from-violet-500 to-purple-400" />
-              <div className="p-6">
+              <div className="p-6 overflow-y-auto">
+                {/* Header */}
                 <div className="flex items-center gap-4 mb-6">
                   <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold">
                     {selectedMember.name?.charAt(0) || '?'}
@@ -366,126 +240,85 @@ function TeamKPIView({ onNavigate }) {
                   </div>
                 </div>
 
-                {/* Contact Info */}
-                <div className="space-y-2 mb-6">
-                  {selectedMember.phone && (
-                    <div className="flex items-center gap-3 text-gray-300">
-                      <span>📱</span>
-                      <span>{selectedMember.phone}</span>
+                {/* Member Details from Notion - Show all fields prominently */}
+                {selectedMember.allFields && (
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Member Details</h3>
+                    <div className="bg-gray-800 rounded-xl p-4 space-y-2">
+                      {Object.entries(selectedMember.allFields)
+                        .filter(([key, value]) =>
+                          // Skip system fields and empty values
+                          !['id', 'created_time', 'last_edited_time'].includes(key) &&
+                          value !== null && value !== undefined && value !== ''
+                        )
+                        .map(([key, value]) => (
+                          <div key={key} className="flex justify-between items-start py-2 border-b border-gray-700 last:border-0">
+                            <span className="text-gray-400 text-sm">{key}</span>
+                            <span className="text-gray-200 text-sm text-right max-w-[60%]">
+                              {Array.isArray(value) ? value.join(', ') : String(value)}
+                            </span>
+                          </div>
+                        ))}
                     </div>
-                  )}
-                  {selectedMember.email && (
-                    <div className="flex items-center gap-3 text-gray-300">
-                      <span>✉️</span>
-                      <span>{selectedMember.email}</span>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
-                {/* Detailed KPIs - Clickable */}
-                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Performance Metrics (click to view deals)</h3>
-                <div className="grid grid-cols-2 gap-3">
+                {/* Performance KPIs - Clickable to view deals */}
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Performance (click to view deals)</h3>
+                <div className="grid grid-cols-4 gap-2 mb-4">
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setSelectedDealType('all')}
-                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-4 text-left transition-colors"
+                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-3 text-center transition-colors"
                   >
-                    <p className="text-3xl font-bold text-white">{selectedMember.kpis.totalDeals}</p>
-                    <p className="text-sm text-gray-400">Total Deals</p>
+                    <p className="text-2xl font-bold text-white">{selectedMember.kpis.totalDeals}</p>
+                    <p className="text-xs text-gray-400">Total</p>
                   </motion.button>
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setSelectedDealType('closed')}
-                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-4 text-left transition-colors"
+                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-3 text-center transition-colors"
                   >
-                    <p className="text-3xl font-bold text-emerald-400">{selectedMember.kpis.closedDeals}</p>
-                    <p className="text-sm text-gray-400">Closed Deals</p>
+                    <p className="text-2xl font-bold text-emerald-400">{selectedMember.kpis.closedDeals}</p>
+                    <p className="text-xs text-gray-400">Closed</p>
                   </motion.button>
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setSelectedDealType('executed')}
-                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-4 text-left transition-colors"
+                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-3 text-center transition-colors"
                   >
-                    <p className="text-3xl font-bold text-blue-400">{selectedMember.kpis.executedDeals}</p>
-                    <p className="text-sm text-gray-400">Executed</p>
+                    <p className="text-2xl font-bold text-blue-400">{selectedMember.kpis.executedDeals}</p>
+                    <p className="text-xs text-gray-400">Executed</p>
                   </motion.button>
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setSelectedDealType('pending')}
-                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-4 text-left transition-colors"
+                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-3 text-center transition-colors"
                   >
-                    <p className="text-3xl font-bold text-amber-400">{selectedMember.kpis.pendingDeals}</p>
-                    <p className="text-sm text-gray-400">Pending</p>
+                    <p className="text-2xl font-bold text-amber-400">{selectedMember.kpis.pendingDeals}</p>
+                    <p className="text-xs text-gray-400">Pending</p>
                   </motion.button>
                 </div>
 
-                <div className="mt-4 space-y-3">
-                  <div className="flex justify-between py-2 border-b border-gray-800">
-                    <span className="text-gray-400">Total Volume</span>
-                    <span className="text-white font-semibold">{formatCurrency(selectedMember.kpis.totalVolume)}</span>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="bg-gray-800 rounded-lg p-3">
+                    <p className="text-gray-400">Total Volume</p>
+                    <p className="text-lg font-semibold text-white">{formatCompact(selectedMember.kpis.totalVolume)}</p>
                   </div>
-                  <div className="flex justify-between py-2 border-b border-gray-800">
-                    <span className="text-gray-400">Closed Volume</span>
-                    <span className="text-emerald-400 font-semibold">{formatCurrency(selectedMember.kpis.closedVolume)}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-gray-800">
-                    <span className="text-gray-400">Average Deal Size</span>
-                    <span className="text-white font-semibold">{formatCurrency(selectedMember.kpis.avgDealSize)}</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-gray-400">Closing Rate</span>
-                    <span className={`font-semibold ${selectedMember.kpis.closingRate >= 50 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  <div className="bg-gray-800 rounded-lg p-3">
+                    <p className="text-gray-400">Closing Rate</p>
+                    <p className={`text-lg font-semibold ${selectedMember.kpis.closingRate >= 50 ? 'text-emerald-400' : 'text-amber-400'}`}>
                       {selectedMember.kpis.closingRate}%
-                    </span>
+                    </p>
                   </div>
                 </div>
 
-                {/* Show More Details - All Notion Fields */}
-                {selectedMember.allFields && (
-                  <div className="mt-6">
-                    <button
-                      onClick={() => setShowAllFields(!showAllFields)}
-                      className="w-full flex items-center justify-center gap-2 py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl transition-colors"
-                    >
-                      {showAllFields ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      {showAllFields ? 'Hide Details' : 'Show More Details'}
-                    </button>
-                    <AnimatePresence>
-                      {showAllFields && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="mt-4 bg-gray-800 rounded-xl p-4 space-y-3">
-                            {Object.entries(selectedMember.allFields)
-                              .filter(([key, value]) =>
-                                // Skip already displayed fields and system fields
-                                !['id', 'created_time', 'last_edited_time', 'Name', 'name', 'Role', 'role', 'Position', 'Status', 'status', 'Phone', 'phone', 'Phone Number', 'Email', 'email'].includes(key) &&
-                                value !== null && value !== undefined && value !== ''
-                              )
-                              .map(([key, value]) => (
-                                <div key={key} className="flex justify-between items-start py-2 border-b border-gray-700 last:border-0">
-                                  <span className="text-gray-400 text-sm">{key}</span>
-                                  <span className="text-gray-200 text-sm text-right max-w-[60%]">
-                                    {Array.isArray(value) ? value.join(', ') : String(value)}
-                                  </span>
-                                </div>
-                              ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                )}
-
                 <button
-                  onClick={() => { setSelectedMember(null); setSelectedDealType(null); setShowAllFields(false) }}
+                  onClick={() => { setSelectedMember(null); setSelectedDealType(null) }}
                   className="mt-6 w-full py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors"
                 >
                   Close
