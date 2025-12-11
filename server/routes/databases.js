@@ -97,6 +97,18 @@ router.get('/team-kpis', requireAuth, async (req, res) => {
       const avgDealSize = totalDealsCount > 0 ? Math.round(totalVolume / totalDealsCount) : 0
       const closingRate = totalDealsCount > 0 ? Math.round((closedDealsCount / totalDealsCount) * 100) : 0
 
+      // Format deal data for frontend display
+      const formatDealForDisplay = (deal) => ({
+        id: deal.id,
+        address: deal.Address || deal.address || deal['Property Address'] || 'No Address',
+        buyerName: deal['Buyer Name'] || deal.buyerName || deal.Client || '',
+        salesPrice: getVolume(deal),
+        loanStatus: deal['Loan Status'] || deal.loanStatus || '',
+        scheduledClosing: deal['Scheduled Closing'] || deal.scheduledClosing || deal['Closing Date'] || null,
+        executed: executedStatuses.some(s => (deal.Status || deal.status || '').toLowerCase().includes(s)),
+        status: deal.Status || deal.status || ''
+      })
+
       return {
         id: member.id,
         name: formatted.Name || formatted.name || 'Unknown',
@@ -116,6 +128,13 @@ router.get('/team-kpis', requireAuth, async (req, res) => {
           avgDealSize,
           closingRate,
           recentDeals
+        },
+        // Include actual deals for clickable KPIs
+        deals: {
+          all: memberDeals.map(formatDealForDisplay),
+          closed: closedDeals.map(formatDealForDisplay),
+          executed: executedDeals.map(formatDealForDisplay),
+          pending: pendingDeals.map(formatDealForDisplay)
         }
       }
     })

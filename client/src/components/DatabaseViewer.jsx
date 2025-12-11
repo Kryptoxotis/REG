@@ -5,7 +5,7 @@ import axios from 'axios'
 
 const dbConfig = {
   TEAM_MEMBERS: { title: 'Team Members', icon: Users, primaryField: 'Name', secondaryFields: ['Role', 'Phone', 'Email'], statusField: 'Status', mobileLayout: 'card' },
-  PROPERTIES: { title: 'Properties', icon: Building2, primaryField: 'Property Name', secondaryFields: ['Status', 'Type', 'Address'], statusField: 'Status', mobileLayout: 'table', tableColumns: ['Property Name', 'Status', 'Type', 'Address', 'Price'] },
+  PROPERTIES: { title: 'Properties', icon: Building2, primaryField: 'Address', secondaryFields: ['Status', 'Floorplan', 'Sales Price'], statusField: 'Status', mobileLayout: 'table', tableColumns: ['Address', 'Status', 'Floorplan', 'Sales Price', 'Subdivision'] },
   PIPELINE: { title: 'Pipeline', icon: TrendingUp, primaryField: 'Deal Name', secondaryFields: ['Stage', 'Value', 'Agent'], statusField: 'Stage', mobileLayout: 'card' },
   CLIENTS: { title: 'Clients', icon: UserCheck, primaryField: 'Name', secondaryFields: ['Email', 'Phone', 'Source'], statusField: 'Status', mobileLayout: 'card' },
   SCHEDULE: { title: 'Schedule', icon: Calendar, primaryField: 'Date', secondaryFields: ['Model Home Address', 'Assigned Staff 1', 'Assigned Staff 2'], statusField: null, mobileLayout: 'list' }
@@ -127,7 +127,7 @@ export default function DatabaseViewer({ databaseKey }) {
                       <span className={"inline-flex px-3 py-1 text-xs font-medium rounded-full " + getStatusColor(item[col])}>
                         {item[col]}
                       </span>
-                    ) : col.toLowerCase().includes('price') ? (
+                    ) : (col.toLowerCase().includes('price') || col === 'Sales Price') ? (
                       <span className="text-emerald-400 font-medium">{formatPrice(item[col])}</span>
                     ) : (
                       <span className="group-hover:text-white transition-colors">{String(item[col] || '-')}</span>
