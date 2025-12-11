@@ -84,9 +84,62 @@ export default function DatabaseViewer({ databaseKey }) {
   const terminatedCount = useMemo(() => { if (databaseKey !== 'TEAM_MEMBERS') return 0; return safeData.filter(item => { const status = item[config.statusField]; return status && status.toLowerCase().includes('terminated') }).length }, [safeData, databaseKey, config.statusField])
   const filteredData = useMemo(() => { if (databaseKey !== 'TEAM_MEMBERS' || showTerminated) return safeData; return safeData.filter(item => { const status = item[config.statusField]; return !status || !status.toLowerCase().includes('terminated') }) }, [safeData, databaseKey, showTerminated, config.statusField])
 
+  const formatPrice = (value) => {
+    if (!value) return '-'
+    const num = typeof value === 'number' ? value : parseFloat(value)
+    if (isNaN(num)) return String(value)
+    return '$' + num.toLocaleString()
+  }
+
   const renderTableView = () => {
     const columns = config.tableColumns || [config.primaryField, ...config.secondaryFields]
-    return (<div className="overflow-x-auto"><table className="min-w-full divide-y divide-gray-700"><thead className="bg-gray-900"><tr>{columns.map(col => <th key={col} className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">{col}</th>)}</tr></thead><tbody className="bg-gray-800 divide-y divide-gray-700">{filteredData.map((item, idx) => <tr key={item.id || idx} className="hover:bg-gray-700 cursor-pointer transition-colors" onClick={() => setSelectedItem(item)}>{columns.map(col => <td key={col} className="px-4 py-3 text-sm text-gray-300 whitespace-nowrap">{col === config.statusField && item[col] ? <span className={"px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(item[col])}>{item[col]}</span> : String(item[col] || '-')}</td>)}</tr>)}</tbody></table></div>)
+    return (
+      <div className="overflow-x-auto rounded-xl border border-gray-700">
+        <table className="min-w-full">
+          <thead>
+            <tr className="bg-gradient-to-r from-gray-900 to-gray-800">
+              {columns.map((col, idx) => (
+                <th
+                  key={col}
+                  className={`px-5 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider ${idx === 0 ? 'rounded-tl-xl' : ''} ${idx === columns.length - 1 ? 'rounded-tr-xl' : ''}`}
+                >
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-700/50">
+            {filteredData.map((item, idx) => (
+              <motion.tr
+                key={item.id || idx}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.02 }}
+                className="bg-gray-800/50 hover:bg-gray-700/70 cursor-pointer transition-all group"
+                onClick={() => setSelectedItem(item)}
+              >
+                {columns.map((col, colIdx) => (
+                  <td
+                    key={col}
+                    className={`px-5 py-4 text-sm ${colIdx === 0 ? 'font-medium text-white' : 'text-gray-300'}`}
+                  >
+                    {col === config.statusField && item[col] ? (
+                      <span className={"inline-flex px-3 py-1 text-xs font-medium rounded-full " + getStatusColor(item[col])}>
+                        {item[col]}
+                      </span>
+                    ) : col.toLowerCase().includes('price') ? (
+                      <span className="text-emerald-400 font-medium">{formatPrice(item[col])}</span>
+                    ) : (
+                      <span className="group-hover:text-white transition-colors">{String(item[col] || '-')}</span>
+                    )}
+                  </td>
+                ))}
+              </motion.tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
   }
 
   const renderListView = () => (<div className="space-y-2">{filteredData.map((item, idx) => <motion.div key={item.id || idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="bg-gray-800 rounded-xl border border-gray-700 p-3 cursor-pointer hover:bg-gray-700 transition-colors" onClick={() => setSelectedItem(item)}><div className="flex items-center justify-between"><div className="flex-1 min-w-0"><p className="font-medium text-white truncate">{item[config.primaryField] || 'Untitled'}</p><p className="text-sm text-gray-400 truncate">{config.secondaryFields.map(f => item[f]).filter(Boolean).join(' · ')}</p></div><ChevronRight className="w-5 h-5 text-gray-500 flex-shrink-0" /></div></motion.div>)}</div>)

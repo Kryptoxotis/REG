@@ -1,270 +1,219 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Users, TrendingUp, DollarSign, Target, Award, Phone, Mail, X, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react'
 import axios from 'axios'
-import { Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react'
 
-function TeamKPIView({ onNavigate }) {
-  const [data, setData] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [selectedMember, setSelectedMember] = useState(null)
-  const [selectedDealType, setSelectedDealType] = useState(null) // 'all' | 'closed' | 'pending' | 'executed'
-  const [showTerminated, setShowTerminated] = useState(false)
-  const [expandedCards, setExpandedCards] = useState({})
+function formatCurrency(value) {
+  if (!value || value === 0) return '$0'
+  if (value >= 1000000) return '$' + (value / 1000000).toFixed(1) + 'M'
+  if (value >= 1000) return '$' + (value / 1000).toFixed(0) + 'K'
+  return '$' + value.toLocaleString()
+}
 
-  useEffect(() => { fetchData() }, [])
+function getStatusColor(status) {
+  if (!status) return 'bg-gray-700 text-gray-300'
+  const s = status.toLowerCase()
+  if (s.includes('active')) return 'bg-emerald-500/20 text-emerald-400'
+  if (s.includes('inactive') || s.includes('terminated')) return 'bg-red-500/20 text-red-400'
+  if (s.includes('pending') || s.includes('probation')) return 'bg-amber-500/20 text-amber-400'
+  return 'bg-gray-700 text-gray-300'
+}
 
-  const fetchData = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const response = await axios.get('/api/databases/team-kpis', { withCredentials: true })
-      setData(response.data)
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to fetch team KPIs')
-    } finally { setLoading(false) }
-  }
-
-  const terminatedCount = useMemo(() => data.filter(m => m.status?.toLowerCase() === 'terminated').length, [data])
-  const filteredData = useMemo(() => showTerminated ? data : data.filter(m => m.status?.toLowerCase() !== 'terminated'), [data, showTerminated])
-  const toggleExpanded = (id) => setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }))
-
-  if (loading) {
-    return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-center py-20">
-        <div className="text-center">
-          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }} className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full mx-auto" />
-          <p className="mt-4 text-gray-400">Loading team performance...</p>
-        </div>
-      </motion.div>
-    )
-  }
-
-  if (error) {
-    return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6 text-center">
-        <p className="text-red-400">{error}</p>
-        <button onClick={fetchData} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg">Try Again</button>
-      </motion.div>
-    )
-  }
-
-  // Calculate team totals from filtered data
-  const teamTotals = filteredData.reduce((acc, member) => ({
-    totalDeals: acc.totalDeals + (member.kpis?.totalDeals || 0),
-    closedDeals: acc.closedDeals + (member.kpis?.closedDeals || 0),
-    totalVolume: acc.totalVolume + (member.kpis?.totalVolume || 0),
-    closedVolume: acc.closedVolume + (member.kpis?.closedVolume || 0)
-  }), { totalDeals: 0, closedDeals: 0, totalVolume: 0, closedVolume: 0 })
-
-  const formatCurrency = (num) => '$' + num.toLocaleString()
-  const formatCompact = (num) => {
-    if (num >= 1000000) return '$' + (num / 1000000).toFixed(1) + 'M'
-    if (num >= 1000) return '$' + (num / 1000).toFixed(0) + 'K'
-    return '$' + num
+function KPIBadge({ label, value, icon: Icon, color = 'violet' }) {
+  const colors = {
+    violet: 'bg-violet-500/20 text-violet-400',
+    emerald: 'bg-emerald-500/20 text-emerald-400',
+    amber: 'bg-amber-500/20 text-amber-400',
+    blue: 'bg-blue-500/20 text-blue-400',
+    rose: 'bg-rose-500/20 text-rose-400'
   }
 
   return (
-    <div className="space-y-6">
-      {/* Team Summary Cards - Monthly */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-br from-violet-600 to-purple-700 rounded-2xl p-5">
-          <p className="text-violet-200 text-sm">Monthly Deals</p>
-          <p className="text-3xl font-bold text-white mt-1">{teamTotals.totalDeals}</p>
-          <p className="text-violet-300 text-xs mt-1">{teamTotals.closedDeals} closed this month</p>
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-gradient-to-br from-emerald-600 to-green-700 rounded-2xl p-5">
-          <p className="text-emerald-200 text-sm">Monthly Volume</p>
-          <p className="text-3xl font-bold text-white mt-1">{formatCompact(teamTotals.totalVolume)}</p>
-          <p className="text-emerald-300 text-xs mt-1">{formatCompact(teamTotals.closedVolume)} closed</p>
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-gradient-to-br from-blue-600 to-cyan-700 rounded-2xl p-5">
-          <p className="text-blue-200 text-sm">Active Agents</p>
-          <p className="text-3xl font-bold text-white mt-1">{filteredData.filter(m => m.status === 'Active').length}</p>
-          <p className="text-blue-300 text-xs mt-1">of {filteredData.length} shown</p>
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-gradient-to-br from-amber-600 to-orange-700 rounded-2xl p-5">
-          <p className="text-amber-200 text-sm">Avg Deal Size</p>
-          <p className="text-3xl font-bold text-white mt-1">{formatCompact(teamTotals.totalDeals > 0 ? teamTotals.totalVolume / teamTotals.totalDeals : 0)}</p>
-          <p className="text-amber-300 text-xs mt-1">this month</p>
-        </motion.div>
-      </div>
+    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${colors[color]}`}>
+      {Icon && <Icon className="w-3.5 h-3.5" />}
+      <span className="text-xs font-medium">{label}:</span>
+      <span className="text-xs font-bold">{value}</span>
+    </div>
+  )
+}
 
+function TeamMemberCard({ member, onClick }) {
+  const { kpis } = member
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden hover:border-gray-600 transition-all cursor-pointer group"
+      onClick={onClick}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-2xl font-bold text-white">Team Performance</h2>
-          <p className="text-sm text-gray-400">
-            {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })} stats · {filteredData.length} members
-          </p>
+      <div className="p-4">
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-white truncate group-hover:text-violet-400 transition-colors">
+              {member.name}
+            </h3>
+            <p className="text-sm text-gray-400">{member.role}</p>
+          </div>
+          <span className={`ml-2 px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(member.status)}`}>
+            {member.status}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          {terminatedCount > 0 && (
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setShowTerminated(!showTerminated)}
-              className={(showTerminated ? 'bg-red-500/20 text-red-400' : 'bg-gray-800 text-gray-300 hover:bg-gray-700') + " flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors border border-gray-700"}
-            >
-              {showTerminated ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              {showTerminated ? 'Hide' : 'Show'} Terminated ({terminatedCount})
-            </motion.button>
+
+        {/* Quick Stats Grid */}
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <div className="bg-gray-900/50 rounded-lg p-2 text-center">
+            <p className="text-lg font-bold text-white">{kpis.totalDeals}</p>
+            <p className="text-xs text-gray-500">Total Deals</p>
+          </div>
+          <div className="bg-gray-900/50 rounded-lg p-2 text-center">
+            <p className="text-lg font-bold text-emerald-400">{kpis.closedDeals}</p>
+            <p className="text-xs text-gray-500">Closed</p>
+          </div>
+        </div>
+
+        {/* Volume */}
+        <div className="bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-lg p-3 mb-3">
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-400">Total Volume</span>
+            <span className="text-lg font-bold text-violet-400">{formatCurrency(kpis.totalVolume)}</span>
+          </div>
+        </div>
+
+        {/* KPI Badges */}
+        <div className="flex flex-wrap gap-2">
+          <KPIBadge label="Rate" value={`${kpis.closingRate}%`} icon={Target} color="emerald" />
+          <KPIBadge label="Avg" value={formatCurrency(kpis.avgDealSize)} icon={DollarSign} color="violet" />
+          {kpis.recentDeals > 0 && (
+            <KPIBadge label="30d" value={kpis.recentDeals} icon={TrendingUp} color="blue" />
           )}
-          <motion.button whileHover={{ scale: 1.1, rotate: 180 }} whileTap={{ scale: 0.9 }} onClick={fetchData} className="p-2.5 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white">
-            🔄
-          </motion.button>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+export default function TeamKPIView() {
+  const [teamData, setTeamData] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [selectedMember, setSelectedMember] = useState(null)
+  const [showTerminated, setShowTerminated] = useState(false)
+  const [showAllFields, setShowAllFields] = useState(false)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true)
+      try {
+        const response = await axios.get('/api/databases/team-kpis', { withCredentials: true })
+        setTeamData(response.data || [])
+      } catch (error) {
+        console.error('Failed to fetch team KPIs:', error)
+        setTeamData([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  // Count terminated members
+  const terminatedCount = useMemo(() => {
+    return teamData.filter(m => m.status && m.status.toLowerCase().includes('terminated')).length
+  }, [teamData])
+
+  // Filter out terminated members unless toggle is on
+  const filteredData = useMemo(() => {
+    if (showTerminated) return teamData
+    return teamData.filter(m => !m.status || !m.status.toLowerCase().includes('terminated'))
+  }, [teamData, showTerminated])
+
+  // Calculate team totals
+  const teamTotals = useMemo(() => {
+    return filteredData.reduce((acc, member) => ({
+      totalDeals: acc.totalDeals + member.kpis.totalDeals,
+      closedDeals: acc.closedDeals + member.kpis.closedDeals,
+      totalVolume: acc.totalVolume + member.kpis.totalVolume,
+      closedVolume: acc.closedVolume + member.kpis.closedVolume
+    }), { totalDeals: 0, closedDeals: 0, totalVolume: 0, closedVolume: 0 })
+  }, [filteredData])
+
+  if (isLoading) {
+    return (
+      <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 bg-gray-700 rounded w-1/4"></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3].map(i => <div key={i} className="h-48 bg-gray-700 rounded-xl"></div>)}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-700">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-violet-500/20 rounded-xl">
+              <Users className="w-5 h-5 text-violet-400" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-white">Team Performance</h2>
+              <p className="text-sm text-gray-400">{filteredData.length} members</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {/* Terminated toggle */}
+            {terminatedCount > 0 && (
+              <button
+                onClick={() => setShowTerminated(!showTerminated)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
+                  showTerminated
+                    ? 'bg-red-500/20 text-red-400'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                {showTerminated ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showTerminated ? 'Hide' : 'Show'} Terminated ({terminatedCount})
+              </button>
+            )}
+
+            {/* Team Summary Stats */}
+            <div className="hidden sm:flex items-center gap-4 text-sm">
+              <div className="text-gray-400">
+                <span className="text-white font-semibold">{teamTotals.totalDeals}</span> deals
+              </div>
+              <div className="text-gray-400">
+                <span className="text-emerald-400 font-semibold">{formatCurrency(teamTotals.totalVolume)}</span> volume
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Team Member Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {filteredData.map((member, idx) => (
-          <motion.div
-            key={member.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.05 }}
-            whileHover={{ scale: 1.01, y: -2 }}
-            onClick={() => setSelectedMember(member)}
-            className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden hover:border-violet-500/50 transition-all cursor-pointer"
-          >
-            <div className="h-1.5 bg-gradient-to-r from-violet-500 to-purple-400" />
-            <div className="p-5">
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-lg font-bold">
-                    {member.name?.charAt(0) || '?'}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-white text-lg">{member.name || 'Unknown'}</h3>
-                    <p className="text-xs text-gray-500">{member.role || 'Agent'}</p>
-                  </div>
-                </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  member.status === 'Active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-600/30 text-gray-400'
-                }`}>
-                  {member.status}
-                </span>
-              </div>
-
-              {/* KPI Grid */}
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="bg-gray-900 rounded-xl p-3 text-center">
-                  <p className="text-2xl font-bold text-white">{member.kpis.totalDeals}</p>
-                  <p className="text-xs text-gray-500">Total Deals</p>
-                </div>
-                <div className="bg-gray-900 rounded-xl p-3 text-center">
-                  <p className="text-2xl font-bold text-emerald-400">{member.kpis.closedDeals}</p>
-                  <p className="text-xs text-gray-500">Closed</p>
-                </div>
-                <div className="bg-gray-900 rounded-xl p-3 text-center">
-                  <p className="text-2xl font-bold text-amber-400">{member.kpis.pendingDeals}</p>
-                  <p className="text-xs text-gray-500">Pending</p>
-                </div>
-              </div>
-
-              {/* Volume & Metrics */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-400">Total Volume</span>
-                  <span className="text-sm font-semibold text-white">{formatCurrency(member.kpis.totalVolume)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-400">Avg Deal Size</span>
-                  <span className="text-sm font-semibold text-gray-300">{formatCurrency(member.kpis.avgDealSize)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-400">Closing Rate</span>
-                  <span className={`text-sm font-semibold ${member.kpis.closingRate >= 50 ? 'text-emerald-400' : member.kpis.closingRate >= 25 ? 'text-amber-400' : 'text-gray-400'}`}>
-                    {member.kpis.closingRate}%
-                  </span>
-                </div>
-              </div>
-
-              {/* Progress Bar */}
-              {member.kpis.totalDeals > 0 && (
-                <div className="mt-4">
-                  <div className="flex justify-between text-xs text-gray-500 mb-1">
-                    <span>Pipeline Progress</span>
-                    <span>{member.kpis.closedDeals}/{member.kpis.totalDeals}</span>
-                  </div>
-                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${member.kpis.closingRate}%` }}
-                      transition={{ delay: 0.3, duration: 0.5 }}
-                      className="h-full bg-gradient-to-r from-violet-500 to-emerald-500 rounded-full"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* All-time Stats */}
-              {member.kpis.allTimeDeals > 0 && (
-                <div className="mt-3 flex items-center gap-2">
-                  <span className="text-xs text-gray-500">All-time: {member.kpis.allTimeDeals} deals ({member.kpis.allTimeClosed} closed)</span>
-                </div>
-              )}
-            </div>
-
-            {/* Expand Button for Extra Fields */}
-            {(member.phone || member.email || member.notes || member.hireDate || member.team) && (
-              <>
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggleExpanded(member.id); }}
-                  className="w-full px-5 py-2.5 bg-gray-900 border-t border-gray-700 flex items-center justify-center gap-2 text-sm text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
-                >
-                  {expandedCards[member.id] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  {expandedCards[member.id] ? 'Show Less' : 'Show More Details'}
-                </button>
-                <AnimatePresence>
-                  {expandedCards[member.id] && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="px-5 py-4 bg-gray-900 border-t border-gray-700 space-y-2">
-                        {member.phone && (
-                          <div className="flex items-center gap-3 text-sm">
-                            <span className="text-gray-500">📱 Phone:</span>
-                            <span className="text-gray-300">{member.phone}</span>
-                          </div>
-                        )}
-                        {member.email && (
-                          <div className="flex items-center gap-3 text-sm">
-                            <span className="text-gray-500">✉️ Email:</span>
-                            <span className="text-gray-300">{member.email}</span>
-                          </div>
-                        )}
-                        {member.hireDate && (
-                          <div className="flex items-center gap-3 text-sm">
-                            <span className="text-gray-500">📅 Hire Date:</span>
-                            <span className="text-gray-300">{member.hireDate}</span>
-                          </div>
-                        )}
-                        {member.team && (
-                          <div className="flex items-center gap-3 text-sm">
-                            <span className="text-gray-500">👥 Team:</span>
-                            <span className="text-gray-300">{member.team}</span>
-                          </div>
-                        )}
-                        {member.notes && (
-                          <div className="text-sm">
-                            <span className="text-gray-500">📝 Notes:</span>
-                            <p className="text-gray-300 mt-1">{member.notes}</p>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </>
-            )}
-          </motion.div>
-        ))}
+      {/* Grid */}
+      <div className="p-4">
+        {filteredData.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <Users className="w-12 h-12 mx-auto mb-3 text-gray-600" />
+            <p>No team members found</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredData.map((member) => (
+              <TeamMemberCard
+                key={member.id}
+                member={member}
+                onClick={() => setSelectedMember(member)}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Detail Modal */}
@@ -274,211 +223,141 @@ function TeamKPIView({ onNavigate }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => { setSelectedMember(null); setSelectedDealType(null) }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            onClick={() => { setSelectedMember(null); setShowAllFields(false); }}
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-gray-900 rounded-2xl border border-gray-700 max-w-lg w-full max-h-[80vh] overflow-y-auto"
               onClick={e => e.stopPropagation()}
-              className="bg-gray-900 rounded-2xl border border-gray-700 max-w-lg w-full overflow-hidden"
             >
-              <div className="h-2 bg-gradient-to-r from-violet-500 to-purple-400" />
-              <div className="p-6">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold">
-                    {selectedMember.name?.charAt(0) || '?'}
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">{selectedMember.name}</h2>
-                    <p className="text-gray-400">{selectedMember.role || 'Agent'} • {selectedMember.status}</p>
-                  </div>
+              {/* Modal Header */}
+              <div className="p-4 border-b border-gray-700 flex items-center justify-between sticky top-0 bg-gray-900 z-10">
+                <div>
+                  <h3 className="font-semibold text-lg text-white">{selectedMember.name}</h3>
+                  <p className="text-sm text-gray-400">{selectedMember.role}</p>
                 </div>
-
-                {/* Contact Info */}
-                <div className="space-y-2 mb-6">
-                  {selectedMember.phone && (
-                    <div className="flex items-center gap-3 text-gray-300">
-                      <span>📱</span>
-                      <span>{selectedMember.phone}</span>
-                    </div>
-                  )}
-                  {selectedMember.email && (
-                    <div className="flex items-center gap-3 text-gray-300">
-                      <span>✉️</span>
-                      <span>{selectedMember.email}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Detailed KPIs - Clickable */}
-                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Performance Metrics (click to view deals)</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setSelectedDealType('all')}
-                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-4 text-left transition-colors"
-                  >
-                    <p className="text-3xl font-bold text-white">{selectedMember.kpis.totalDeals}</p>
-                    <p className="text-sm text-gray-400">Total Deals</p>
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setSelectedDealType('closed')}
-                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-4 text-left transition-colors"
-                  >
-                    <p className="text-3xl font-bold text-emerald-400">{selectedMember.kpis.closedDeals}</p>
-                    <p className="text-sm text-gray-400">Closed Deals</p>
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setSelectedDealType('executed')}
-                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-4 text-left transition-colors"
-                  >
-                    <p className="text-3xl font-bold text-blue-400">{selectedMember.kpis.executedDeals}</p>
-                    <p className="text-sm text-gray-400">Executed</p>
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setSelectedDealType('pending')}
-                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-4 text-left transition-colors"
-                  >
-                    <p className="text-3xl font-bold text-amber-400">{selectedMember.kpis.pendingDeals}</p>
-                    <p className="text-sm text-gray-400">Pending</p>
-                  </motion.button>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  <div className="flex justify-between py-2 border-b border-gray-800">
-                    <span className="text-gray-400">Total Volume</span>
-                    <span className="text-white font-semibold">{formatCurrency(selectedMember.kpis.totalVolume)}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-gray-800">
-                    <span className="text-gray-400">Closed Volume</span>
-                    <span className="text-emerald-400 font-semibold">{formatCurrency(selectedMember.kpis.closedVolume)}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-gray-800">
-                    <span className="text-gray-400">Average Deal Size</span>
-                    <span className="text-white font-semibold">{formatCurrency(selectedMember.kpis.avgDealSize)}</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-gray-400">Closing Rate</span>
-                    <span className={`font-semibold ${selectedMember.kpis.closingRate >= 50 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                      {selectedMember.kpis.closingRate}%
-                    </span>
-                  </div>
-                </div>
-
                 <button
-                  onClick={() => { setSelectedMember(null); setSelectedDealType(null) }}
-                  className="mt-6 w-full py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors"
+                  onClick={() => { setSelectedMember(null); setShowAllFields(false); }}
+                  className="p-1 hover:bg-gray-700 rounded-lg transition-colors"
                 >
-                  Close
+                  <X className="w-5 h-5 text-gray-400" />
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
 
-        {/* Deal List Modal */}
-        {selectedMember && selectedDealType && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setSelectedDealType(null)}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={e => e.stopPropagation()}
-              className="bg-gray-900 rounded-2xl border border-gray-700 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
-            >
-              <div className={`h-2 ${
-                selectedDealType === 'closed' ? 'bg-emerald-500' :
-                selectedDealType === 'executed' ? 'bg-blue-500' :
-                selectedDealType === 'pending' ? 'bg-amber-500' : 'bg-violet-500'
-              }`} />
-              <div className="p-6 flex-1 overflow-y-auto">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-white">
-                    {selectedMember.name}'s {selectedDealType === 'all' ? 'All' : selectedDealType.charAt(0).toUpperCase() + selectedDealType.slice(1)} Deals
-                  </h2>
-                  <button onClick={() => setSelectedDealType(null)} className="text-gray-400 hover:text-white text-xl">✕</button>
+              {/* Modal Content */}
+              <div className="p-4 space-y-4">
+                {/* Contact Info */}
+                <div className="flex flex-wrap gap-3">
+                  {selectedMember.phone && (
+                    <a
+                      href={`tel:${selectedMember.phone}`}
+                      className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                      <Phone className="w-4 h-4 text-violet-400" />
+                      <span className="text-sm text-gray-300">{selectedMember.phone}</span>
+                    </a>
+                  )}
+                  {selectedMember.email && (
+                    <a
+                      href={`mailto:${selectedMember.email}`}
+                      className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                      <Mail className="w-4 h-4 text-violet-400" />
+                      <span className="text-sm text-gray-300">{selectedMember.email}</span>
+                    </a>
+                  )}
                 </div>
 
-                {selectedMember.deals?.[selectedDealType]?.length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">No deals in this category</p>
-                ) : (
-                  <div className="space-y-3">
-                    {selectedMember.deals?.[selectedDealType]?.map((deal) => (
-                      <motion.button
-                        key={deal.id}
-                        whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.99 }}
-                        onClick={() => {
-                          // Navigate to Pipeline if deal has loan status, otherwise Properties
-                          const targetView = deal.loanStatus ? 'PIPELINE' : 'PROPERTIES'
-                          if (onNavigate) {
-                            onNavigate(targetView, deal.id)
-                          }
-                          setSelectedDealType(null)
-                          setSelectedMember(null)
-                        }}
-                        className="w-full text-left bg-gray-800 hover:bg-gray-700 rounded-xl p-4 transition-colors"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium text-white">{deal.address || 'No Address'}</p>
-                            {deal.buyerName && <p className="text-sm text-gray-400 mt-1">{deal.buyerName}</p>}
+                {/* KPI Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-gray-800 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-white">{selectedMember.kpis.totalDeals}</p>
+                    <p className="text-sm text-gray-500">Total Deals</p>
+                  </div>
+                  <div className="bg-gray-800 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-emerald-400">{selectedMember.kpis.closedDeals}</p>
+                    <p className="text-sm text-gray-500">Closed Deals</p>
+                  </div>
+                  <div className="bg-gray-800 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-violet-400">{formatCurrency(selectedMember.kpis.totalVolume)}</p>
+                    <p className="text-sm text-gray-500">Total Volume</p>
+                  </div>
+                  <div className="bg-gray-800 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-amber-400">{selectedMember.kpis.closingRate}%</p>
+                    <p className="text-sm text-gray-500">Closing Rate</p>
+                  </div>
+                </div>
+
+                {/* Additional Stats */}
+                <div className="bg-gray-800 rounded-xl p-4 space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Executed Deals</span>
+                    <span className="text-white font-medium">{selectedMember.kpis.executedDeals}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Pending Deals</span>
+                    <span className="text-white font-medium">{selectedMember.kpis.pendingDeals}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Avg Deal Size</span>
+                    <span className="text-white font-medium">{formatCurrency(selectedMember.kpis.avgDealSize)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Deals (Last 30 Days)</span>
+                    <span className="text-white font-medium">{selectedMember.kpis.recentDeals}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Closed Volume</span>
+                    <span className="text-emerald-400 font-medium">{formatCurrency(selectedMember.kpis.closedVolume)}</span>
+                  </div>
+                </div>
+
+                {/* Show More Details - All Notion Fields */}
+                {selectedMember.allFields && (
+                  <div className="mt-6">
+                    <button
+                      onClick={() => setShowAllFields(!showAllFields)}
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl transition-colors"
+                    >
+                      {showAllFields ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      {showAllFields ? 'Hide Details' : 'Show More Details'}
+                    </button>
+                    <AnimatePresence>
+                      {showAllFields && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="mt-4 bg-gray-800 rounded-xl p-4 space-y-3">
+                            {Object.entries(selectedMember.allFields)
+                              .filter(([key, value]) =>
+                                !['id', 'created_time', 'last_edited_time', 'Name', 'name', 'Role', 'role', 'Position', 'Status', 'status', 'Phone', 'phone', 'Phone Number', 'Email', 'email'].includes(key) &&
+                                value !== null && value !== undefined && value !== ''
+                              )
+                              .map(([key, value]) => (
+                                <div key={key} className="flex justify-between items-start py-2 border-b border-gray-700 last:border-0">
+                                  <span className="text-gray-400 text-sm">{key}</span>
+                                  <span className="text-gray-200 text-sm text-right max-w-[60%]">
+                                    {Array.isArray(value) ? value.join(', ') : String(value)}
+                                  </span>
+                                </div>
+                              ))}
                           </div>
-                          <span className="text-emerald-400 font-semibold">{formatCurrency(deal.salesPrice)}</span>
-                        </div>
-                        <div className="flex items-center gap-3 mt-3 text-sm">
-                          {deal.loanStatus && (
-                            <span className="px-2 py-1 bg-gray-700 rounded text-gray-300">{deal.loanStatus}</span>
-                          )}
-                          {deal.scheduledClosing && (
-                            <span className="text-gray-500">Closing: {new Date(deal.scheduledClosing).toLocaleDateString()}</span>
-                          )}
-                          {deal.executed && (
-                            <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded">Executed</span>
-                          )}
-                        </div>
-                        <p className="text-xs text-violet-400 mt-2">Click to view in {deal.loanStatus ? 'Pipeline' : 'Properties'} →</p>
-                      </motion.button>
-                    ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 )}
-
-                <button
-                  onClick={() => setSelectedDealType(null)}
-                  className="mt-6 w-full py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors"
-                >
-                  Back to Member Details
-                </button>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {filteredData.length === 0 && (
-        <div className="bg-gray-800 rounded-2xl p-12 text-center">
-          <p className="text-6xl mb-4">👥</p>
-          <h3 className="text-lg font-semibold text-gray-200">{data.length === 0 ? 'No Team Members Found' : 'No Active Members'}</h3>
-          <p className="text-gray-500 mt-2">{data.length === 0 ? 'Add team members to see their performance metrics' : 'All members are terminated. Click "Show Terminated" to see them.'}</p>
-        </div>
-      )}
     </div>
   )
 }
-
-export default TeamKPIView
