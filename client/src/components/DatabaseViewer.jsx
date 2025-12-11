@@ -94,14 +94,14 @@ export default function DatabaseViewer({ databaseKey }) {
   const renderTableView = () => {
     const columns = config.tableColumns || [config.primaryField, ...config.secondaryFields]
     return (
-      <div className="overflow-x-auto rounded-xl border border-gray-700">
+      <div className="overflow-x-auto rounded-xl border border-gray-700 shadow-lg">
         <table className="min-w-full">
           <thead>
-            <tr className="bg-gradient-to-r from-gray-900 to-gray-800">
+            <tr className="bg-gradient-to-r from-violet-900/40 to-purple-900/40">
               {columns.map((col, idx) => (
                 <th
                   key={col}
-                  className={`px-5 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider ${idx === 0 ? 'rounded-tl-xl' : ''} ${idx === columns.length - 1 ? 'rounded-tr-xl' : ''}`}
+                  className={`px-5 py-4 text-left text-xs font-semibold text-violet-200 uppercase tracking-wider ${idx === 0 ? 'rounded-tl-xl' : ''} ${idx === columns.length - 1 ? 'rounded-tr-xl' : ''}`}
                 >
                   {col}
                 </th>
@@ -115,7 +115,7 @@ export default function DatabaseViewer({ databaseKey }) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.02 }}
-                className="bg-gray-800/50 hover:bg-gray-700/70 cursor-pointer transition-all group"
+                className={`${idx % 2 === 0 ? 'bg-gray-800/50' : 'bg-gray-800/30'} hover:bg-violet-900/20 cursor-pointer transition-all group border-l-2 border-transparent hover:border-violet-500`}
                 onClick={() => setSelectedItem(item)}
               >
                 {columns.map((col, colIdx) => (
@@ -124,11 +124,15 @@ export default function DatabaseViewer({ databaseKey }) {
                     className={`px-5 py-4 text-sm ${colIdx === 0 ? 'font-medium text-white' : 'text-gray-300'}`}
                   >
                     {col === config.statusField && item[col] ? (
-                      <span className={"inline-flex px-3 py-1 text-xs font-medium rounded-full " + getStatusColor(item[col])}>
+                      <span className={"inline-flex px-3 py-1 text-xs font-medium rounded-full shadow-sm " + getStatusColor(item[col])}>
                         {item[col]}
                       </span>
                     ) : (col.toLowerCase().includes('price') || col === 'Sales Price') ? (
-                      <span className="text-emerald-400 font-medium">{formatPrice(item[col])}</span>
+                      <span className="text-emerald-400 font-semibold">{formatPrice(item[col])}</span>
+                    ) : (col === 'Floorplan' || col === 'Floor Plan') ? (
+                      <span className="text-blue-400 font-medium">{String(item[col] || '-')}</span>
+                    ) : col === 'Subdivision' ? (
+                      <span className="text-purple-400">{String(item[col] || '-')}</span>
                     ) : (
                       <span className="group-hover:text-white transition-colors">{String(item[col] || '-')}</span>
                     )}
