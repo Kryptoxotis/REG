@@ -217,20 +217,25 @@ function DetailModal({ item, onClose, onUpdate, databaseKey }) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-end sm:items-center justify-center sm:p-4"
       >
         <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+          initial={{ opacity: 0, y: '100%' }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: '100%' }}
+          transition={{ type: 'spring', damping: 30, stiffness: 350 }}
           onClick={e => e.stopPropagation()}
-          className={`relative bg-[#0a0a0a] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl ${style.glow} shadow-xl`}
+          className={`relative bg-[#0a0a0a] rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md max-h-[90vh] overflow-hidden shadow-2xl ${style.glow} shadow-xl`}
         >
+          {/* Mobile drag handle */}
+          <div className="sm:hidden flex justify-center pt-3 pb-1 relative z-10">
+            <div className="w-10 h-1 bg-gray-600 rounded-full" />
+          </div>
+
           {/* Animated border glow */}
-          <div className={`absolute inset-0 rounded-3xl bg-gradient-to-br ${style.gradient} opacity-20`}
+          <div className={`absolute inset-0 rounded-t-3xl sm:rounded-3xl bg-gradient-to-br ${style.gradient} opacity-20`}
                style={{ animation: 'pulse-glow 3s ease-in-out infinite' }} />
-          <div className="absolute inset-[1px] rounded-3xl bg-[#0a0a0a]" />
+          <div className="absolute inset-[1px] rounded-t-3xl sm:rounded-3xl bg-[#0a0a0a]" />
 
           {/* Header with shimmer */}
           <div className={`relative bg-gradient-to-br ${style.gradient} p-6 pb-8 overflow-hidden`}>
@@ -522,4 +527,3 @@ function EditForm({ config, formData, onChange, error }) {
 }
 
 export default DetailModal
-

@@ -1,242 +1,176 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { ChevronDown, ChevronUp, Users, Building2, TrendingUp, UserCheck, Calendar, X, Filter, ChevronRight, Eye, EyeOff } from 'lucide-react'
 import axios from 'axios'
-import DetailModal from './DetailModal'
 
-function DatabaseViewer({ databaseKey, databaseName }) {
-  const [data, setData] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedItem, setSelectedItem] = useState(null)
-
-  useEffect(() => { fetchData() }, [databaseKey])
-
-  const fetchData = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const response = await axios.get("/api/databases/" + databaseKey, { withCredentials: true })
-      setData(response.data)
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to fetch data')
-    } finally { setLoading(false) }
-  }
-
-  if (loading) {
-    return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-center py-20">
-        <div className="text-center">
-          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }} className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto" />
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="mt-4 text-gray-400">Loading {databaseName}...</motion.p>
-        </div>
-      </motion.div>
-    )
-  }
-
-  if (error) {
-    return (
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6 text-center">
-        <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ repeat: Infinity, duration: 2 }} className="text-4xl mb-3">⚠️</motion.div>
-        <p className="text-red-400 font-medium">{error}</p>
-        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={fetchData} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">Try Again</motion.button>
-      </motion.div>
-    )
-  }
-
-  if (data.length === 0) {
-    return (
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gray-800 border border-gray-700 rounded-2xl p-12 text-center">
-        <motion.div animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 2 }} className="text-6xl mb-4">📭</motion.div>
-        <h3 className="text-lg font-semibold text-gray-200">No Records Found</h3>
-        <p className="text-gray-500 mt-2">This database is currently empty</p>
-      </motion.div>
-    )
-  }
-
-  const filteredData = data.filter(item =>
-    Object.values(item).some(val => String(formatValue(val)).toLowerCase().includes(searchTerm.toLowerCase()))
-  )
-
-  return (
-    <div className="space-y-4 sm:space-y-6">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white">{databaseName}</h2>
-          <p className="text-sm text-gray-400">{data.length} {data.length === 1 ? 'record' : 'records'} total</p>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <motion.div className="relative flex-1 sm:flex-none" whileFocus={{ scale: 1.02 }}>
-            <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 sm:pl-10 pr-4 py-2 sm:py-2.5 bg-gray-800 border border-gray-700 rounded-xl w-full sm:w-64 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm" />
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">🔍</span>
-          </motion.div>
-          <motion.button whileHover={{ scale: 1.1, rotate: 180 }} whileTap={{ scale: 0.9 }} onClick={fetchData} className="p-2 sm:p-2.5 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white hover:border-gray-600 transition-colors flex-shrink-0">🔄</motion.button>
-        </div>
-      </motion.div>
-
-      <SmartCardView data={filteredData} databaseKey={databaseKey} onItemClick={setSelectedItem} />
-
-      <AnimatePresence>
-        {selectedItem && (
-          <DetailModal item={selectedItem} databaseKey={databaseKey} onClose={() => setSelectedItem(null)} onUpdate={fetchData} />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {filteredData.length === 0 && searchTerm && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-gray-800 border border-gray-700 rounded-2xl p-8 text-center">
-            <p className="text-gray-400">No records match your search</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
-        <p>Showing {filteredData.length} of {data.length} records</p>
-      </motion.div>
-    </div>
-  )
-}
-
-function SmartCardView({ data, databaseKey, onItemClick }) {
-  if (!data || data.length === 0) return null
-
-  const metaFields = ['id', 'created_time', 'last_edited_time']
-  const sampleItem = data[0]
-  const fields = Object.keys(sampleItem).filter(k => !metaFields.includes(k))
-
-  // Database-specific field configs (matched to actual Notion field names)
-  const dbConfig = {
-    TEAM_MEMBERS: {
-      icon: '👥', gradient: 'from-violet-500 to-purple-400', iconBg: 'bg-violet-500/20',
-      titleField: 'Name', subtitleField: 'Phone', statusField: 'Status',
-      showFields: ['Email - ERA', 'Role', 'License Number']
-    },
-    PROPERTIES: {
-      icon: '🏘️', gradient: 'from-emerald-500 to-green-400', iconBg: 'bg-emerald-500/20',
-      titleField: 'Address', subtitleField: 'Subdivision', statusField: 'Status',
-      showFields: ['SqFt', 'Sales Price', 'Floorplan']
-    },
-    MODEL_HOMES: {
-      icon: '🏠', gradient: 'from-teal-500 to-cyan-400', iconBg: 'bg-teal-500/20',
-      titleField: 'Address', subtitleField: 'Subdivision', statusField: 'Status',
-      showFields: ['SqFt', 'Sales Price', 'Floorplan']
-    },
-    PIPELINE: {
-      icon: '📊', gradient: 'from-blue-500 to-cyan-400', iconBg: 'bg-blue-500/20',
-      titleField: 'Address', subtitleField: 'Buyer Name', statusField: 'Loan Status',
-      showFields: ['Sales Price', 'Agent', 'Scheduled Closing', 'Executed']
-    },
-    CLIENTS: {
-      icon: '💼', gradient: 'from-pink-500 to-rose-400', iconBg: 'bg-pink-500/20',
-      titleField: 'Property Address', subtitleField: 'Full Name', statusField: 'Status',
-      showFields: ['Phone', 'Email', 'Timeline']
-    },
-    SCHEDULE: {
-      icon: '📅', gradient: 'from-amber-500 to-orange-400', iconBg: 'bg-amber-500/20',
-      titleField: 'Date', subtitleField: 'Model Home Address', statusField: null,
-      showFields: ['Assigned Staff 1', 'Assigned Staff 2']
-    },
-    SCOREBOARD: {
-      icon: '🏆', gradient: 'from-indigo-500 to-purple-400', iconBg: 'bg-indigo-500/20',
-      titleField: 'Address', subtitleField: 'Agent', statusField: 'Loan Status',
-      showFields: ['Sales Price', 'Closed Date', 'Loan Amount']
-    }
-  }
-
-  const config = dbConfig[databaseKey] || { icon: '📋', gradient: 'from-gray-500 to-gray-400', iconBg: 'bg-gray-500/20', titleField: fields[0], showFields: fields.slice(1, 4) }
-
-  const getPrimaryField = (item) => {
-    const val = item[config.titleField]
-    if (val) return { key: config.titleField, value: val }
-    for (const field of fields) {
-      const v = item[field]
-      if (typeof v === 'string' && v.trim() !== '') return { key: field, value: v }
-    }
-    return { key: fields[0], value: formatValue(item[fields[0]]) }
-  }
-
-  const cardVariants = {
-    hidden: { opacity: 0, y: 20, scale: 0.95 },
-    visible: (i) => ({ opacity: 1, y: 0, scale: 1, transition: { delay: i * 0.05, duration: 0.3, ease: 'easeOut' } })
-  }
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-      {data.map((item, idx) => {
-        const primary = getPrimaryField(item)
-        const status = config.statusField ? item[config.statusField] : null
-        const subtitle = config.subtitleField ? item[config.subtitleField] : null
-        const displayFields = config.showFields.filter(f => item[f] !== null && item[f] !== undefined && item[f] !== '')
-
-        return (
-          <motion.div
-            key={item.id || idx}
-            custom={idx}
-            initial="hidden"
-            animate="visible"
-            variants={cardVariants}
-            whileHover={{ scale: 1.02, y: -4 }}
-            onClick={() => onItemClick && onItemClick(item)}
-            className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden hover:border-gray-600 transition-colors group cursor-pointer"
-          >
-            <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: idx * 0.05 + 0.2 }} className={`h-1 sm:h-1.5 bg-gradient-to-r ${config.gradient} origin-left`} />
-
-            <div className="p-4 sm:p-5">
-              <div className="flex items-start justify-between mb-2 sm:mb-3">
-                <motion.div whileHover={{ scale: 1.2, rotate: 10 }} className={`w-8 h-8 sm:w-10 sm:h-10 ${config.iconBg} rounded-lg flex items-center justify-center`}>
-                  <span className="text-lg sm:text-xl">{config.icon}</span>
-                </motion.div>
-                {status && (
-                  <motion.span initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className={`px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
-                    {formatValue(status)}
-                  </motion.span>
-                )}
-              </div>
-
-              <h4 className="font-semibold text-white mb-1 text-base sm:text-lg line-clamp-2">{primary.value || 'Untitled'}</h4>
-              {subtitle && <p className="text-xs text-gray-500">{formatValue(subtitle)}</p>}
-
-              <div className="space-y-1.5 sm:space-y-2 mt-2 sm:mt-3">
-                {displayFields.slice(0, 4).map(field => (
-                  <div key={field} className="flex justify-between text-xs sm:text-sm">
-                    <span className="text-gray-500 truncate flex-shrink-0 max-w-[40%]">{field}</span>
-                    <span className="text-gray-300 font-medium truncate ml-2 max-w-[55%] text-right">{formatValue(item[field])}</span>
-                  </div>
-                ))}
-              </div>
-
-              {fields.length > 5 && <p className="text-xs text-gray-600 mt-2 sm:mt-3">+ {fields.length - 5} more fields</p>}
-            </div>
-          </motion.div>
-        )
-      })}
-    </div>
-  )
-}
-
-function formatValue(value) {
-  if (value === null || value === undefined) return '—'
-  if (Array.isArray(value)) return value.join(', ')
-  if (typeof value === 'object') {
-    if (value.start) return value.start
-    return JSON.stringify(value)
-  }
-  if (typeof value === 'boolean') return value ? '✓ Yes' : '✗ No'
-  if (typeof value === 'number') {
-    if (value > 10000) return '$' + value.toLocaleString()
-    return value.toLocaleString()
-  }
-  return String(value)
+const dbConfig = {
+  TEAM_MEMBERS: { title: 'Team Members', icon: Users, primaryField: 'Name', secondaryFields: ['Role', 'Phone', 'Email'], statusField: 'Status', mobileLayout: 'card' },
+  PROPERTIES: { title: 'Properties', icon: Building2, primaryField: 'Address', secondaryFields: ['Status', 'Floorplan', 'Sales Price'], statusField: 'Status', mobileLayout: 'table', tableColumns: ['Address', 'Status', 'Floorplan', 'Sales Price', 'Subdivision'] },
+  PIPELINE: { title: 'Pipeline', icon: TrendingUp, primaryField: 'Deal Name', secondaryFields: ['Stage', 'Value', 'Agent'], statusField: 'Stage', mobileLayout: 'card' },
+  CLIENTS: { title: 'Clients', icon: UserCheck, primaryField: 'Name', secondaryFields: ['Email', 'Phone', 'Source'], statusField: 'Status', mobileLayout: 'card' },
+  SCHEDULE: { title: 'Schedule', icon: Calendar, primaryField: 'Date', secondaryFields: ['Model Home Address', 'Assigned Staff 1', 'Assigned Staff 2'], statusField: null, mobileLayout: 'list' }
 }
 
 function getStatusColor(status) {
-  if (!status) return 'bg-gray-600/30 text-gray-400'
-  const s = String(status).toLowerCase()
-  if (s.includes('active') || s.includes('model home') || s.includes('closed') || s.includes('funded') || s.includes('done') || s.includes('yes')) return 'bg-emerald-500/20 text-emerald-400'
-  if (s.includes('pending') || s.includes('processing') || s.includes('progress') || s.includes('conditions')) return 'bg-amber-500/20 text-amber-400'
-  if (s.includes('inactive') || s.includes('cancelled') || s.includes('back on market') || s.includes('no')) return 'bg-red-500/20 text-red-400'
-  if (s.includes('inventory') || s.includes('new') || s.includes('application') || s.includes('disclosures')) return 'bg-blue-500/20 text-blue-400'
-  return 'bg-gray-600/30 text-gray-400'
+  if (!status) return 'bg-gray-700 text-gray-300'
+  const s = status.toLowerCase()
+  if (s.includes('active') || s.includes('won') || s.includes('closed')) return 'bg-emerald-500/20 text-emerald-400'
+  if (s.includes('pending') || s.includes('negotiation') || s.includes('showing')) return 'bg-amber-500/20 text-amber-400'
+  if (s.includes('new') || s.includes('lead') || s.includes('prospect')) return 'bg-blue-500/20 text-blue-400'
+  if (s.includes('inactive') || s.includes('lost') || s.includes('terminated')) return 'bg-red-500/20 text-red-400'
+  return 'bg-gray-700 text-gray-300'
 }
 
-export default DatabaseViewer
+function TeamMemberCard({ item, config, onClick }) {
+  const [expanded, setExpanded] = useState(false)
+  const displayedFields = [config.primaryField, ...config.secondaryFields, config.statusField].filter(Boolean)
+  const extraFields = Object.entries(item).filter(([key, value]) => !displayedFields.includes(key) && key !== 'id' && key !== 'created_time' && key !== 'last_edited_time' && value !== null && value !== '' && value !== undefined)
+  return (
+    <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden hover:border-gray-600 transition-colors">
+      <div className="p-4 cursor-pointer hover:bg-gray-700/50" onClick={onClick}>
+        <div className="flex justify-between items-start mb-2">
+          <h3 className="font-semibold text-white truncate flex-1">{item[config.primaryField] || 'Untitled'}</h3>
+          {config.statusField && item[config.statusField] && <span className={"ml-2 px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(item[config.statusField])}>{item[config.statusField]}</span>}
+        </div>
+        <div className="space-y-1">{config.secondaryFields.map(field => item[field] && <p key={field} className="text-sm text-gray-400 truncate"><span className="text-gray-500">{field}:</span> {String(item[field])}</p>)}</div>
+      </div>
+      {extraFields.length > 0 && (<>
+        <button onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }} className="w-full px-4 py-2 bg-gray-900 border-t border-gray-700 flex items-center justify-center gap-2 text-sm text-gray-400 hover:bg-gray-700 hover:text-white transition-colors">
+          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}{expanded ? 'Show Less' : 'Show ' + extraFields.length + ' More Fields'}
+        </button>
+        <AnimatePresence>{expanded && <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden"><div className="px-4 py-3 bg-gray-900 border-t border-gray-700 space-y-2">{extraFields.map(([key, value]) => <p key={key} className="text-sm text-gray-400"><span className="text-gray-500 font-medium">{key}:</span> {String(value)}</p>)}</div></motion.div>}</AnimatePresence>
+      </>)}
+    </motion.div>
+  )
+}
+
+function SmartCardView({ item, config, onClick }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gray-800 rounded-xl border border-gray-700 p-4 cursor-pointer hover:border-gray-600 transition-colors" onClick={onClick}>
+      <div className="flex justify-between items-start mb-2">
+        <h3 className="font-semibold text-white truncate flex-1">{item[config.primaryField] || 'Untitled'}</h3>
+        {config.statusField && item[config.statusField] && <span className={"ml-2 px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(item[config.statusField])}>{item[config.statusField]}</span>}
+      </div>
+      <div className="space-y-1">{config.secondaryFields.map(field => item[field] && <p key={field} className="text-sm text-gray-400 truncate"><span className="text-gray-500">{field}:</span> {String(item[field])}</p>)}</div>
+    </motion.div>
+  )
+}
+
+export default function DatabaseViewer({ databaseKey }) {
+  const config = dbConfig[databaseKey] || dbConfig.TEAM_MEMBERS
+  const Icon = config.icon
+  const [data, setData] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [selectedItem, setSelectedItem] = useState(null)
+  const [showTerminated, setShowTerminated] = useState(false)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true)
+      try {
+        const response = await axios.get(`/api/databases/${databaseKey}`, { withCredentials: true })
+        setData(response.data || [])
+      } catch (error) {
+        console.error('Failed to fetch database:', error)
+        setData([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    if (databaseKey) fetchData()
+  }, [databaseKey])
+
+  const safeData = data || []
+  const terminatedCount = useMemo(() => { if (databaseKey !== 'TEAM_MEMBERS') return 0; return safeData.filter(item => { const status = item[config.statusField]; return status && status.toLowerCase().includes('terminated') }).length }, [safeData, databaseKey, config.statusField])
+  const filteredData = useMemo(() => { if (databaseKey !== 'TEAM_MEMBERS' || showTerminated) return safeData; return safeData.filter(item => { const status = item[config.statusField]; return !status || !status.toLowerCase().includes('terminated') }) }, [safeData, databaseKey, showTerminated, config.statusField])
+
+  const formatPrice = (value) => {
+    if (!value) return '-'
+    const num = typeof value === 'number' ? value : parseFloat(value)
+    if (isNaN(num)) return String(value)
+    return '$' + num.toLocaleString()
+  }
+
+  const renderTableView = () => {
+    const columns = config.tableColumns || [config.primaryField, ...config.secondaryFields]
+    return (
+      <div className="overflow-x-auto rounded-xl border border-gray-700 shadow-lg">
+        <table className="min-w-full">
+          <thead>
+            <tr className="bg-gradient-to-r from-violet-900/40 to-purple-900/40">
+              {columns.map((col, idx) => (
+                <th
+                  key={col}
+                  className={`px-5 py-4 text-left text-xs font-semibold text-violet-200 uppercase tracking-wider ${idx === 0 ? 'rounded-tl-xl' : ''} ${idx === columns.length - 1 ? 'rounded-tr-xl' : ''}`}
+                >
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-700/50">
+            {filteredData.map((item, idx) => (
+              <motion.tr
+                key={item.id || idx}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.02 }}
+                className={`${idx % 2 === 0 ? 'bg-gray-800/50' : 'bg-gray-800/30'} hover:bg-violet-900/20 cursor-pointer transition-all group border-l-2 border-transparent hover:border-violet-500`}
+                onClick={() => setSelectedItem(item)}
+              >
+                {columns.map((col, colIdx) => (
+                  <td
+                    key={col}
+                    className={`px-5 py-4 text-sm ${colIdx === 0 ? 'font-medium text-white' : 'text-gray-300'}`}
+                  >
+                    {col === config.statusField && item[col] ? (
+                      <span className={"inline-flex px-3 py-1 text-xs font-medium rounded-full shadow-sm " + getStatusColor(item[col])}>
+                        {item[col]}
+                      </span>
+                    ) : (col.toLowerCase().includes('price') || col === 'Sales Price') ? (
+                      <span className="text-emerald-400 font-semibold">{formatPrice(item[col])}</span>
+                    ) : (col === 'Floorplan' || col === 'Floor Plan') ? (
+                      <span className="text-blue-400 font-medium">{String(item[col] || '-')}</span>
+                    ) : col === 'Subdivision' ? (
+                      <span className="text-purple-400">{String(item[col] || '-')}</span>
+                    ) : (
+                      <span className="group-hover:text-white transition-colors">{String(item[col] || '-')}</span>
+                    )}
+                  </td>
+                ))}
+              </motion.tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
+  const renderListView = () => (<div className="space-y-2">{filteredData.map((item, idx) => <motion.div key={item.id || idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="bg-gray-800 rounded-xl border border-gray-700 p-3 cursor-pointer hover:bg-gray-700 transition-colors" onClick={() => setSelectedItem(item)}><div className="flex items-center justify-between"><div className="flex-1 min-w-0"><p className="font-medium text-white truncate">{item[config.primaryField] || 'Untitled'}</p><p className="text-sm text-gray-400 truncate">{config.secondaryFields.map(f => item[f]).filter(Boolean).join(' · ')}</p></div><ChevronRight className="w-5 h-5 text-gray-500 flex-shrink-0" /></div></motion.div>)}</div>)
+
+  const renderCardView = () => (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{filteredData.map((item, idx) => databaseKey === 'TEAM_MEMBERS' ? <TeamMemberCard key={item.id || idx} item={item} config={config} onClick={() => setSelectedItem(item)} /> : <SmartCardView key={item.id || idx} item={item} config={config} onClick={() => setSelectedItem(item)} />)}</div>)
+
+  const renderContent = () => { if (config.mobileLayout === 'table') return (<><div className="sm:hidden">{renderCardView()}</div><div className="hidden sm:block">{renderTableView()}</div></>); if (config.mobileLayout === 'list') return (<><div className="sm:hidden">{renderListView()}</div><div className="hidden sm:block">{renderCardView()}</div></>); return renderCardView() }
+
+  if (isLoading) return (<div className="bg-gray-800 rounded-2xl border border-gray-700 p-6"><div className="animate-pulse space-y-4"><div className="h-6 bg-gray-700 rounded w-1/4"></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{[1, 2, 3].map(i => <div key={i} className="h-32 bg-gray-700 rounded-xl"></div>)}</div></div></div>)
+
+  return (
+    <div className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden">
+      <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+        <div className="flex items-center gap-3"><div className="p-2 bg-violet-500/20 rounded-xl"><Icon className="w-5 h-5 text-violet-400" /></div><div><h2 className="font-semibold text-white">{config.title}</h2><p className="text-sm text-gray-400">{filteredData.length} records</p></div></div>
+        {databaseKey === 'TEAM_MEMBERS' && terminatedCount > 0 && <button onClick={() => setShowTerminated(!showTerminated)} className={(showTerminated ? 'bg-red-500/20 text-red-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600') + " flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors"}>{showTerminated ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}{showTerminated ? 'Hide' : 'Show'} Terminated ({terminatedCount})</button>}
+      </div>
+      <div className="p-4">{filteredData.length === 0 ? <div className="text-center py-8 text-gray-500"><Icon className="w-12 h-12 mx-auto mb-3 text-gray-600" /><p>No records found</p></div> : renderContent()}</div>
+      <AnimatePresence>
+        {selectedItem && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setSelectedItem(null)}>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-gray-900 rounded-2xl border border-gray-700 max-w-lg w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="p-4 border-b border-gray-700 flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="font-semibold text-lg text-white">{selectedItem[config.primaryField] || 'Details'}</h3><button onClick={() => setSelectedItem(null)} className="p-1 hover:bg-gray-700 rounded-lg transition-colors"><X className="w-5 h-5 text-gray-400" /></button></div>
+              <div className="p-4 space-y-3">{Object.entries(selectedItem).filter(([key]) => key !== 'id' && key !== 'created_time' && key !== 'last_edited_time').map(([key, value]) => value !== null && value !== '' && value !== undefined && <div key={key}><p className="text-sm text-gray-500">{key}</p><p className="text-gray-200">{key === config.statusField ? <span className={"px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(value)}>{String(value)}</span> : String(value)}</p></div>)}</div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}

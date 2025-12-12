@@ -18,24 +18,37 @@ export const DATABASE_IDS = {
   SCOREBOARD: '2bb746b9-e0e8-81f3-90c9-d2d317085a50'
 }
 
-// Query a database
+// Query a database with pagination support
 export async function queryDatabase(databaseId, filter = {}, sorts = []) {
   try {
-    const response = await axios.post(
-      `https://api.notion.com/v1/databases/${databaseId}/query`,
-      {
-        filter: filter.value ? filter : undefined,
-        sorts: sorts.length > 0 ? sorts : undefined
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${NOTION_API_KEY}`,
-          'Notion-Version': NOTION_VERSION,
-          'Content-Type': 'application/json'
+    let allResults = []
+    let hasMore = true
+    let startCursor = undefined
+
+    while (hasMore) {
+      const response = await axios.post(
+        `https://api.notion.com/v1/databases/${databaseId}/query`,
+        {
+          filter: filter.value ? filter : undefined,
+          sorts: sorts.length > 0 ? sorts : undefined,
+          start_cursor: startCursor,
+          page_size: 100
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${NOTION_API_KEY}`,
+            'Notion-Version': NOTION_VERSION,
+            'Content-Type': 'application/json'
+          }
         }
-      }
-    )
-    return response.data.results
+      )
+
+      allResults = allResults.concat(response.data.results)
+      hasMore = response.data.has_more
+      startCursor = response.data.next_cursor
+    }
+
+    return allResults
   } catch (error) {
     console.error('Error querying database:', error.message)
     throw error

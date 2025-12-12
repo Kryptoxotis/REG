@@ -6,6 +6,7 @@ import StatsOverview from '../components/StatsOverview'
 import Settings from '../components/Settings'
 import TeamKPIView from '../components/TeamKPIView'
 import ScheduleCalendar from '../components/ScheduleCalendar'
+import PipelineBoard from '../components/PipelineBoard'
 
 function AdminDashboard({ user, setUser }) {
   const [activeView, setActiveView] = useState('overview')
@@ -13,6 +14,7 @@ function AdminDashboard({ user, setUser }) {
   const [loading, setLoading] = useState(true)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [highlightedDealId, setHighlightedDealId] = useState(null)
 
   useEffect(() => { fetchStats() }, [])
 
@@ -41,6 +43,13 @@ function AdminDashboard({ user, setUser }) {
   const handleNavClick = (view) => {
     setActiveView(view)
     setMobileMenuOpen(false)
+    setHighlightedDealId(null) // Clear highlight when navigating normally
+  }
+
+  // Navigate to a view and highlight a specific deal
+  const handleDealNavigate = (view, dealId) => {
+    setHighlightedDealId(dealId)
+    setActiveView(view)
   }
 
   const databases = [
@@ -288,15 +297,17 @@ function AdminDashboard({ user, setUser }) {
                 transition={{ duration: 0.3 }}
               >
                 {activeView === 'overview' ? (
-                  <StatsOverview stats={stats} />
+                  <StatsOverview stats={stats} onNavigate={handleNavClick} />
                 ) : activeView === 'settings' ? (
                   <Settings />
                 ) : activeView === 'TEAM_MEMBERS' ? (
-                  <TeamKPIView />
+                  <TeamKPIView onNavigate={handleDealNavigate} />
                 ) : activeView === 'SCHEDULE' ? (
-                  <ScheduleCalendar />
+                  <ScheduleCalendar onNavigate={handleNavClick} />
+                ) : activeView === 'PIPELINE' ? (
+                  <PipelineBoard highlightedDealId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} />
                 ) : (
-                  <DatabaseViewer databaseKey={activeView} databaseName={databases.find(db => db.key === activeView)?.name} />
+                  <DatabaseViewer databaseKey={activeView} databaseName={databases.find(db => db.key === activeView)?.name} highlightedId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} />
                 )}
               </motion.div>
             )}
