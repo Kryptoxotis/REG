@@ -35,7 +35,7 @@ export default async function handler(req, res) {
     // Team Members stats with breakdown
     const teamMembers = await queryDatabase(DATABASE_IDS.TEAM_MEMBERS)
     const activeMembers = teamMembers.filter(p =>
-      p.properties.Status?.select?.name === 'Active'
+      p.properties.Stauts?.select?.name === 'Active'
     )
     stats.TEAM_MEMBERS = {
       count: teamMembers.length,

@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     // Build KPIs for each team member
     const teamKpis = teamMembers.map(member => {
       const name = extractPlainText(member.properties.Name?.title)
-      const status = member.properties.Status?.select?.name || 'Unknown'
+      const status = member.properties.Stauts?.select?.name || 'Unknown'
       const role = member.properties.Role?.select?.name || ''
       const phone = member.properties.Phone?.phone_number || ''
       const email = member.properties['Email - ERA']?.email || ''
