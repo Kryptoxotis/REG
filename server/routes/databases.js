@@ -171,10 +171,11 @@ router.get('/stats', requireAuth, async (req, res) => {
 router.get('/stats/by-office', requireAuth, async (req, res) => {
   try {
     // Fetch from all relevant databases with individual error handling
+    // Limit to 5 pages (500 items) per database to prevent timeout
     const results = await Promise.allSettled([
-      queryDatabase(DATABASE_IDS.PROPERTIES),
-      queryDatabase(DATABASE_IDS.PIPELINE),
-      queryDatabase(DATABASE_IDS.CLOSED_DEALS)
+      queryDatabase(DATABASE_IDS.PROPERTIES, {}, [], 5),
+      queryDatabase(DATABASE_IDS.PIPELINE, {}, [], 5),
+      queryDatabase(DATABASE_IDS.CLOSED_DEALS, {}, [], 5)
     ])
 
     // Log which databases succeeded/failed

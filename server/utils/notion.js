@@ -21,14 +21,15 @@ export const DATABASE_IDS = {
 }
 
 // Query a database with pagination support
-export async function queryDatabase(databaseId, filter = {}, sorts = []) {
+// maxPages limits pagination to prevent timeouts (default 10 = 1000 items max)
+export async function queryDatabase(databaseId, filter = {}, sorts = [], maxPages = 10) {
   try {
     let allResults = []
     let hasMore = true
     let startCursor = undefined
     let pageNum = 0
 
-    while (hasMore) {
+    while (hasMore && pageNum < maxPages) {
       pageNum++
       const response = await axios.post(
         `https://api.notion.com/v1/databases/${databaseId}/query`,
@@ -52,7 +53,11 @@ export async function queryDatabase(databaseId, filter = {}, sorts = []) {
       hasMore = response.data.has_more
       startCursor = response.data.next_cursor
 
-      console.log(`DB ${databaseId.slice(0,8)}... page ${pageNum}: ${pageResults} items, total: ${allResults.length}, hasMore: ${hasMore}`)
+      console.log(`DB ${databaseId.slice(0,8)}... page ${pageNum}/${maxPages}: ${pageResults} items, total: ${allResults.length}, hasMore: ${hasMore}`)
+    }
+
+    if (hasMore) {
+      console.warn(`DB ${databaseId.slice(0,8)}... stopped at ${maxPages} pages (${allResults.length} items) - more data exists`)
     }
 
     return allResults
