@@ -405,6 +405,37 @@ router.patch('/pipeline/:pageId/status', requireAuth, async (req, res) => {
   }
 })
 
+// Create activity log entry
+router.post('/activity-log', requireAuth, async (req, res) => {
+  try {
+    const { action, dealAddress, oldStatus, newStatus, notes } = req.body
+    const user = req.session.user?.name || req.session.user?.email || 'Unknown'
+
+    if (!action) {
+      return res.status(400).json({ error: 'Action required' })
+    }
+
+    const properties = {
+      'Action': { title: [{ text: { content: action } }] },
+      'User': { rich_text: [{ text: { content: user } }] },
+      'Deal Address': dealAddress ? { rich_text: [{ text: { content: dealAddress } }] } : undefined,
+      'Old Status': oldStatus ? { rich_text: [{ text: { content: oldStatus } }] } : undefined,
+      'New Status': newStatus ? { rich_text: [{ text: { content: newStatus } }] } : undefined,
+      'Date': { date: { start: new Date().toISOString() } },
+      'Notes': notes ? { rich_text: [{ text: { content: notes } }] } : undefined
+    }
+
+    // Remove undefined values
+    Object.keys(properties).forEach(key => properties[key] === undefined && delete properties[key])
+
+    const result = await createPage(DATABASE_IDS.ACTIVITY_LOG, properties)
+    res.json({ success: true, data: formatPage(result) })
+  } catch (error) {
+    console.error('Error creating activity log:', error)
+    res.status(500).json({ error: 'Failed to create activity log entry' })
+  }
+})
+
 // Create closed deal entry (auto-triggered when deal moves to Closed/Funded)
 router.post('/closed-deals', requireAuth, async (req, res) => {
   try {

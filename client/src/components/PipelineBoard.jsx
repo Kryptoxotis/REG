@@ -124,10 +124,20 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       d.id === draggableId ? { ...d, 'Loan Status': newLoanStatus } : d
     ))
 
+    const oldLoanStatus = deal['Loan Status'] || source.droppableId
+
     try {
       // Update Pipeline in Notion
       await axios.patch(`/api/databases/pipeline/${draggableId}/status`, {
         loanStatus: newLoanStatus
+      }, { withCredentials: true })
+
+      // Log the status change
+      await axios.post('/api/databases/activity-log', {
+        action: `Deal moved: ${oldLoanStatus} → ${newLoanStatus}`,
+        dealAddress: deal.Address || 'Unknown Address',
+        oldStatus: oldLoanStatus,
+        newStatus: newLoanStatus
       }, { withCredentials: true })
 
       // If moved to Closed, Funded, or Complete, create entry in Closed Deals database
@@ -140,6 +150,15 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
           agent: deal.Agent || '',
           buyerName: deal['Buyer Name'] || '',
           commission: deal.Commission || 0
+        }, { withCredentials: true })
+
+        // Log the closed deal creation
+        await axios.post('/api/databases/activity-log', {
+          action: `Deal closed: ${deal.Address || 'Unknown'}`,
+          dealAddress: deal.Address || 'Unknown Address',
+          oldStatus: oldLoanStatus,
+          newStatus: newLoanStatus,
+          notes: `Sale Price: $${(deal['Sales Price'] || 0).toLocaleString()}, Agent: ${deal.Agent || 'N/A'}`
         }, { withCredentials: true })
       }
     } catch (err) {
