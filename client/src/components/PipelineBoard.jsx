@@ -81,6 +81,9 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     brokerName: '',
     realtorPartner: ''
   })
+  // Move to Pipeline form state
+  const [moveForm, setMoveForm] = useState({ closedDate: '', executeDate: '' })
+  const [isMoving, setIsMoving] = useState(false)
 
   // Fetch from correct database based on active tab
   useEffect(() => { fetchDeals() }, [pipelineTab])
@@ -113,6 +116,42 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch data')
     } finally { setLoading(false) }
+  }
+
+  // Move property from Properties to Pipeline
+  const moveToPipeline = async () => {
+    if (!selectedDeal || !moveForm.closedDate) return
+
+    setIsMoving(true)
+    try {
+      await axios.post(`/api/databases/properties/${selectedDeal.id}/move-to-pipeline`, {
+        address: selectedDeal.Address || selectedDeal.address || '',
+        closedDate: moveForm.closedDate,
+        executeDate: moveForm.executeDate || null,
+        edwardsCo: selectedDeal['Edwards Co'] || selectedDeal['Edwards Co.'] || selectedDeal.Office || '',
+        salesPrice: selectedDeal['Sales Price'] || selectedDeal.Price || 0,
+        agent: selectedDeal.Agent || '',
+        buyerName: selectedDeal['Buyer Name'] || ''
+      }, { withCredentials: true })
+
+      // Log the move
+      await axios.post('/api/databases/activity-log', {
+        action: `Property moved to Pipeline: ${selectedDeal.Address || 'Unknown'}`,
+        dealAddress: selectedDeal.Address || 'Unknown',
+        newStatus: 'Loan Application Received',
+        notes: `Closed Date: ${moveForm.closedDate}`
+      }, { withCredentials: true })
+
+      // Close modal and refresh
+      setSelectedDeal(null)
+      setMoveForm({ closedDate: '', executeDate: '' })
+      fetchDeals()
+    } catch (err) {
+      console.error('Failed to move property:', err)
+      alert('Failed to move property to pipeline')
+    } finally {
+      setIsMoving(false)
+    }
   }
 
   // Handle drag-drop of deals between columns
@@ -867,6 +906,40 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
                   <DetailRow label="LO Name" value={selectedDeal['LO Name']} />
                   <DetailRow label="Mortgage Company" value={selectedDeal['Mortgage Company']} />
                 </div>
+
+                {/* Move to Pipeline section - only show on Presale tab */}
+                {pipelineTab === 'presale' && (
+                  <div className="mt-4 p-4 bg-gray-800/50 rounded-xl border border-gray-700">
+                    <h3 className="text-sm font-semibold text-gray-300 mb-3">Move to Pipeline</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Closed Date *</label>
+                        <input
+                          type="date"
+                          value={moveForm.closedDate}
+                          onChange={e => setMoveForm(prev => ({ ...prev, closedDate: e.target.value }))}
+                          className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Execute Date</label>
+                        <input
+                          type="date"
+                          value={moveForm.executeDate}
+                          onChange={e => setMoveForm(prev => ({ ...prev, executeDate: e.target.value }))}
+                          className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+                      <button
+                        onClick={moveToPipeline}
+                        disabled={!moveForm.closedDate || isMoving}
+                        className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg transition-colors font-medium text-sm"
+                      >
+                        {isMoving ? 'Moving...' : 'Move to Pipeline'}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <button
                   onClick={() => setSelectedDeal(null)}

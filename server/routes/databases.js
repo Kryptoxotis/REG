@@ -436,6 +436,42 @@ router.post('/activity-log', requireAuth, async (req, res) => {
   }
 })
 
+// Move property from Properties to Pipeline (when closed date is set)
+router.post('/properties/:pageId/move-to-pipeline', requireAuth, async (req, res) => {
+  try {
+    const { pageId } = req.params
+    const { address, closedDate, executeDate, edwardsCo, salesPrice, agent, buyerName, loanStatus } = req.body
+
+    if (!address) {
+      return res.status(400).json({ error: 'Address required' })
+    }
+
+    // Create in Pipeline database
+    const pipelineProps = {
+      'Address': { title: [{ text: { content: address } }] },
+      'Scheduled Closing': closedDate ? { date: { start: closedDate } } : undefined,
+      'Execute Date': executeDate ? { date: { start: executeDate } } : undefined,
+      'Edwards Co.': edwardsCo ? { select: { name: edwardsCo } } : undefined,
+      'Sales Price': salesPrice ? { number: salesPrice } : undefined,
+      'Agent': agent ? { rich_text: [{ text: { content: agent } }] } : undefined,
+      'Buyer Name': buyerName ? { rich_text: [{ text: { content: buyerName } }] } : undefined,
+      'Loan Status': { select: { name: loanStatus || 'Loan Application Received' } },
+      'Executed': { checkbox: true }
+    }
+    Object.keys(pipelineProps).forEach(key => pipelineProps[key] === undefined && delete pipelineProps[key])
+
+    const pipelineDeal = await createPage(DATABASE_IDS.PIPELINE, pipelineProps)
+
+    // Archive (delete) from Properties database
+    await deletePage(pageId)
+
+    res.json({ success: true, pipelineDeal: formatPage(pipelineDeal) })
+  } catch (error) {
+    console.error('Error moving property to pipeline:', error)
+    res.status(500).json({ error: 'Failed to move property to pipeline' })
+  }
+})
+
 // Move deal from Pipeline to Closed Deals (create in Closed + archive from Pipeline)
 router.post('/pipeline/:pageId/move-to-closed', requireAuth, async (req, res) => {
   try {
