@@ -436,6 +436,40 @@ router.post('/activity-log', requireAuth, async (req, res) => {
   }
 })
 
+// Move deal from Pipeline to Closed Deals (create in Closed + archive from Pipeline)
+router.post('/pipeline/:pageId/move-to-closed', requireAuth, async (req, res) => {
+  try {
+    const { pageId } = req.params
+    const { address, edwardsCo, closeDate, finalSalePrice, agent, buyerName, commission } = req.body
+
+    if (!address) {
+      return res.status(400).json({ error: 'Address required' })
+    }
+
+    // Create in Closed Deals database
+    const closedDealProps = {
+      'Property Address': { title: [{ text: { content: address } }] },
+      'Edwards Co.': edwardsCo ? { select: { name: edwardsCo } } : undefined,
+      'Close Date': closeDate ? { date: { start: closeDate } } : undefined,
+      'Final Sale Price': finalSalePrice ? { number: finalSalePrice } : undefined,
+      'Agent': agent ? { rich_text: [{ text: { content: agent } }] } : undefined,
+      'Buyer Name': buyerName ? { rich_text: [{ text: { content: buyerName } }] } : undefined,
+      'Commission': commission ? { number: commission } : undefined
+    }
+    Object.keys(closedDealProps).forEach(key => closedDealProps[key] === undefined && delete closedDealProps[key])
+
+    const closedDeal = await createPage(DATABASE_IDS.CLOSED_DEALS, closedDealProps)
+
+    // Archive (delete) from Pipeline database
+    await deletePage(pageId)
+
+    res.json({ success: true, closedDeal: formatPage(closedDeal) })
+  } catch (error) {
+    console.error('Error moving deal to closed:', error)
+    res.status(500).json({ error: 'Failed to move deal to closed' })
+  }
+})
+
 // Create closed deal entry (auto-triggered when deal moves to Closed/Funded)
 router.post('/closed-deals', requireAuth, async (req, res) => {
   try {

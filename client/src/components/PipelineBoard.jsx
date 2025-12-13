@@ -82,7 +82,8 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     realtorPartner: ''
   })
 
-  useEffect(() => { fetchDeals() }, [])
+  // Fetch from correct database based on active tab
+  useEffect(() => { fetchDeals() }, [pipelineTab])
 
   // Auto-select deal when highlightedDealId changes
   useEffect(() => {
@@ -97,12 +98,20 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
   const fetchDeals = async () => {
     setLoading(true)
+    setError(null)
     try {
-      const response = await axios.get('/api/databases/PIPELINE', { withCredentials: true })
+      // Fetch from correct database based on tab
+      const dbMap = {
+        'presale': 'PROPERTIES',
+        'loan-status': 'PIPELINE',
+        'closed': 'CLOSED_DEALS'
+      }
+      const database = dbMap[pipelineTab] || 'PIPELINE'
+      const response = await axios.get(`/api/databases/${database}`, { withCredentials: true })
       // API returns array directly, not { results: [...] }
       setDeals(Array.isArray(response.data) ? response.data : [])
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to fetch pipeline')
+      setError(err.response?.data?.error || 'Failed to fetch data')
     } finally { setLoading(false) }
   }
 
@@ -140,9 +149,10 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         newStatus: newLoanStatus
       }, { withCredentials: true })
 
-      // If moved to Closed, Funded, or Complete, create entry in Closed Deals database
+      // If moved to Closed, Funded, or Complete - MOVE to Closed Deals (create + delete from Pipeline)
       if (newLoanStatus === 'Closed' || newLoanStatus === 'Funded' || newLoanStatus === 'Loan Complete / Transfer') {
-        await axios.post('/api/databases/closed-deals', {
+        // Move deal: creates in Closed Deals + archives from Pipeline
+        await axios.post(`/api/databases/pipeline/${draggableId}/move-to-closed`, {
           address: deal.Address || '',
           edwardsCo: deal['Edwards Co'] || deal['Edwards Co.'] || deal.Office || '',
           closeDate: deal['Scheduled Closing']?.start || new Date().toISOString().split('T')[0],
@@ -152,9 +162,12 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
           commission: deal.Commission || 0
         }, { withCredentials: true })
 
-        // Log the closed deal creation
+        // Remove from local state
+        setDeals(prev => prev.filter(d => d.id !== draggableId))
+
+        // Log the closed deal
         await axios.post('/api/databases/activity-log', {
-          action: `Deal closed: ${deal.Address || 'Unknown'}`,
+          action: `Deal closed and moved: ${deal.Address || 'Unknown'}`,
           dealAddress: deal.Address || 'Unknown Address',
           oldStatus: oldLoanStatus,
           newStatus: newLoanStatus,
