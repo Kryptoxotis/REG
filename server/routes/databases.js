@@ -170,9 +170,20 @@ router.get('/stats', requireAuth, async (req, res) => {
 // Get stats grouped by office location - MUST come before /:databaseKey route
 router.get('/stats/by-office', requireAuth, async (req, res) => {
   try {
-    // Fetch pipeline data
-    const pipelineData = await queryDatabase(DATABASE_IDS.PIPELINE)
-    const formattedPipeline = pipelineData.map(formatPage)
+    // Fetch from all relevant databases
+    const [propertiesData, pipelineData, closedData] = await Promise.all([
+      queryDatabase(DATABASE_IDS.PROPERTIES),
+      queryDatabase(DATABASE_IDS.PIPELINE),
+      queryDatabase(DATABASE_IDS.CLOSED_DEALS)
+    ])
+
+    // Combine all deals
+    const allDeals = [
+      ...propertiesData.map(formatPage),
+      ...pipelineData.map(formatPage),
+      ...closedData.map(formatPage)
+    ]
+    const formattedPipeline = allDeals
 
     // Office locations
     const offices = ['El Paso', 'Las Cruces', 'McAllen', 'San Antonio']
@@ -196,15 +207,17 @@ router.get('/stats/by-office', requireAuth, async (req, res) => {
 
     // Helper to get volume
     const getVolume = (deal) => {
-      const price = deal.Price || deal.price || deal['Sale Price'] || deal['Contract Price'] || deal.Volume || 0
+      const price = deal['Sales Price'] || deal['Final Sale Price'] || deal.Price || deal.price ||
+                    deal['Sale Price'] || deal['Contract Price'] || deal.Volume || 0
       return typeof price === 'number' ? price : parseFloat(price) || 0
     }
 
     // Helper to detect office from deal data
     const getOffice = (deal) => {
-      // Check common field names for office/market/location
-      const officeField = deal.Office || deal.office || deal.Market || deal.market ||
-                          deal.Location || deal.location || deal.City || deal.city || ''
+      // Check common field names for office/market/location including Edwards Co
+      const officeField = deal['Edwards Co'] || deal['Edwards Co.'] || deal.Office || deal.office ||
+                          deal.Market || deal.market || deal.Location || deal.location ||
+                          deal.City || deal.city || ''
       const address = deal.Address || deal.address || deal['Property Address'] || ''
 
       const combined = `${officeField} ${address}`.toLowerCase()

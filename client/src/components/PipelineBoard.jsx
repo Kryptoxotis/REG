@@ -17,6 +17,9 @@ const LOAN_STATUS_COLUMNS = [
   { key: 'CASH', label: 'Cash', shortLabel: 'Cash', color: 'purple' }
 ]
 
+// Helper to get address from different database schemas
+const getAddress = (deal) => deal.Address || deal['Property Address'] || deal.address || ''
+
 const colorMap = {
   gray: { bg: 'bg-gray-500/20', border: 'border-gray-500/30', text: 'text-gray-400', header: 'bg-gray-600', dot: 'bg-gray-500' },
   blue: { bg: 'bg-blue-500/20', border: 'border-blue-500/30', text: 'text-blue-400', header: 'bg-blue-600', dot: 'bg-blue-500' },
@@ -261,14 +264,16 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     // Time filter
     if (viewMode === 'monthly' && !isThisMonth(deal)) return false
 
-    // Pipeline tab filter
-    const loanStatus = deal['Loan Status'] || ''
-    const isExecuted = !!deal.Executed
-    const isClosed = loanStatus === 'Closed' || loanStatus === 'Funded' || loanStatus === 'Loan Complete / Transfer'
-
-    if (pipelineTab === 'presale' && isExecuted) return false
-    if (pipelineTab === 'loan-status' && (!isExecuted || isClosed)) return false
-    if (pipelineTab === 'closed' && !isClosed) return false
+    // Pipeline tab filter - now each tab fetches from its own database
+    // Presale: PROPERTIES db - show all (not executed)
+    // Loan Status: PIPELINE db - show only active loan status items (exclude closed)
+    // Closed: CLOSED_DEALS db - show all
+    if (pipelineTab === 'loan-status') {
+      const loanStatus = deal['Loan Status'] || ''
+      const isClosed = loanStatus === 'Closed' || loanStatus === 'Funded' || loanStatus === 'Loan Complete / Transfer'
+      if (isClosed) return false // Hide closed items from loan-status kanban
+    }
+    // Presale and Closed tabs show everything from their respective databases
 
     // Presale city filter (secondary filter within Presale tab)
     if (pipelineTab === 'presale' && presaleCity) {
@@ -287,7 +292,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     // Search filter (address, buyer, agent)
     if (searchTerm) {
       const search = searchTerm.toLowerCase()
-      const matchAddress = (deal.Address || '').toLowerCase().includes(search)
+      const matchAddress = getAddress(deal).toLowerCase().includes(search)
       const matchBuyer = (deal['Buyer Name'] || '').toLowerCase().includes(search)
       const matchAgent = (deal.Agent || '').toLowerCase().includes(search)
       if (!matchAddress && !matchBuyer && !matchAgent) return false
@@ -668,42 +673,101 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         )}
       </AnimatePresence>
 
-      {/* Quick Stats - Mobile Summary */}
-      <div className="grid grid-cols-4 sm:hidden gap-2">
-        {LOAN_STATUS_COLUMNS.slice(0, 4).map(col => {
-          const colors = colorMap[col.color]
-          const count = (groupedDeals[col.key] || []).length
-          return (
-            <div
-              key={col.key}
-              onClick={() => toggleColumn(col.key)}
-              className={`${colors.bg} ${colors.border} border rounded-xl p-2 text-center cursor-pointer`}
-            >
-              <div className={`text-lg font-bold ${colors.text}`}>{count}</div>
-              <div className="text-xs text-gray-400 truncate">{col.shortLabel}</div>
+      {/* Simple Grid View for Presale and Closed tabs */}
+      {(pipelineTab === 'presale' || pipelineTab === 'closed') && (
+        <>
+          {/* Stats bar */}
+          <div className="bg-gray-800/50 rounded-xl p-4 mb-4 flex items-center justify-between">
+            <div>
+              <span className="text-2xl font-bold text-white">{filteredDeals.length}</span>
+              <span className="text-gray-400 ml-2">
+                {pipelineTab === 'presale' ? 'Properties' : 'Closed Deals'}
+              </span>
             </div>
-          )
-        })}
-      </div>
-      <div className="grid grid-cols-4 sm:hidden gap-2">
-        {LOAN_STATUS_COLUMNS.slice(4).map(col => {
-          const colors = colorMap[col.color]
-          const count = (groupedDeals[col.key] || []).length
-          return (
-            <div
-              key={col.key}
-              onClick={() => toggleColumn(col.key)}
-              className={`${colors.bg} ${colors.border} border rounded-xl p-2 text-center cursor-pointer`}
-            >
-              <div className={`text-lg font-bold ${colors.text}`}>{count}</div>
-              <div className="text-xs text-gray-400 truncate">{col.shortLabel}</div>
-            </div>
-          )
-        })}
-      </div>
+          </div>
 
-      {/* Mobile Accordion View */}
-      <div className="sm:hidden space-y-2">
+          {/* Grid of properties/deals */}
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+            </div>
+          ) : filteredDeals.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              {error || `No ${pipelineTab === 'presale' ? 'properties' : 'closed deals'} found`}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredDeals.map(deal => {
+                const address = getAddress(deal)
+                const buyer = deal['Buyer Name'] || ''
+                const price = deal['Sales Price'] || deal['Final Sale Price'] || deal.Price || 0
+                const closingDate = deal['Scheduled Closing'] || deal['Close Date']
+                const agent = deal.Agent || ''
+
+                return (
+                  <div
+                    key={deal.id}
+                    onClick={() => setSelectedDeal(deal)}
+                    className="bg-gray-800 border border-gray-700 rounded-xl p-4 cursor-pointer hover:border-gray-500 transition-colors"
+                  >
+                    <p className="font-medium text-white truncate">{address || 'No Address'}</p>
+                    {buyer && <p className="text-gray-400 text-sm mt-1 truncate">{buyer}</p>}
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-emerald-400 font-semibold">{formatCurrency(price)}</span>
+                      {closingDate && (
+                        <span className="text-gray-500 text-xs">{formatDate(closingDate)}</span>
+                      )}
+                    </div>
+                    {agent && (
+                      <p className="text-xs text-gray-500 mt-2 truncate">{agent}</p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Loan Status Tab - Kanban View */}
+      {pipelineTab === 'loan-status' && (
+        <>
+          {/* Quick Stats - Mobile Summary */}
+          <div className="grid grid-cols-4 sm:hidden gap-2">
+            {LOAN_STATUS_COLUMNS.slice(0, 4).map(col => {
+              const colors = colorMap[col.color]
+              const count = (groupedDeals[col.key] || []).length
+              return (
+                <div
+                  key={col.key}
+                  onClick={() => toggleColumn(col.key)}
+                  className={`${colors.bg} ${colors.border} border rounded-xl p-2 text-center cursor-pointer`}
+                >
+                  <div className={`text-lg font-bold ${colors.text}`}>{count}</div>
+                  <div className="text-xs text-gray-400 truncate">{col.shortLabel}</div>
+                </div>
+              )
+            })}
+          </div>
+          <div className="grid grid-cols-4 sm:hidden gap-2">
+            {LOAN_STATUS_COLUMNS.slice(4).map(col => {
+              const colors = colorMap[col.color]
+              const count = (groupedDeals[col.key] || []).length
+              return (
+                <div
+                  key={col.key}
+                  onClick={() => toggleColumn(col.key)}
+                  className={`${colors.bg} ${colors.border} border rounded-xl p-2 text-center cursor-pointer`}
+                >
+                  <div className={`text-lg font-bold ${colors.text}`}>{count}</div>
+                  <div className="text-xs text-gray-400 truncate">{col.shortLabel}</div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Mobile Accordion View */}
+          <div className="sm:hidden space-y-2">
         {LOAN_STATUS_COLUMNS.map((col) => {
           const colors = colorMap[col.color]
           const columnDeals = groupedDeals[col.key] || []
@@ -855,13 +919,15 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         </div>
       </DragDropContext>
 
-      {/* Unassigned Deals Warning */}
-      {unassigned.length > 0 && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
-          <p className="text-amber-400 text-sm">
-            ⚠️ {unassigned.length} deal{unassigned.length > 1 ? 's' : ''} without Loan Status assigned
-          </p>
-        </div>
+          {/* Unassigned Deals Warning */}
+          {unassigned.length > 0 && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+              <p className="text-amber-400 text-sm">
+                ⚠️ {unassigned.length} deal{unassigned.length > 1 ? 's' : ''} without Loan Status assigned
+              </p>
+            </div>
+          )}
+        </>
       )}
 
       {/* Deal Detail Modal - Mobile Optimized */}
@@ -891,7 +957,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
               <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(85vh-3rem)]">
                 <h2 className="text-lg sm:text-xl font-bold text-white mb-4">
-                  {selectedDeal.Address || 'Deal Details'}
+                  {getAddress(selectedDeal) || 'Deal Details'}
                 </h2>
 
                 <div className="space-y-2">
