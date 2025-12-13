@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 
-function OfficeOverview({ onNavigate }) {
+function OfficeOverview({ onNavigate, onCitySelect }) {
   const [officeData, setOfficeData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -165,7 +165,7 @@ function OfficeOverview({ onNavigate }) {
               {/* Office Header */}
               <div
                 className={`bg-gradient-to-r ${colors.gradient} p-4 cursor-pointer`}
-                onClick={() => setExpandedOffice(isExpanded ? null : officeName)}
+                onClick={() => onCitySelect ? onCitySelect(officeName) : setExpandedOffice(isExpanded ? null : officeName)}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">

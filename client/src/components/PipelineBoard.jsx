@@ -24,12 +24,21 @@ const colorMap = {
   red: { bg: 'bg-red-500/20', border: 'border-red-500/30', text: 'text-red-400', header: 'bg-red-600', dot: 'bg-red-500' }
 }
 
-function PipelineBoard({ highlightedDealId, onClearHighlight }) {
+// City to Edwards Co. mapping
+const CITY_TO_EDWARDS = {
+  'El Paso': "Edward's LLC.",
+  'Las Cruces': "Edward's NM.",
+  'McAllen': "Edward's RGV",
+  'San Antonio': 'San Antonio' // No Edwards mapping yet
+}
+
+function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClearCity }) {
   const [deals, setDeals] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [selectedDeal, setSelectedDeal] = useState(null)
   const [viewMode, setViewMode] = useState('monthly') // 'monthly' or 'all'
+  const [pipelineTab, setPipelineTab] = useState('loan-status') // 'presale', 'loan-status', 'closed'
   const [expandedColumns, setExpandedColumns] = useState({}) // For mobile accordion
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
@@ -110,6 +119,22 @@ function PipelineBoard({ highlightedDealId, onClearHighlight }) {
     // Time filter
     if (viewMode === 'monthly' && !isThisMonth(deal)) return false
 
+    // Pipeline tab filter
+    const loanStatus = deal['Loan Status'] || ''
+    const isExecuted = !!deal.Executed
+    const isClosed = loanStatus === 'Closed' || loanStatus === 'Funded'
+
+    if (pipelineTab === 'presale' && isExecuted) return false
+    if (pipelineTab === 'loan-status' && (!isExecuted || isClosed)) return false
+    if (pipelineTab === 'closed' && !isClosed) return false
+
+    // City filter (from Overview navigation)
+    if (cityFilter) {
+      const edwardsCo = CITY_TO_EDWARDS[cityFilter]
+      const dealOffice = deal.Office || deal['Edwards Co'] || deal['Edwards Co.'] || ''
+      if (edwardsCo && dealOffice !== edwardsCo) return false
+    }
+
     // Search filter (address, buyer, agent)
     if (searchTerm) {
       const search = searchTerm.toLowerCase()
@@ -167,7 +192,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight }) {
     })
   }
 
-  const hasActiveFilters = searchTerm || Object.values(filters).some(v => v)
+  const hasActiveFilters = searchTerm || cityFilter || Object.values(filters).some(v => v)
 
   // Group deals by loan status
   const groupedDeals = LOAN_STATUS_COLUMNS.reduce((acc, col) => {
@@ -214,7 +239,17 @@ function PipelineBoard({ highlightedDealId, onClearHighlight }) {
       {/* Header - Mobile Optimized */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white">Pipeline</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl sm:text-2xl font-bold text-white">Pipeline</h2>
+            {cityFilter && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-600/20 border border-blue-500/30 rounded-full text-sm text-blue-400">
+                🏢 {cityFilter}
+                {onClearCity && (
+                  <button onClick={onClearCity} className="hover:text-white ml-1">✕</button>
+                )}
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-400">
             {filteredDeals.length} deal{filteredDeals.length !== 1 ? 's' : ''}
             {viewMode === 'monthly' ? ` in ${currentMonthName}` : ' total'}
@@ -270,6 +305,52 @@ function PipelineBoard({ highlightedDealId, onClearHighlight }) {
             🔄
           </motion.button>
         </div>
+      </div>
+
+      {/* Pipeline Tabs */}
+      <div className="flex bg-gray-800/50 rounded-xl p-1 border border-gray-700">
+        <button
+          onClick={() => setPipelineTab('presale')}
+          className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
+            pipelineTab === 'presale'
+              ? 'bg-amber-600 text-white shadow-lg'
+              : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+          }`}
+        >
+          <span className="hidden sm:inline">📋 Presale</span>
+          <span className="sm:hidden">Presale</span>
+          <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-xs bg-black/20">
+            {deals.filter(d => !d.Executed).length}
+          </span>
+        </button>
+        <button
+          onClick={() => setPipelineTab('loan-status')}
+          className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
+            pipelineTab === 'loan-status'
+              ? 'bg-blue-600 text-white shadow-lg'
+              : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+          }`}
+        >
+          <span className="hidden sm:inline">💰 Loan Status</span>
+          <span className="sm:hidden">Loan</span>
+          <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-xs bg-black/20">
+            {deals.filter(d => d.Executed && d['Loan Status'] !== 'Closed' && d['Loan Status'] !== 'Funded').length}
+          </span>
+        </button>
+        <button
+          onClick={() => setPipelineTab('closed')}
+          className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
+            pipelineTab === 'closed'
+              ? 'bg-emerald-600 text-white shadow-lg'
+              : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+          }`}
+        >
+          <span className="hidden sm:inline">✅ Closed Deals</span>
+          <span className="sm:hidden">Closed</span>
+          <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-xs bg-black/20">
+            {deals.filter(d => d['Loan Status'] === 'Closed' || d['Loan Status'] === 'Funded').length}
+          </span>
+        </button>
       </div>
 
       {/* Search and Filters */}

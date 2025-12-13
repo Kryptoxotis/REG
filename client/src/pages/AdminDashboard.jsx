@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 import DatabaseViewer from '../components/DatabaseViewer'
-import StatsOverview from '../components/StatsOverview'
+import OfficeOverview from '../components/OfficeOverview'
 import Settings from '../components/Settings'
 import TeamKPIView from '../components/TeamKPIView'
 import ScheduleCalendar from '../components/ScheduleCalendar'
@@ -15,6 +15,7 @@ function AdminDashboard({ user, setUser }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [highlightedDealId, setHighlightedDealId] = useState(null)
+  const [selectedCity, setSelectedCity] = useState(null)
 
   useEffect(() => { fetchStats() }, [])
 
@@ -44,12 +45,20 @@ function AdminDashboard({ user, setUser }) {
     setActiveView(view)
     setMobileMenuOpen(false)
     setHighlightedDealId(null) // Clear highlight when navigating normally
+    setSelectedCity(null) // Clear city filter when navigating normally
   }
 
   // Navigate to a view and highlight a specific deal
   const handleDealNavigate = (view, dealId) => {
     setHighlightedDealId(dealId)
     setActiveView(view)
+  }
+
+  // Navigate to Pipeline with city filter
+  const handleCitySelect = (city) => {
+    setSelectedCity(city)
+    setActiveView('PIPELINE')
+    setMobileMenuOpen(false)
   }
 
   const databases = [
@@ -297,7 +306,7 @@ function AdminDashboard({ user, setUser }) {
                 transition={{ duration: 0.3 }}
               >
                 {activeView === 'overview' ? (
-                  <StatsOverview stats={stats} onNavigate={handleNavClick} />
+                  <OfficeOverview onNavigate={handleNavClick} onCitySelect={handleCitySelect} />
                 ) : activeView === 'settings' ? (
                   <Settings />
                 ) : activeView === 'TEAM_MEMBERS' ? (
@@ -305,7 +314,7 @@ function AdminDashboard({ user, setUser }) {
                 ) : activeView === 'SCHEDULE' ? (
                   <ScheduleCalendar onNavigate={handleNavClick} />
                 ) : activeView === 'PIPELINE' ? (
-                  <PipelineBoard highlightedDealId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} />
+                  <PipelineBoard highlightedDealId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} cityFilter={selectedCity} onClearCity={() => setSelectedCity(null)} />
                 ) : (
                   <DatabaseViewer databaseKey={activeView} databaseName={databases.find(db => db.key === activeView)?.name} highlightedId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} />
                 )}
