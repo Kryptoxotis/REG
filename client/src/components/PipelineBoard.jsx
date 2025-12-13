@@ -5,22 +5,28 @@ import axios from 'axios'
 
 const LOAN_STATUS_COLUMNS = [
   { key: 'Loan Application Received', label: 'Application', shortLabel: 'App', color: 'gray' },
-  { key: 'Disclosures Sent', label: 'Disclosures', shortLabel: 'Disc', color: 'blue' },
-  { key: 'File in Processing', label: 'Processing', shortLabel: 'Proc', color: 'yellow' },
-  { key: 'Conditions Submitted', label: 'Conditions', shortLabel: 'Cond', color: 'orange' },
-  { key: 'Funded', label: 'Funded', shortLabel: 'Fund', color: 'green' },
-  { key: 'Closed', label: 'Closed', shortLabel: 'Close', color: 'emerald' },
-  { key: 'CASH', label: 'Cash', shortLabel: 'Cash', color: 'purple' },
-  { key: 'Back On Market', label: 'BOM', shortLabel: 'BOM', color: 'red' }
+  { key: 'Final Underwriting (FUW)', label: 'Underwriting', shortLabel: 'FUW', color: 'blue' },
+  { key: 'Clear to Close (CTC)', label: 'Clear to Close', shortLabel: 'CTC', color: 'cyan' },
+  { key: 'Closing Disclosure (CD) Issued', label: 'CD Issued', shortLabel: 'CD', color: 'yellow' },
+  { key: 'Closing Disclosure (CD) Signed', label: 'CD Signed', shortLabel: 'Signed', color: 'orange' },
+  { key: 'Closing Scheduled', label: 'Scheduled', shortLabel: 'Sched', color: 'pink' },
+  { key: 'Closed', label: 'Closed', shortLabel: 'Close', color: 'green' },
+  { key: 'Funded', label: 'Funded', shortLabel: 'Fund', color: 'emerald' },
+  { key: 'Loan Complete / Transfer', label: 'Complete', shortLabel: 'Done', color: 'teal' },
+  { key: 'Back On Market (BOM)', label: 'BOM', shortLabel: 'BOM', color: 'red' },
+  { key: 'CASH', label: 'Cash', shortLabel: 'Cash', color: 'purple' }
 ]
 
 const colorMap = {
   gray: { bg: 'bg-gray-500/20', border: 'border-gray-500/30', text: 'text-gray-400', header: 'bg-gray-600', dot: 'bg-gray-500' },
   blue: { bg: 'bg-blue-500/20', border: 'border-blue-500/30', text: 'text-blue-400', header: 'bg-blue-600', dot: 'bg-blue-500' },
+  cyan: { bg: 'bg-cyan-500/20', border: 'border-cyan-500/30', text: 'text-cyan-400', header: 'bg-cyan-600', dot: 'bg-cyan-500' },
   yellow: { bg: 'bg-yellow-500/20', border: 'border-yellow-500/30', text: 'text-yellow-400', header: 'bg-yellow-600', dot: 'bg-yellow-500' },
   orange: { bg: 'bg-orange-500/20', border: 'border-orange-500/30', text: 'text-orange-400', header: 'bg-orange-600', dot: 'bg-orange-500' },
+  pink: { bg: 'bg-pink-500/20', border: 'border-pink-500/30', text: 'text-pink-400', header: 'bg-pink-600', dot: 'bg-pink-500' },
   green: { bg: 'bg-green-500/20', border: 'border-green-500/30', text: 'text-green-400', header: 'bg-green-600', dot: 'bg-green-500' },
   emerald: { bg: 'bg-emerald-500/20', border: 'border-emerald-500/30', text: 'text-emerald-400', header: 'bg-emerald-600', dot: 'bg-emerald-500' },
+  teal: { bg: 'bg-teal-500/20', border: 'border-teal-500/30', text: 'text-teal-400', header: 'bg-teal-600', dot: 'bg-teal-500' },
   purple: { bg: 'bg-purple-500/20', border: 'border-purple-500/30', text: 'text-purple-400', header: 'bg-purple-600', dot: 'bg-purple-500' },
   red: { bg: 'bg-red-500/20', border: 'border-red-500/30', text: 'text-red-400', header: 'bg-red-600', dot: 'bg-red-500' }
 }
@@ -124,8 +130,8 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         loanStatus: newLoanStatus
       }, { withCredentials: true })
 
-      // If moved to Closed or Funded, create entry in Closed Deals database
-      if (newLoanStatus === 'Closed' || newLoanStatus === 'Funded') {
+      // If moved to Closed, Funded, or Complete, create entry in Closed Deals database
+      if (newLoanStatus === 'Closed' || newLoanStatus === 'Funded' || newLoanStatus === 'Loan Complete / Transfer') {
         await axios.post('/api/databases/closed-deals', {
           address: deal.Address || '',
           edwardsCo: deal['Edwards Co'] || deal['Edwards Co.'] || deal.Office || '',
@@ -187,7 +193,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     // Pipeline tab filter
     const loanStatus = deal['Loan Status'] || ''
     const isExecuted = !!deal.Executed
-    const isClosed = loanStatus === 'Closed' || loanStatus === 'Funded'
+    const isClosed = loanStatus === 'Closed' || loanStatus === 'Funded' || loanStatus === 'Loan Complete / Transfer'
 
     if (pipelineTab === 'presale' && isExecuted) return false
     if (pipelineTab === 'loan-status' && (!isExecuted || isClosed)) return false
