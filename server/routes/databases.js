@@ -383,4 +383,56 @@ router.delete('/:databaseKey/:pageId', requireAuth, requireAdmin, async (req, re
   }
 })
 
+// Update pipeline deal status (for drag-drop - any authenticated user)
+router.patch('/pipeline/:pageId/status', requireAuth, async (req, res) => {
+  try {
+    const { pageId } = req.params
+    const { loanStatus } = req.body
+
+    if (!loanStatus) {
+      return res.status(400).json({ error: 'loanStatus required' })
+    }
+
+    const properties = {
+      'Loan Status': { select: { name: loanStatus } }
+    }
+
+    const result = await updatePage(pageId, properties)
+    res.json({ success: true, data: formatPage(result) })
+  } catch (error) {
+    console.error('Error updating deal status:', error)
+    res.status(500).json({ error: 'Failed to update deal status' })
+  }
+})
+
+// Create closed deal entry (auto-triggered when deal moves to Closed/Funded)
+router.post('/closed-deals', requireAuth, async (req, res) => {
+  try {
+    const { address, edwardsCo, closeDate, finalSalePrice, agent, buyerName, commission } = req.body
+
+    if (!address) {
+      return res.status(400).json({ error: 'Address required' })
+    }
+
+    const properties = {
+      'Property Address': { title: [{ text: { content: address } }] },
+      'Edwards Co.': edwardsCo ? { select: { name: edwardsCo } } : undefined,
+      'Close Date': closeDate ? { date: { start: closeDate } } : undefined,
+      'Final Sale Price': finalSalePrice ? { number: finalSalePrice } : undefined,
+      'Agent': agent ? { rich_text: [{ text: { content: agent } }] } : undefined,
+      'Buyer Name': buyerName ? { rich_text: [{ text: { content: buyerName } }] } : undefined,
+      'Commission': commission ? { number: commission } : undefined
+    }
+
+    // Remove undefined values
+    Object.keys(properties).forEach(key => properties[key] === undefined && delete properties[key])
+
+    const result = await createPage(DATABASE_IDS.CLOSED_DEALS, properties)
+    res.json({ success: true, data: formatPage(result) })
+  } catch (error) {
+    console.error('Error creating closed deal:', error)
+    res.status(500).json({ error: 'Failed to create closed deal entry' })
+  }
+})
+
 export default router

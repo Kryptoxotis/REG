@@ -1,0 +1,380 @@
+[
+  {
+    "address": "11114 Ground Cherry",
+    "notion_properties": {
+      "SqFt": {
+        "number": 1879
+      },
+      "Floorplan": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Hailey"
+            }
+          }
+        ]
+      },
+      "Subdivision": {
+        "select": {
+          "name": "Campo Del Sol U-1B"
+        }
+      },
+      "Lot": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "7"
+            }
+          }
+        ]
+      },
+      "Block": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "3"
+            }
+          }
+        ]
+      },
+      "Stage": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "40 Ready for Walk-Through"
+            }
+          }
+        ]
+      },
+      "Stage Completion %": {
+        "number": 100
+      },
+      "Status": {
+        "select": {
+          "name": "Model"
+        }
+      },
+      "Edwards Co.": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Edward's LLC."
+            }
+          }
+        ]
+      },
+      "Sales Price": {
+        "number": 335950.0
+      },
+      "Foreman": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Josue Hinojos"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "address": "13380 Emerald Copper",
+    "notion_properties": {
+      "SqFt": {
+        "number": 1833
+      },
+      "Floorplan": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Ariana (GK)"
+            }
+          }
+        ]
+      },
+      "Subdivision": {
+        "select": {
+          "name": "Emerald Park U-5"
+        }
+      },
+      "Lot": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "18"
+            }
+          }
+        ]
+      },
+      "Block": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "15"
+            }
+          }
+        ]
+      },
+      "Stage": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "28 Cabinets"
+            }
+          }
+        ]
+      },
+      "Stage Completion %": {
+        "number": 70
+      },
+      "Status": {
+        "select": {
+          "name": "Available"
+        }
+      },
+      "Edwards Co.": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Edward's LLC."
+            }
+          }
+        ]
+      },
+      "Foreman": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Samuel Velasco"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "address": "13384 Emerald Copper",
+    "notion_properties": {
+      "SqFt": {
+        "number": 1860
+      },
+      "Floorplan": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Clarissa (GK)"
+            }
+          }
+        ]
+      },
+      "Subdivision": {
+        "select": {
+          "name": "Emerald Park U-5"
+        }
+      },
+      "Lot": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "17"
+            }
+          }
+        ]
+      },
+      "Block": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "15"
+            }
+          }
+        ]
+      },
+      "Stage": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "28 Cabinets"
+            }
+          }
+        ]
+      },
+      "Stage Completion %": {
+        "number": 70
+      },
+      "Status": {
+        "select": {
+          "name": "Available"
+        }
+      },
+      "Edwards Co.": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Edward's LLC."
+            }
+          }
+        ]
+      },
+      "Foreman": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Samuel Velasco"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "address": "13388 Emerald Copper",
+    "notion_properties": {
+      "SqFt": {
+        "number": 1863
+      },
+      "Floorplan": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Madeline (GK)"
+            }
+          }
+        ]
+      },
+      "Subdivision": {
+        "select": {
+          "name": "Emerald Park U-5"
+        }
+      },
+      "Lot": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "16"
+            }
+          }
+        ]
+      },
+      "Block": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "15"
+            }
+          }
+        ]
+      },
+      "Stage": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "27 Trim & Doors"
+            }
+          }
+        ]
+      },
+      "Stage Completion %": {
+        "number": 65
+      },
+      "Status": {
+        "select": {
+          "name": "Available"
+        }
+      },
+      "Edwards Co.": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Edward's LLC."
+            }
+          }
+        ]
+      },
+      "Foreman": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Samuel Velasco"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "address": "13389 Emerald Glass",
+    "notion_properties": {
+      "SqFt": {
+        "number": 1879
+      },
+      "Floorplan": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Hailey (GK)"
+            }
+          }
+        ]
+      },
+      "Subdivision": {
+        "select": {
+          "name": "Emerald Park U-5"
+        }
+      },
+      "Lot": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "1"
+            }
+          }
+        ]
+      },
+      "Block": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "15"
+            }
+          }
+        ]
+      },
+      "Stage": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "26 Tile"
+            }
+          }
+        ]
+      },
+      "Stage Completion %": {
+        "number": 60
+      },
+      "Status": {
+        "select": {
+          "name": "Available"
+        }
+      },
+      "Edwards Co.": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Edward's LLC."
+            }
+          }
+        ]
+      },
+      "Foreman": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Samuel Velasco"
+            }
+          }
+        ]
+      }
+    }
+  }
+]

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import axios from 'axios'
 
 const LOAN_STATUS_COLUMNS = [
@@ -32,6 +33,26 @@ const CITY_TO_EDWARDS = {
   'San Antonio': 'San Antonio' // No Edwards mapping yet
 }
 
+// Cities for Presale filter
+const CITIES = ['El Paso', 'Las Cruces', 'McAllen', 'San Antonio']
+
+// Helper to get close date urgency (for color coding)
+const getCloseDateUrgency = (deal) => {
+  const closingDate = deal['Scheduled Closing']?.start || deal['Closed Date']?.start
+  if (!closingDate) return 'none'
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const closeDate = new Date(closingDate)
+  closeDate.setHours(0, 0, 0, 0)
+
+  const daysUntilClose = Math.ceil((closeDate - today) / (1000 * 60 * 60 * 24))
+
+  if (daysUntilClose <= 0) return 'overdue' // Red - past or today
+  if (daysUntilClose <= 10) return 'soon' // Yellow - within 10 days
+  return 'none' // Default
+}
+
 function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClearCity }) {
   const [deals, setDeals] = useState([])
   const [loading, setLoading] = useState(true)
@@ -39,6 +60,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
   const [selectedDeal, setSelectedDeal] = useState(null)
   const [viewMode, setViewMode] = useState('monthly') // 'monthly' or 'all'
   const [pipelineTab, setPipelineTab] = useState('loan-status') // 'presale', 'loan-status', 'closed'
+  const [presaleCity, setPresaleCity] = useState('') // City filter for Presale tab
   const [expandedColumns, setExpandedColumns] = useState({}) // For mobile accordion
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
@@ -76,6 +98,49 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch pipeline')
     } finally { setLoading(false) }
+  }
+
+  // Handle drag-drop of deals between columns
+  const onDragEnd = async (result) => {
+    const { destination, source, draggableId } = result
+
+    // Dropped outside or same position
+    if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) {
+      return
+    }
+
+    const newLoanStatus = destination.droppableId
+    const deal = deals.find(d => d.id === draggableId)
+    if (!deal) return
+
+    // Optimistic update
+    setDeals(prev => prev.map(d =>
+      d.id === draggableId ? { ...d, 'Loan Status': newLoanStatus } : d
+    ))
+
+    try {
+      // Update Pipeline in Notion
+      await axios.patch(`/api/databases/pipeline/${draggableId}/status`, {
+        loanStatus: newLoanStatus
+      }, { withCredentials: true })
+
+      // If moved to Closed or Funded, create entry in Closed Deals database
+      if (newLoanStatus === 'Closed' || newLoanStatus === 'Funded') {
+        await axios.post('/api/databases/closed-deals', {
+          address: deal.Address || '',
+          edwardsCo: deal['Edwards Co'] || deal['Edwards Co.'] || deal.Office || '',
+          closeDate: deal['Scheduled Closing']?.start || new Date().toISOString().split('T')[0],
+          finalSalePrice: deal['Sales Price'] || 0,
+          agent: deal.Agent || '',
+          buyerName: deal['Buyer Name'] || '',
+          commission: deal.Commission || 0
+        }, { withCredentials: true })
+      }
+    } catch (err) {
+      console.error('Failed to update deal:', err)
+      // Revert on error
+      fetchDeals()
+    }
   }
 
   const formatCurrency = (num) => num ? '$' + num.toLocaleString() : '-'
@@ -127,6 +192,13 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     if (pipelineTab === 'presale' && isExecuted) return false
     if (pipelineTab === 'loan-status' && (!isExecuted || isClosed)) return false
     if (pipelineTab === 'closed' && !isClosed) return false
+
+    // Presale city filter (secondary filter within Presale tab)
+    if (pipelineTab === 'presale' && presaleCity) {
+      const edwardsCo = CITY_TO_EDWARDS[presaleCity]
+      const dealOffice = deal.Office || deal['Edwards Co'] || deal['Edwards Co.'] || ''
+      if (edwardsCo && dealOffice !== edwardsCo) return false
+    }
 
     // City filter (from Overview navigation)
     if (cityFilter) {
@@ -353,6 +425,44 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         </button>
       </div>
 
+      {/* Presale City Filter (only shown when Presale tab is active) */}
+      <AnimatePresence>
+        {pipelineTab === 'presale' && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setPresaleCity('')}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                  presaleCity === ''
+                    ? 'bg-amber-600/30 text-amber-400 border border-amber-500/50'
+                    : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white'
+                }`}
+              >
+                All Cities
+              </button>
+              {CITIES.map(city => (
+                <button
+                  key={city}
+                  onClick={() => setPresaleCity(city)}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                    presaleCity === city
+                      ? 'bg-amber-600/30 text-amber-400 border border-amber-500/50'
+                      : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white'
+                  }`}
+                >
+                  {city}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Search and Filters */}
       <AnimatePresence>
         {showFilters && (
@@ -575,73 +685,98 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       </div>
 
       {/* Desktop Kanban View */}
-      <div className="hidden sm:block overflow-x-auto pb-4">
-        <div className="flex gap-4 min-w-max">
-          {LOAN_STATUS_COLUMNS.map((col) => {
-            const colors = colorMap[col.color]
-            const columnDeals = groupedDeals[col.key] || []
+      <DragDropContext onDragEnd={onDragEnd}>
+        <div className="hidden sm:block overflow-x-auto pb-4">
+          <div className="flex gap-4 min-w-max">
+            {LOAN_STATUS_COLUMNS.map((col) => {
+              const colors = colorMap[col.color]
+              const columnDeals = groupedDeals[col.key] || []
 
-            return (
-              <div key={col.key} className="w-72 flex-shrink-0">
-                {/* Column Header */}
-                <div className={`${colors.header} rounded-t-xl px-4 py-3 flex items-center justify-between`}>
-                  <span className="font-semibold text-white">{col.label}</span>
-                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm text-white">
-                    {columnDeals.length}
-                  </span>
+              return (
+                <div key={col.key} className="w-72 flex-shrink-0">
+                  {/* Column Header */}
+                  <div className={`${colors.header} rounded-t-xl px-4 py-3 flex items-center justify-between`}>
+                    <span className="font-semibold text-white">{col.label}</span>
+                    <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm text-white">
+                      {columnDeals.length}
+                    </span>
+                  </div>
+
+                  {/* Column Body - Droppable */}
+                  <Droppable droppableId={col.key}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`${colors.bg} ${colors.border} border border-t-0 rounded-b-xl p-3 min-h-[400px] space-y-3 ${
+                          snapshot.isDraggingOver ? 'ring-2 ring-blue-500/50' : ''
+                        }`}
+                      >
+                        {columnDeals.length === 0 ? (
+                          <p className="text-center text-gray-500 text-sm py-8">No deals</p>
+                        ) : (
+                          columnDeals.map((deal, idx) => {
+                            const address = deal.Address || ''
+                            const buyer = deal['Buyer Name'] || ''
+                            const agent = deal.Agent || ''
+                            const price = deal['Sales Price']
+                            const closingDate = deal['Scheduled Closing']
+                            const executed = deal.Executed
+                            const urgency = getCloseDateUrgency(deal)
+
+                            // Card background based on close date urgency
+                            const cardBg = urgency === 'overdue'
+                              ? 'bg-red-900/40 border-red-500/50 hover:border-red-400'
+                              : urgency === 'soon'
+                                ? 'bg-yellow-900/30 border-yellow-500/50 hover:border-yellow-400'
+                                : 'bg-gray-800 border-gray-700 hover:border-gray-500'
+
+                            return (
+                              <Draggable key={deal.id} draggableId={deal.id} index={idx}>
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    onClick={() => setSelectedDeal(deal)}
+                                    className={`${cardBg} rounded-xl p-3 border cursor-grab transition-all ${
+                                      snapshot.isDragging ? 'shadow-xl ring-2 ring-blue-500 rotate-2' : 'hover:border-gray-500'
+                                    }`}
+                                  >
+                                    <p className="font-medium text-white text-sm truncate">{address || 'No Address'}</p>
+                                    {buyer && <p className="text-gray-400 text-xs mt-1 truncate">{buyer}</p>}
+                                    <div className="flex items-center justify-between mt-2">
+                                      <span className="text-emerald-400 text-sm font-semibold">{formatCurrency(price)}</span>
+                                      {closingDate && (
+                                        <span className="text-gray-500 text-xs">{formatDate(closingDate)}</span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center justify-between mt-2">
+                                      {agent && (
+                                        <span className="text-xs text-gray-500 truncate max-w-[120px]">{agent}</span>
+                                      )}
+                                      {executed && (
+                                        <span className="bg-emerald-500/20 text-emerald-400 text-xs px-2 py-0.5 rounded-full">
+                                          Executed
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </Draggable>
+                            )
+                          })
+                        )}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
                 </div>
-
-                {/* Column Body */}
-                <div className={`${colors.bg} ${colors.border} border border-t-0 rounded-b-xl p-3 min-h-[400px] space-y-3`}>
-                  {columnDeals.length === 0 ? (
-                    <p className="text-center text-gray-500 text-sm py-8">No deals</p>
-                  ) : (
-                    columnDeals.map((deal, idx) => {
-                      const address = deal.Address || ''
-                      const buyer = deal['Buyer Name'] || ''
-                      const agent = deal.Agent || ''
-                      const price = deal['Sales Price']
-                      const closingDate = deal['Scheduled Closing']
-                      const executed = deal.Executed
-
-                      return (
-                        <motion.div
-                          key={deal.id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.03 }}
-                          whileHover={{ scale: 1.02, y: -2 }}
-                          onClick={() => setSelectedDeal(deal)}
-                          className="bg-gray-800 rounded-xl p-3 border border-gray-700 hover:border-gray-500 cursor-pointer transition-all"
-                        >
-                          <p className="font-medium text-white text-sm truncate">{address || 'No Address'}</p>
-                          {buyer && <p className="text-gray-400 text-xs mt-1 truncate">{buyer}</p>}
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="text-emerald-400 text-sm font-semibold">{formatCurrency(price)}</span>
-                            {closingDate && (
-                              <span className="text-gray-500 text-xs">{formatDate(closingDate)}</span>
-                            )}
-                          </div>
-                          <div className="flex items-center justify-between mt-2">
-                            {agent && (
-                              <span className="text-xs text-gray-500 truncate max-w-[120px]">{agent}</span>
-                            )}
-                            {executed && (
-                              <span className="bg-emerald-500/20 text-emerald-400 text-xs px-2 py-0.5 rounded-full">
-                                Executed
-                              </span>
-                            )}
-                          </div>
-                        </motion.div>
-                      )
-                    })
-                  )}
-                </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
-      </div>
+      </DragDropContext>
 
       {/* Unassigned Deals Warning */}
       {unassigned.length > 0 && (
@@ -727,13 +862,21 @@ function MobileDealCard({ deal, onSelect, formatCurrency, formatDate }) {
   const price = deal['Sales Price']
   const closingDate = deal['Scheduled Closing']
   const executed = deal.Executed
+  const urgency = getCloseDateUrgency(deal)
+
+  // Card background based on close date urgency
+  const cardBg = urgency === 'overdue'
+    ? 'bg-red-900/40 border-red-500/50 active:bg-red-900/60'
+    : urgency === 'soon'
+      ? 'bg-yellow-900/30 border-yellow-500/50 active:bg-yellow-900/50'
+      : 'bg-gray-800 border-gray-700 active:bg-gray-700'
 
   return (
     <motion.div
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       onClick={() => onSelect(deal)}
-      className="bg-gray-800 rounded-xl p-4 border border-gray-700 active:bg-gray-700 cursor-pointer"
+      className={`${cardBg} rounded-xl p-4 border cursor-pointer`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">

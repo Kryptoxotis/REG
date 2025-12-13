@@ -13,6 +13,8 @@ export const DATABASE_IDS = {
   PIPELINE: '2bb746b9-e0e8-81f3-90c9-d2d317085a50',
   CLIENTS: '2bb746b9-e0e8-8176-b5ed-dfe744fc0246',
   SCHEDULE: '2bb746b9-e0e8-810a-b85d-e1a517ca1349',
+  CLOSED_DEALS: '2c8746b9-e0e8-8050-9cb1-d9445440a513',
+  ACTIVITY_LOG: '2c8746b9-e0e8-804a-8214-da6c76e7af4e',
   // Virtual views (same DB with filters)
   MODEL_HOMES: '2bb746b9-e0e8-8163-9afe-cf0c567c2586',
   SCOREBOARD: '2bb746b9-e0e8-81f3-90c9-d2d317085a50'

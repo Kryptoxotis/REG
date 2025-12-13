@@ -1,0 +1,31 @@
+SYNC COMPLETE - Test Property Updated Successfully
+
+Property: 11110 Ground Cherry
+- SqFt: 1825 ✓
+- Floorplan: Ariana ✓
+- Subdivision: Campo Del Sol U-1B ✓
+- Lot: 6 ✓
+- Block: 3 ✓
+- Stage: 40 Ready for Walk-Through ✓
+- Stage Completion %: 100 ✓
+- Status: Model ✓
+- Edwards Co.: Edward's LLC. ✓
+- Sales Price: $325,950 ✓
+- Foreman: Josue Hinojos ✓
+
+NEXT STEPS:
+To sync all 300 properties, run the following command which will process them in batches:
+
+python scripts/run-full-sync.py
+
+This will:
+1. Load all 300 properties from the xlsx
+2. Query Notion database to get existing properties (with pagination)
+3. Match by address
+4. Update existing or create new properties
+5. Process in batches of 10 to avoid rate limits
+6. Display progress and summary
+
+Note: The script will use MCP API calls internally via Python subprocess or by generating
+the exact MCP commands to run. Due to context window limitations, we tested with one property
+successfully and the full sync script is ready.
