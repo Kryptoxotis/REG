@@ -170,12 +170,27 @@ router.get('/stats', requireAuth, async (req, res) => {
 // Get stats grouped by office location - MUST come before /:databaseKey route
 router.get('/stats/by-office', requireAuth, async (req, res) => {
   try {
-    // Fetch from all relevant databases
-    const [propertiesData, pipelineData, closedData] = await Promise.all([
+    // Fetch from all relevant databases with individual error handling
+    const results = await Promise.allSettled([
       queryDatabase(DATABASE_IDS.PROPERTIES),
       queryDatabase(DATABASE_IDS.PIPELINE),
       queryDatabase(DATABASE_IDS.CLOSED_DEALS)
     ])
+
+    // Log which databases succeeded/failed
+    const dbNames = ['PROPERTIES', 'PIPELINE', 'CLOSED_DEALS']
+    results.forEach((result, i) => {
+      if (result.status === 'rejected') {
+        console.error(`Failed to fetch ${dbNames[i]}:`, result.reason?.message || result.reason)
+      } else {
+        console.log(`${dbNames[i]}: ${result.value.length} items`)
+      }
+    })
+
+    // Extract successful results (use empty array for failures)
+    const propertiesData = results[0].status === 'fulfilled' ? results[0].value : []
+    const pipelineData = results[1].status === 'fulfilled' ? results[1].value : []
+    const closedData = results[2].status === 'fulfilled' ? results[2].value : []
 
     // Combine all deals
     const allDeals = [
@@ -299,19 +314,24 @@ router.get('/stats/by-office', requireAuth, async (req, res) => {
 router.get('/:databaseKey', requireAuth, async (req, res) => {
   try {
     const { databaseKey } = req.params
-    const databaseId = DATABASE_IDS[databaseKey.toUpperCase()]
+    const upperKey = databaseKey.toUpperCase()
+    const databaseId = DATABASE_IDS[upperKey]
+
+    console.log(`Fetching database: ${upperKey}, ID: ${databaseId}`)
 
     if (!databaseId) {
-      return res.status(404).json({ error: 'Database not found' })
+      console.error(`Database not found: ${upperKey}`)
+      return res.status(404).json({ error: `Database not found: ${databaseKey}` })
     }
 
     const results = await queryDatabase(databaseId)
+    console.log(`${upperKey}: fetched ${results.length} items`)
     const formatted = results.map(formatPage)
 
     res.json(formatted)
   } catch (error) {
-    console.error('Error fetching database data:', error)
-    res.status(500).json({ error: 'Failed to fetch data' })
+    console.error(`Error fetching ${databaseKey}:`, error.message)
+    res.status(500).json({ error: `Failed to fetch ${databaseKey}: ${error.message}` })
   }
 })
 

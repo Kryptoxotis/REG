@@ -26,8 +26,10 @@ export async function queryDatabase(databaseId, filter = {}, sorts = []) {
     let allResults = []
     let hasMore = true
     let startCursor = undefined
+    let pageNum = 0
 
     while (hasMore) {
+      pageNum++
       const response = await axios.post(
         `https://api.notion.com/v1/databases/${databaseId}/query`,
         {
@@ -45,14 +47,17 @@ export async function queryDatabase(databaseId, filter = {}, sorts = []) {
         }
       )
 
+      const pageResults = response.data.results.length
       allResults = allResults.concat(response.data.results)
       hasMore = response.data.has_more
       startCursor = response.data.next_cursor
+
+      console.log(`DB ${databaseId.slice(0,8)}... page ${pageNum}: ${pageResults} items, total: ${allResults.length}, hasMore: ${hasMore}`)
     }
 
     return allResults
   } catch (error) {
-    console.error('Error querying database:', error.message)
+    console.error(`Error querying database ${databaseId}:`, error.message)
     throw error
   }
 }
