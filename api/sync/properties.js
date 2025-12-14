@@ -155,8 +155,11 @@ export default async function handler(req, res) {
     return res.status(413).json({ error: 'File too large. Maximum size is 10MB.' })
   }
 
-  // n8n webhook URL
-  const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://n8n.kryptoxotis.com/webhook/properties-sync'
+  // n8n webhook URL - required env var
+  const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL
+  if (!N8N_WEBHOOK_URL) {
+    return res.status(500).json({ error: 'Webhook configuration error' })
+  }
 
   try {
     // Parse multipart form data

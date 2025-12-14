@@ -20,8 +20,11 @@ export function getDatabaseId(key) {
   return DATABASE_IDS[upperKey] || null
 }
 
-// Token configuration
-export const TOKEN_SECRET = process.env.TOKEN_SECRET || 'reg-dashboard-secret-key-change-in-production'
+// Token configuration - required env var
+export const TOKEN_SECRET = process.env.TOKEN_SECRET
+if (!TOKEN_SECRET) {
+  throw new Error('TOKEN_SECRET environment variable is required')
+}
 
 // Cities configuration (shared across components)
 export const CITIES = ['Temple', 'Killeen', 'Belton', 'Harker Heights', 'Troy', 'Rockdale', 'Copperas Cove', 'Cameron', 'Lampasas', 'Salado']

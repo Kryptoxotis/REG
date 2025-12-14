@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { NOTION_VERSION } from '../../../config/databases.js'
-import { handleCors } from '../../../config/utils.js'
+import { handleCors, verifyToken } from '../../../config/utils.js'
 
 const NOTION_API_KEY = process.env.NOTION_API_KEY
 
@@ -35,6 +35,15 @@ export default async function handler(req, res) {
 
   if (req.method !== 'PATCH') {
     return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  // Auth check - all database updates require authentication
+  const authHeader = req.headers.authorization
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+  const user = verifyToken(token)
+
+  if (!user) {
+    return res.status(401).json({ error: 'Authentication required' })
   }
 
   const { key, id } = req.query
