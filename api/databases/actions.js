@@ -124,7 +124,7 @@ async function moveToClosed(data) {
 
 // Log activity
 async function logActivity(data) {
-  const { logAction, dealAddress, oldStatus, newStatus, notes } = data
+  const { logAction, dealAddress, oldStatus, newStatus, entityType, actionType } = data
 
   if (!logAction) throw new Error('Log action is required')
 
@@ -137,10 +137,11 @@ async function logActivity(data) {
     }
   }
 
-  if (dealAddress) properties['Deal Address'] = { rich_text: [{ type: 'text', text: { content: dealAddress } }] }
-  if (oldStatus) properties['Old Status'] = { rich_text: [{ type: 'text', text: { content: oldStatus } }] }
-  if (newStatus) properties['New Status'] = { rich_text: [{ type: 'text', text: { content: newStatus } }] }
-  if (notes) properties['Notes'] = { rich_text: [{ type: 'text', text: { content: notes } }] }
+  if (dealAddress) properties['Entity Title'] = { rich_text: [{ type: 'text', text: { content: dealAddress } }] }
+  if (oldStatus) properties['From Value'] = { rich_text: [{ type: 'text', text: { content: oldStatus } }] }
+  if (newStatus) properties['To Value'] = { rich_text: [{ type: 'text', text: { content: newStatus } }] }
+  if (entityType) properties['Entity Type'] = { select: { name: entityType } }
+  if (actionType) properties['Action Type'] = { select: { name: actionType } }
 
   const response = await axios.post(
     'https://api.notion.com/v1/pages',

@@ -144,7 +144,8 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         logAction: `Property moved to Pipeline: ${selectedDeal.Address || 'Unknown'}`,
         dealAddress: selectedDeal.Address || 'Unknown',
         newStatus: 'Loan Application Received',
-        notes: `Closed Date: ${moveForm.closedDate}`
+        entityType: 'Deal',
+        actionType: 'Moved Stage'
       }, { withCredentials: true })
 
       // Close modal and refresh
@@ -193,7 +194,9 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         logAction: `Deal moved: ${oldLoanStatus} → ${newLoanStatus}`,
         dealAddress: deal.Address || 'Unknown Address',
         oldStatus: oldLoanStatus,
-        newStatus: newLoanStatus
+        newStatus: newLoanStatus,
+        entityType: 'Deal',
+        actionType: 'Moved Stage'
       }, { withCredentials: true })
 
       // If moved to Closed, Funded, or Complete - MOVE to Closed Deals (create + delete from Pipeline)
@@ -216,11 +219,12 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         // Log the closed deal
         await axios.post('/api/databases/actions', {
           action: 'log-activity',
-          logAction: `Deal closed and moved: ${deal.Address || 'Unknown'}`,
+          logAction: `Deal closed: ${deal.Address || 'Unknown'} - $${(deal['Sales Price'] || 0).toLocaleString()}`,
           dealAddress: deal.Address || 'Unknown Address',
           oldStatus: oldLoanStatus,
           newStatus: newLoanStatus,
-          notes: `Sale Price: $${(deal['Sales Price'] || 0).toLocaleString()}, Agent: ${deal.Agent || 'N/A'}`
+          entityType: 'Deal',
+          actionType: 'Closed Deal'
         }, { withCredentials: true })
       }
     } catch (err) {
