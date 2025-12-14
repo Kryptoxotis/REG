@@ -87,6 +87,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
   // Move to Pipeline form state
   const [moveForm, setMoveForm] = useState({ closedDate: '', executeDate: '' })
   const [isMoving, setIsMoving] = useState(false)
+  const [isChangingStatus, setIsChangingStatus] = useState(false)
 
   // Fetch from correct database based on active tab
   useEffect(() => { fetchDeals() }, [pipelineTab])
@@ -231,6 +232,76 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       console.error('Failed to update deal:', err)
       // Revert on error
       fetchDeals()
+    }
+  }
+
+  // Change loan status from modal (mobile-friendly alternative to drag-drop)
+  const changeStatus = async (newLoanStatus) => {
+    if (!selectedDeal || isChangingStatus) return
+
+    const oldLoanStatus = selectedDeal['Loan Status']
+    if (oldLoanStatus === newLoanStatus) return
+
+    setIsChangingStatus(true)
+
+    // Optimistic update
+    setDeals(prev => prev.map(d =>
+      d.id === selectedDeal.id ? { ...d, 'Loan Status': newLoanStatus } : d
+    ))
+    setSelectedDeal(prev => ({ ...prev, 'Loan Status': newLoanStatus }))
+
+    try {
+      // Update Pipeline in Notion
+      await axios.post('/api/databases/actions', {
+        action: 'update-status',
+        dealId: selectedDeal.id,
+        loanStatus: newLoanStatus
+      }, { withCredentials: true })
+
+      // Log the status change
+      await axios.post('/api/databases/actions', {
+        action: 'log-activity',
+        logAction: `Deal moved: ${oldLoanStatus} → ${newLoanStatus}`,
+        dealAddress: selectedDeal.Address || 'Unknown Address',
+        oldStatus: oldLoanStatus,
+        newStatus: newLoanStatus,
+        entityType: 'Deal',
+        actionType: 'Moved Stage'
+      }, { withCredentials: true })
+
+      // If moved to Closed, Funded, or Complete - MOVE to Closed Deals
+      if (newLoanStatus === 'Closed' || newLoanStatus === 'Funded' || newLoanStatus === 'Loan Complete / Transfer') {
+        await axios.post('/api/databases/actions', {
+          action: 'move-to-closed',
+          dealId: selectedDeal.id,
+          address: selectedDeal.Address || '',
+          closeDate: selectedDeal['Scheduled Closing']?.start || new Date().toISOString().split('T')[0],
+          finalSalePrice: selectedDeal['Sales Price'] || 0,
+          agent: selectedDeal.Agent || '',
+          buyerName: selectedDeal['Buyer Name'] || '',
+          commission: selectedDeal.Commission || 0
+        }, { withCredentials: true })
+
+        // Remove from local state and close modal
+        setDeals(prev => prev.filter(d => d.id !== selectedDeal.id))
+        setSelectedDeal(null)
+
+        // Log the closed deal
+        await axios.post('/api/databases/actions', {
+          action: 'log-activity',
+          logAction: `Deal closed: ${selectedDeal.Address || 'Unknown'} - $${(selectedDeal['Sales Price'] || 0).toLocaleString()}`,
+          dealAddress: selectedDeal.Address || 'Unknown Address',
+          oldStatus: oldLoanStatus,
+          newStatus: newLoanStatus,
+          entityType: 'Deal',
+          actionType: 'Closed Deal'
+        }, { withCredentials: true })
+      }
+    } catch (err) {
+      console.error('Failed to update deal status:', err)
+      fetchDeals()
+    } finally {
+      setIsChangingStatus(false)
     }
   }
 
@@ -1049,6 +1120,38 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
                         {isMoving ? 'Moving...' : 'Move to Pipeline'}
                       </button>
                     </div>
+                  </div>
+                )}
+
+                {/* Change Status section - only show on Loan Status tab */}
+                {pipelineTab === 'loan-status' && (
+                  <div className="mt-4 p-4 bg-gray-800/50 rounded-xl border border-gray-700">
+                    <h3 className="text-sm font-semibold text-gray-300 mb-3">Change Status</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {LOAN_STATUS_COLUMNS.map(col => {
+                        const isCurrentStatus = selectedDeal['Loan Status'] === col.key
+                        const colors = colorMap[col.color]
+                        return (
+                          <button
+                            key={col.key}
+                            onClick={() => changeStatus(col.key)}
+                            disabled={isCurrentStatus || isChangingStatus}
+                            className={`px-3 py-3 rounded-xl text-sm font-medium transition-all active:scale-95 ${
+                              isCurrentStatus
+                                ? `${colors.header} text-white ring-2 ring-white/50`
+                                : isChangingStatus
+                                  ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                  : `${colors.bg} ${colors.border} border ${colors.text} hover:opacity-80`
+                            }`}
+                          >
+                            {isChangingStatus && !isCurrentStatus ? '...' : col.shortLabel}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-3 text-center">
+                      Tap a status to move this deal
+                    </p>
                   </div>
                 )}
 
