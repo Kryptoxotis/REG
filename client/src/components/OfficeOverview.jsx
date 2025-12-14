@@ -15,7 +15,7 @@ function OfficeOverview({ onNavigate, onCitySelect }) {
   const fetchOfficeStats = async () => {
     try {
       setLoading(true)
-      const response = await axios.get('/api/databases/stats/by-office', { withCredentials: true })
+      const response = await axios.get('/api/databases/stats?type=by-office', { withCredentials: true })
       setOfficeData(response.data)
     } catch (err) {
       console.error('Error fetching office stats:', err)

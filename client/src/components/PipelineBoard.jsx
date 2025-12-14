@@ -127,19 +127,21 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
     setIsMoving(true)
     try {
-      await axios.post(`/api/databases/properties/${selectedDeal.id}/move-to-pipeline`, {
+      await axios.post('/api/databases/actions', {
+        action: 'move-to-pipeline',
+        propertyId: selectedDeal.id,
         address: selectedDeal.Address || selectedDeal.address || '',
         closedDate: moveForm.closedDate,
         executeDate: moveForm.executeDate || null,
-        edwardsCo: selectedDeal['Edwards Co'] || selectedDeal['Edwards Co.'] || selectedDeal.Office || '',
         salesPrice: selectedDeal['Sales Price'] || selectedDeal.Price || 0,
         agent: selectedDeal.Agent || '',
         buyerName: selectedDeal['Buyer Name'] || ''
       }, { withCredentials: true })
 
       // Log the move
-      await axios.post('/api/databases/activity-log', {
-        action: `Property moved to Pipeline: ${selectedDeal.Address || 'Unknown'}`,
+      await axios.post('/api/databases/actions', {
+        action: 'log-activity',
+        logAction: `Property moved to Pipeline: ${selectedDeal.Address || 'Unknown'}`,
         dealAddress: selectedDeal.Address || 'Unknown',
         newStatus: 'Loan Application Received',
         notes: `Closed Date: ${moveForm.closedDate}`
@@ -179,13 +181,16 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
     try {
       // Update Pipeline in Notion
-      await axios.patch(`/api/databases/pipeline/${draggableId}/status`, {
+      await axios.post('/api/databases/actions', {
+        action: 'update-status',
+        dealId: draggableId,
         loanStatus: newLoanStatus
       }, { withCredentials: true })
 
       // Log the status change
-      await axios.post('/api/databases/activity-log', {
-        action: `Deal moved: ${oldLoanStatus} → ${newLoanStatus}`,
+      await axios.post('/api/databases/actions', {
+        action: 'log-activity',
+        logAction: `Deal moved: ${oldLoanStatus} → ${newLoanStatus}`,
         dealAddress: deal.Address || 'Unknown Address',
         oldStatus: oldLoanStatus,
         newStatus: newLoanStatus
@@ -194,9 +199,10 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       // If moved to Closed, Funded, or Complete - MOVE to Closed Deals (create + delete from Pipeline)
       if (newLoanStatus === 'Closed' || newLoanStatus === 'Funded' || newLoanStatus === 'Loan Complete / Transfer') {
         // Move deal: creates in Closed Deals + archives from Pipeline
-        await axios.post(`/api/databases/pipeline/${draggableId}/move-to-closed`, {
+        await axios.post('/api/databases/actions', {
+          action: 'move-to-closed',
+          dealId: draggableId,
           address: deal.Address || '',
-          edwardsCo: deal['Edwards Co'] || deal['Edwards Co.'] || deal.Office || '',
           closeDate: deal['Scheduled Closing']?.start || new Date().toISOString().split('T')[0],
           finalSalePrice: deal['Sales Price'] || 0,
           agent: deal.Agent || '',
@@ -208,8 +214,9 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         setDeals(prev => prev.filter(d => d.id !== draggableId))
 
         // Log the closed deal
-        await axios.post('/api/databases/activity-log', {
-          action: `Deal closed and moved: ${deal.Address || 'Unknown'}`,
+        await axios.post('/api/databases/actions', {
+          action: 'log-activity',
+          logAction: `Deal closed and moved: ${deal.Address || 'Unknown'}`,
           dealAddress: deal.Address || 'Unknown Address',
           oldStatus: oldLoanStatus,
           newStatus: newLoanStatus,
