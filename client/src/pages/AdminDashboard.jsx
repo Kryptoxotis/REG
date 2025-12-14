@@ -48,10 +48,12 @@ function AdminDashboard({ user, setUser }) {
     setSelectedCity(null) // Clear city filter when navigating normally
   }
 
-  // Navigate to a view and highlight a specific deal
-  const handleDealNavigate = (view, dealId) => {
+  // Navigate to a view and highlight a specific deal or search for a value
+  const handleDealNavigate = (view, dealId, searchValue = null) => {
     setHighlightedDealId(dealId)
     setActiveView(view)
+    // If searchValue is provided, we could store it for the target view
+    // For now, just navigate - the user can find the record
   }
 
   // Navigate to Pipeline with city filter
@@ -316,7 +318,7 @@ function AdminDashboard({ user, setUser }) {
                 ) : activeView === 'PIPELINE' ? (
                   <PipelineBoard highlightedDealId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} cityFilter={selectedCity} onClearCity={() => setSelectedCity(null)} />
                 ) : (
-                  <DatabaseViewer databaseKey={activeView} databaseName={databases.find(db => db.key === activeView)?.name} highlightedId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} />
+                  <DatabaseViewer databaseKey={activeView} databaseName={databases.find(db => db.key === activeView)?.name} highlightedId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} onNavigate={handleDealNavigate} />
                 )}
               </motion.div>
             )}

@@ -132,7 +132,30 @@ function SmartCardView({ item, config, onClick }) {
   )
 }
 
-export default function DatabaseViewer({ databaseKey }) {
+// Map field names to target databases for clickable relations
+const RELATION_FIELD_MAP = {
+  'Agent': 'TEAM_MEMBERS',
+  'Sales Agent': 'TEAM_MEMBERS',
+  'Listing Agent': 'TEAM_MEMBERS',
+  'Assigned Staff 1': 'TEAM_MEMBERS',
+  'Assigned Staff 2': 'TEAM_MEMBERS',
+  'Property': 'PROPERTIES',
+  'Property Address': 'PROPERTIES',
+  'Address': 'PROPERTIES', // Only when in Pipeline or Clients
+  'Client': 'CLIENTS',
+  'Buyer': 'CLIENTS',
+  'Buyer Name': 'CLIENTS',
+  'Deal': 'PIPELINE',
+  'Deal Name': 'PIPELINE'
+}
+
+// Fields that should NOT be clickable even if they match the map
+const EXCLUDED_RELATIONS = {
+  'PROPERTIES': ['Address'], // Address in Properties is the primary field, not a relation
+  'TEAM_MEMBERS': ['Name']   // Name in Team Members is the primary field
+}
+
+export default function DatabaseViewer({ databaseKey, highlightedId, onClearHighlight, onNavigate }) {
   const baseConfig = dbConfig[databaseKey] || dbConfig.TEAM_MEMBERS
   const Icon = baseConfig.icon
   const [data, setData] = useState([])
@@ -140,6 +163,37 @@ export default function DatabaseViewer({ databaseKey }) {
   const [selectedItem, setSelectedItem] = useState(null)
   const [showTerminated, setShowTerminated] = useState(false)
   const [cityFilter, setCityFilter] = useState('')
+
+  // Auto-select item when highlightedId changes
+  useEffect(() => {
+    if (highlightedId && data.length > 0) {
+      const item = data.find(d => d.id === highlightedId)
+      if (item) {
+        setSelectedItem(item)
+        if (onClearHighlight) onClearHighlight()
+      }
+    }
+  }, [highlightedId, data, onClearHighlight])
+
+  // Check if a field should be rendered as a clickable relation
+  const isClickableRelation = (fieldName) => {
+    if (!onNavigate) return false
+    const excluded = EXCLUDED_RELATIONS[databaseKey] || []
+    if (excluded.includes(fieldName)) return false
+    return !!RELATION_FIELD_MAP[fieldName]
+  }
+
+  // Handle clicking on a relation field
+  const handleRelationClick = (fieldName, value) => {
+    if (!onNavigate || !value) return
+    const targetDb = RELATION_FIELD_MAP[fieldName]
+    if (targetDb) {
+      // Navigate to the target database - search will happen there
+      // For now, just navigate to the database (user can search/find)
+      setSelectedItem(null)
+      onNavigate(targetDb, null, String(value))
+    }
+  }
 
   // Get field preferences from localStorage
   const fieldPrefs = useMemo(() => getFieldPreferences(databaseKey), [databaseKey])
@@ -303,7 +357,28 @@ export default function DatabaseViewer({ databaseKey }) {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setSelectedItem(null)}>
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-gray-900 rounded-2xl border border-gray-700 max-w-lg w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
               <div className="p-4 border-b border-gray-700 flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="font-semibold text-lg text-white">{selectedItem[config.primaryField] || 'Details'}</h3><button onClick={() => setSelectedItem(null)} className="p-1 hover:bg-gray-700 rounded-lg transition-colors"><X className="w-5 h-5 text-gray-400" /></button></div>
-              <div className="p-4 space-y-3">{Object.entries(selectedItem).filter(([key]) => key !== 'id' && key !== 'created_time' && key !== 'last_edited_time').map(([key, value]) => value !== null && value !== '' && value !== undefined && <div key={key}><p className="text-sm text-gray-500">{key}</p><p className="text-gray-200">{key === config.statusField ? <span className={"px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(value)}>{String(value)}</span> : String(value)}</p></div>)}</div>
+              <div className="p-4 space-y-3">
+                {Object.entries(selectedItem)
+                  .filter(([key]) => key !== 'id' && key !== 'created_time' && key !== 'last_edited_time')
+                  .map(([key, value]) => value !== null && value !== '' && value !== undefined && (
+                    <div key={key}>
+                      <p className="text-sm text-gray-500">{key}</p>
+                      {key === config.statusField ? (
+                        <span className={"px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(value)}>{String(value)}</span>
+                      ) : isClickableRelation(key) ? (
+                        <button
+                          onClick={() => handleRelationClick(key, value)}
+                          className="text-violet-400 hover:text-violet-300 underline decoration-dotted underline-offset-2 transition-colors text-left"
+                        >
+                          {String(value)} →
+                        </button>
+                      ) : (
+                        <p className="text-gray-200">{String(value)}</p>
+                      )}
+                    </div>
+                  ))
+                }
+              </div>
             </motion.div>
           </motion.div>
         )}
