@@ -108,14 +108,33 @@ function ScheduleCalendar({ onNavigate }) {
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1))
   const goToToday = () => setCurrentDate(new Date())
 
-  // Parse date from "DD/MM/YYYY" format (proper separate fields)
-  const parseScheduleDate = (dateStr) => {
-    if (!dateStr) return null
-    // Handle both old combined format "DD/MM/YYYY - Address" and new proper format "DD/MM/YYYY"
-    const datePart = dateStr.includes(' - ') ? dateStr.split(' - ')[0] : dateStr
-    const [day, month, year] = datePart.split('/')
-    if (!day || !month || !year) return null
-    return { day: parseInt(day), month: parseInt(month), year: parseInt(year) }
+  // Parse date from various formats (Notion date object, ISO string, or DD/MM/YYYY)
+  const parseScheduleDate = (dateField) => {
+    if (!dateField) return null
+
+    // Handle Notion date object format { start: "2024-12-15", end: null }
+    if (typeof dateField === 'object' && dateField.start) {
+      const d = new Date(dateField.start)
+      if (isNaN(d.getTime())) return null
+      return { day: d.getDate(), month: d.getMonth() + 1, year: d.getFullYear() }
+    }
+
+    // Handle ISO date string "2024-12-15"
+    if (typeof dateField === 'string' && dateField.includes('-') && !dateField.includes('/')) {
+      const d = new Date(dateField)
+      if (isNaN(d.getTime())) return null
+      return { day: d.getDate(), month: d.getMonth() + 1, year: d.getFullYear() }
+    }
+
+    // Handle old DD/MM/YYYY format (fallback)
+    if (typeof dateField === 'string') {
+      const datePart = dateField.includes(' - ') ? dateField.split(' - ')[0] : dateField
+      const [day, month, year] = datePart.split('/')
+      if (!day || !month || !year) return null
+      return { day: parseInt(day), month: parseInt(month), year: parseInt(year) }
+    }
+
+    return null
   }
 
   const getEventsForDay = (day) => {
