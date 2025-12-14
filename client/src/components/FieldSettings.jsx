@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Settings, Check, Eye, List, Maximize2 } from 'lucide-react'
 import axios from 'axios'
 
-const DATABASES = ['TEAM_MEMBERS', 'PROPERTIES', 'PIPELINE', 'CLIENTS', 'SCHEDULE']
+const DATABASES = ['TEAM_MEMBERS', 'PROPERTIES', 'PIPELINE', 'CLIENTS', 'SCHEDULE', 'ACTIVITY_LOG', 'CLOSED_DEALS']
 const DISPLAY_LEVELS = [
   { key: 'list', label: 'List View', icon: List, description: 'Initial grid/list display' },
   { key: 'card', label: 'Card View', icon: Eye, description: 'Single record detail' },
@@ -15,7 +15,9 @@ const DEFAULT_PREFS = {
   PROPERTIES: { list: ['Address', 'Status', 'Floorplan', 'Sales Price'], card: ['Address', 'Status', 'Floorplan', 'Sales Price', 'Subdivision'], expanded: [] },
   PIPELINE: { list: ['Deal Name', 'Stage', 'Value', 'Agent'], card: ['Deal Name', 'Stage', 'Value', 'Agent', 'Loan Status'], expanded: [] },
   CLIENTS: { list: ['Name', 'Email', 'Phone', 'Source'], card: ['Name', 'Email', 'Phone', 'Source', 'Status'], expanded: [] },
-  SCHEDULE: { list: ['Date', 'Model Home Address', 'Assigned Staff 1'], card: ['Date', 'Model Home Address', 'Assigned Staff 1', 'Assigned Staff 2'], expanded: [] }
+  SCHEDULE: { list: ['Date', 'Model Home Address', 'Assigned Staff 1'], card: ['Date', 'Model Home Address', 'Assigned Staff 1', 'Assigned Staff 2'], expanded: [] },
+  ACTIVITY_LOG: { list: ['Action', 'Date', 'User'], card: ['Action', 'Date', 'User', 'Details'], expanded: [] },
+  CLOSED_DEALS: { list: ['Deal Name', 'Close Date', 'Value'], card: ['Deal Name', 'Close Date', 'Value', 'Agent'], expanded: [] }
 }
 
 export function getFieldPreferences(databaseKey) {
