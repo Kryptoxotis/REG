@@ -75,7 +75,10 @@ export default function FieldSettings({ isOpen, onClose }) {
   const fetchSchema = async (dbKey) => {
     setLoading(true)
     try {
-      const response = await axios.get(`/api/databases/schema?key=${dbKey}`, { withCredentials: true })
+      const token = localStorage.getItem('authToken')
+      const response = await axios.get(`/api/databases/schema?key=${dbKey}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
       setFields(response.data.fields || [])
     } catch (err) {
       console.error('Failed to fetch schema:', err)

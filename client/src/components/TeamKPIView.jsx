@@ -18,7 +18,10 @@ function TeamKPIView({ onNavigate }) {
     setLoading(true)
     setError(null)
     try {
-      const response = await axios.get('/api/databases/team-kpis', { withCredentials: true })
+      const token = localStorage.getItem('authToken')
+      const response = await axios.get('/api/databases/team-kpis', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
       setData(response.data)
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch team KPIs')

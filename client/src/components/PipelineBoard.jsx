@@ -132,7 +132,10 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         'closed': 'CLOSED_DEALS'
       }
       const database = dbMap[pipelineTab] || 'PIPELINE'
-      const response = await axios.get(`/api/databases/${database}`, { withCredentials: true })
+      const token = localStorage.getItem('authToken')
+      const response = await axios.get(`/api/databases/${database}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
       // API returns array directly, not { results: [...] }
       setDeals(Array.isArray(response.data) ? response.data : [])
     } catch (err) {
@@ -155,7 +158,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         salesPrice: selectedDeal['Sales Price'] || selectedDeal.Price || 0,
         agent: selectedDeal.Agent || '',
         buyerName: selectedDeal['Buyer Name'] || ''
-      }, { withCredentials: true })
+      }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
 
       // Log the move
       await axios.post('/api/databases/actions', {
@@ -165,7 +168,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         newStatus: 'Loan Application Received',
         entityType: 'Deal',
         actionType: 'Moved Stage'
-      }, { withCredentials: true })
+      }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
 
       // Close modal and refresh
       setSelectedDeal(null)
@@ -205,7 +208,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         action: 'update-status',
         dealId: draggableId,
         loanStatus: newLoanStatus
-      }, { withCredentials: true })
+      }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
 
       // Log the status change
       await axios.post('/api/databases/actions', {
@@ -216,7 +219,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         newStatus: newLoanStatus,
         entityType: 'Deal',
         actionType: 'Moved Stage'
-      }, { withCredentials: true })
+      }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
 
       // If moved to Closed, Funded, or Complete - MOVE to Closed Deals (create + delete from Pipeline)
       if (newLoanStatus === 'Closed' || newLoanStatus === 'Funded' || newLoanStatus === 'Loan Complete / Transfer') {
@@ -230,7 +233,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
           agent: deal.Agent || '',
           buyerName: deal['Buyer Name'] || '',
           commission: deal.Commission || 0
-        }, { withCredentials: true })
+        }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
 
         // Remove from local state
         setDeals(prev => prev.filter(d => d.id !== draggableId))
@@ -244,7 +247,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
           newStatus: newLoanStatus,
           entityType: 'Deal',
           actionType: 'Closed Deal'
-        }, { withCredentials: true })
+        }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
       }
     } catch (err) {
       console.error('Failed to update deal:', err)
@@ -274,7 +277,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         action: 'update-status',
         dealId: selectedDeal.id,
         loanStatus: newLoanStatus
-      }, { withCredentials: true })
+      }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
 
       // Log the status change
       await axios.post('/api/databases/actions', {
@@ -285,7 +288,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         newStatus: newLoanStatus,
         entityType: 'Deal',
         actionType: 'Moved Stage'
-      }, { withCredentials: true })
+      }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
 
       // If moved to Closed, Funded, or Complete - MOVE to Closed Deals
       if (newLoanStatus === 'Closed' || newLoanStatus === 'Funded' || newLoanStatus === 'Loan Complete / Transfer') {
@@ -298,7 +301,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
           agent: selectedDeal.Agent || '',
           buyerName: selectedDeal['Buyer Name'] || '',
           commission: selectedDeal.Commission || 0
-        }, { withCredentials: true })
+        }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
 
         // Remove from local state and close modal
         setDeals(prev => prev.filter(d => d.id !== selectedDeal.id))
@@ -313,7 +316,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
           newStatus: newLoanStatus,
           entityType: 'Deal',
           actionType: 'Closed Deal'
-        }, { withCredentials: true })
+        }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
       }
     } catch (err) {
       console.error('Failed to update deal status:', err)

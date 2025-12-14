@@ -148,7 +148,10 @@ function DetailModal({ item, onClose, onUpdate, databaseKey }) {
     setSaving(true)
     setError(null)
     try {
-      await axios.patch(`/api/databases/${databaseKey}/${item.id}`, formData, { withCredentials: true })
+      const token = localStorage.getItem('authToken')
+      await axios.patch(`/api/databases/${databaseKey}/${item.id}`, formData, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
       onUpdate()
       setIsEditing(false)
     } catch (err) {

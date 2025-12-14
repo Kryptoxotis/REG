@@ -15,7 +15,10 @@ function OfficeOverview({ onNavigate, onCitySelect }) {
   const fetchOfficeStats = async () => {
     try {
       setLoading(true)
-      const response = await axios.get('/api/databases/stats?type=by-office', { withCredentials: true })
+      const token = localStorage.getItem('authToken')
+      const response = await axios.get('/api/databases/stats?type=by-office', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
       setOfficeData(response.data)
     } catch (err) {
       console.error('Error fetching office stats:', err)

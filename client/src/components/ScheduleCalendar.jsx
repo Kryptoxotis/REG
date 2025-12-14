@@ -22,9 +22,11 @@ function ScheduleCalendar({ onNavigate }) {
     setLoading(true)
     setError(null)
     try {
+      const token = localStorage.getItem('authToken')
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
       const [scheduleRes, kpisRes] = await Promise.all([
-        axios.get('/api/databases/SCHEDULE', { withCredentials: true }),
-        axios.get('/api/databases/team-kpis', { withCredentials: true })
+        axios.get('/api/databases/SCHEDULE', { headers }),
+        axios.get('/api/databases/team-kpis', { headers })
       ])
       setData(scheduleRes.data)
       setTeamKpis(kpisRes.data)
@@ -66,10 +68,11 @@ function ScheduleCalendar({ onNavigate }) {
     if (!selectedEvent?.id) return
     setSaving(true)
     try {
+      const token = localStorage.getItem('authToken')
       await axios.patch(`/api/databases/SCHEDULE/${selectedEvent.id}`, {
         'Assigned Staff 1': editStaff1,
         'Assigned Staff 2': editStaff2
-      }, { withCredentials: true })
+      }, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
 
       // Update local data
       setData(prev => prev.map(item =>
