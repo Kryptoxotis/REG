@@ -4,6 +4,12 @@ import { ChevronDown, ChevronUp, Users, Building2, TrendingUp, UserCheck, Calend
 import axios from 'axios'
 
 const CITIES = ['El Paso', 'Las Cruces', 'McAllen', 'San Antonio']
+const CITY_TO_EDWARDS = {
+  'El Paso': "Edward's LLC.",
+  'Las Cruces': "Edward's NM.",
+  'McAllen': "Edward's RGV",
+  'San Antonio': 'San Antonio'
+}
 
 const dbConfig = {
   TEAM_MEMBERS: { title: 'Team Members', icon: Users, primaryField: 'Name', secondaryFields: ['Role', 'Phone', 'Email'], statusField: 'Status', mobileLayout: 'card' },
@@ -91,15 +97,12 @@ export default function DatabaseViewer({ databaseKey }) {
     if (databaseKey === 'TEAM_MEMBERS' && !showTerminated) {
       result = result.filter(item => { const status = item[config.statusField]; return !status || !status.toLowerCase().includes('terminated') })
     }
-    // Filter by city for PROPERTIES
+    // Filter by city for PROPERTIES (uses Edwards Co mapping)
     if (databaseKey === 'PROPERTIES' && cityFilter) {
+      const edwardsCo = CITY_TO_EDWARDS[cityFilter]
       result = result.filter(item => {
-        const city = item.City || item.city || ''
-        const subdivision = item.Subdivision || item.subdivision || ''
-        const address = item.Address || item.address || ''
-        return city.toLowerCase().includes(cityFilter.toLowerCase()) ||
-               subdivision.toLowerCase().includes(cityFilter.toLowerCase()) ||
-               address.toLowerCase().includes(cityFilter.toLowerCase())
+        const itemEdwards = item['Edwards Co'] || item['Edwards Co.'] || item.Office || ''
+        return itemEdwards === edwardsCo
       })
     }
     return result
