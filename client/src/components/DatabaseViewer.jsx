@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, ChevronUp, Users, Building2, TrendingUp, UserCheck, Calendar, X, Filter, ChevronRight, Eye, EyeOff } from 'lucide-react'
 import axios from 'axios'
+import { getFieldPreferences } from './FieldSettings'
 
 const CITIES = ['El Paso', 'Las Cruces', 'McAllen', 'San Antonio']
 const CITY_TO_EDWARDS = {
@@ -65,13 +66,32 @@ function SmartCardView({ item, config, onClick }) {
 }
 
 export default function DatabaseViewer({ databaseKey }) {
-  const config = dbConfig[databaseKey] || dbConfig.TEAM_MEMBERS
-  const Icon = config.icon
+  const baseConfig = dbConfig[databaseKey] || dbConfig.TEAM_MEMBERS
+  const Icon = baseConfig.icon
   const [data, setData] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedItem, setSelectedItem] = useState(null)
   const [showTerminated, setShowTerminated] = useState(false)
   const [cityFilter, setCityFilter] = useState('')
+
+  // Get field preferences from localStorage
+  const fieldPrefs = useMemo(() => getFieldPreferences(databaseKey), [databaseKey])
+
+  // Merge preferences with base config
+  const config = useMemo(() => {
+    const listFields = fieldPrefs.list?.length > 0 ? fieldPrefs.list : [baseConfig.primaryField, ...baseConfig.secondaryFields]
+    const primaryField = listFields[0] || baseConfig.primaryField
+    const secondaryFields = listFields.slice(1)
+
+    return {
+      ...baseConfig,
+      primaryField,
+      secondaryFields,
+      tableColumns: listFields,
+      cardFields: fieldPrefs.card?.length > 0 ? fieldPrefs.card : [baseConfig.primaryField, ...baseConfig.secondaryFields, baseConfig.statusField].filter(Boolean),
+      expandedFields: fieldPrefs.expanded || []
+    }
+  }, [baseConfig, fieldPrefs, databaseKey])
 
   useEffect(() => {
     const fetchData = async () => {
