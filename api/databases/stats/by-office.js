@@ -4,9 +4,7 @@ const NOTION_API_KEY = process.env.NOTION_API_KEY
 const NOTION_VERSION = '2022-06-28'
 
 const DATABASE_IDS = {
-  PROPERTIES: '2bb746b9-e0e8-8163-9afe-cf0c567c2586',
-  PIPELINE: '2bb746b9-e0e8-81f3-90c9-d2d317085a50',
-  CLOSED_DEALS: '2c8746b9-e0e8-8050-9cb1-d9445440a513'
+  PROPERTIES: '2bb746b9-e0e8-8163-9afe-cf0c567c2586'
 }
 
 function extractPlainText(richText) {
@@ -65,21 +63,14 @@ async function queryDatabase(databaseId) {
 
 export default async function handler(req, res) {
   try {
-    // Fetch from all databases with individual error handling
-    const [propertiesRaw, pipelineRaw, closedRaw] = await Promise.all([
-      queryDatabase(DATABASE_IDS.PROPERTIES),
-      queryDatabase(DATABASE_IDS.PIPELINE),
-      queryDatabase(DATABASE_IDS.CLOSED_DEALS)
-    ])
-
+    // Fetch only from PROPERTIES database for Overview
+    const propertiesRaw = await queryDatabase(DATABASE_IDS.PROPERTIES)
     const propertiesData = propertiesRaw.map(formatPage)
-    const pipelineData = pipelineRaw.map(formatPage)
-    const closedData = closedRaw.map(formatPage)
 
-    console.log(`Fetched: PROPERTIES=${propertiesData.length}, PIPELINE=${pipelineData.length}, CLOSED=${closedData.length}`)
+    console.log(`Fetched: PROPERTIES=${propertiesData.length}`)
 
-    // Combine all deals
-    const allDeals = [...propertiesData, ...pipelineData, ...closedData]
+    // Use properties as the source
+    const allDeals = propertiesData
 
     // Office locations
     const offices = ['El Paso', 'Las Cruces', 'McAllen', 'San Antonio']
@@ -106,15 +97,17 @@ export default async function handler(req, res) {
     }
 
     const getOffice = (deal) => {
-      const officeField = deal['Edwards Co'] || deal['Edwards Co.'] || deal.Office || deal.Market || deal.Location || ''
+      const officeField = deal['Edwards Co.'] || deal['Edwards Co'] || deal.Office || deal.Market || deal.Location || ''
       const address = deal.Address || deal['Property Address'] || ''
 
-      if (officeField) {
+      // Skip N/A values
+      if (officeField && officeField !== 'N/A') {
         const of = officeField.toLowerCase()
-        if (of.includes('el paso') || of.includes('elpaso')) return 'El Paso'
-        if (of.includes('las cruces') || of.includes('cruces') || of.includes('nm') || of.includes('new mexico')) return 'Las Cruces'
-        if (of.includes('mcallen') || of.includes('mc allen') || of.includes('rgv')) return 'McAllen'
-        if (of.includes('san antonio') || of.includes('sanantonio') || of.includes('sa ')) return 'San Antonio'
+        // Match Edwards Co. naming: "Edward's LLC." = El Paso, "Edward's NM." = Las Cruces, "Edward's RGV" = McAllen
+        if (of.includes('llc') || of.includes('el paso') || of.includes('elpaso')) return 'El Paso'
+        if (of.includes('nm') || of.includes('las cruces') || of.includes('cruces') || of.includes('new mexico')) return 'Las Cruces'
+        if (of.includes('rgv') || of.includes('mcallen') || of.includes('mc allen')) return 'McAllen'
+        if (of.includes('san antonio') || of.includes('sanantonio')) return 'San Antonio'
       }
 
       if (address) {
