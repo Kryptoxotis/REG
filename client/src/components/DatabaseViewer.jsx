@@ -99,8 +99,15 @@ function PropertyCard({ item, config, onClick }) {
 
 function TeamMemberCard({ item, config, onClick }) {
   const [expanded, setExpanded] = useState(false)
-  const displayedFields = [config.primaryField, ...config.secondaryFields, config.statusField].filter(Boolean)
-  const extraFields = Object.entries(item).filter(([key, value]) => !displayedFields.includes(key) && key !== 'id' && key !== 'created_time' && key !== 'last_edited_time' && value !== null && value !== '' && value !== undefined)
+  // Use cardFields from preferences for main display (excluding primary which is the title)
+  const cardFields = config.cardFields || [config.primaryField, ...config.secondaryFields, config.statusField].filter(Boolean)
+  const mainFields = cardFields.filter(f => f !== config.primaryField && f !== config.statusField)
+  // For expanded: use expandedFields if set, otherwise show all remaining fields
+  const allFieldKeys = Object.keys(item).filter(k => k !== 'id' && k !== 'created_time' && k !== 'last_edited_time')
+  const shownInCard = [config.primaryField, config.statusField, ...mainFields].filter(Boolean)
+  const expandedFields = config.expandedFields?.length > 0
+    ? config.expandedFields.filter(f => item[f] !== null && item[f] !== '' && item[f] !== undefined)
+    : allFieldKeys.filter(k => !shownInCard.includes(k) && item[k] !== null && item[k] !== '' && item[k] !== undefined)
   return (
     <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden hover:border-gray-600 transition-colors">
       <div className="p-4 cursor-pointer hover:bg-gray-700/50" onClick={onClick}>
@@ -108,13 +115,13 @@ function TeamMemberCard({ item, config, onClick }) {
           <h3 className="font-semibold text-white truncate flex-1">{item[config.primaryField] || 'Untitled'}</h3>
           {config.statusField && item[config.statusField] && <span className={"ml-2 px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(item[config.statusField])}>{item[config.statusField]}</span>}
         </div>
-        <div className="space-y-1">{config.secondaryFields.map(field => item[field] && <p key={field} className="text-sm text-gray-400 truncate"><span className="text-gray-500">{field}:</span> {String(item[field])}</p>)}</div>
+        <div className="space-y-1">{mainFields.map(field => item[field] && <p key={field} className="text-sm text-gray-400 truncate"><span className="text-gray-500">{field}:</span> {String(item[field])}</p>)}</div>
       </div>
-      {extraFields.length > 0 && (<>
+      {expandedFields.length > 0 && (<>
         <button onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }} className="w-full px-4 py-2 bg-gray-900 border-t border-gray-700 flex items-center justify-center gap-2 text-sm text-gray-400 hover:bg-gray-700 hover:text-white transition-colors">
-          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}{expanded ? 'Show Less' : 'Show ' + extraFields.length + ' More Fields'}
+          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}{expanded ? 'Show Less' : `Show ${expandedFields.length} More Fields`}
         </button>
-        <AnimatePresence>{expanded && <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden"><div className="px-4 py-3 bg-gray-900 border-t border-gray-700 space-y-2">{extraFields.map(([key, value]) => <p key={key} className="text-sm text-gray-400"><span className="text-gray-500 font-medium">{key}:</span> {String(value)}</p>)}</div></motion.div>}</AnimatePresence>
+        <AnimatePresence>{expanded && <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden"><div className="px-4 py-3 bg-gray-900 border-t border-gray-700 space-y-2">{expandedFields.map(field => <p key={field} className="text-sm text-gray-400"><span className="text-gray-500 font-medium">{field}:</span> {String(item[field])}</p>)}</div></motion.div>}</AnimatePresence>
       </>)}
     </motion.div>
   )
