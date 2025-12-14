@@ -40,7 +40,7 @@ export function useStats() {
 export function useStatsOverview() {
   return useQuery({
     queryKey: ['stats', 'overview'],
-    queryFn: () => api.get('/api/databases/stats/overview'),
+    queryFn: () => api.get('/api/databases/stats'),
     staleTime: 60 * 1000,
   })
 }
