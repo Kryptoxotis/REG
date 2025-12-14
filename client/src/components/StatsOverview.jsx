@@ -32,7 +32,9 @@ function StatsOverview({ stats, onNavigate }) {
     schedule: { icon: '📅', gradient: 'from-amber-500 to-orange-400', bg: 'bg-amber-500/20' }
   }
 
-  const statsList = Object.entries(stats)
+  const statsList = Object.entries(stats).filter(([key, data]) => 
+    data && typeof data === 'object' && !data.code && !data.message
+  )
   const totalRecords = statsList.reduce((sum, [_, data]) => sum + (data?.count || 0), 0)
 
   // Map stats keys to navigation views
@@ -132,7 +134,7 @@ function StatsOverview({ stats, onNavigate }) {
                     {data?.count || 0}
                   </motion.span>
                 </div>
-                <h3 className="mt-3 font-semibold text-gray-200 capitalize text-sm sm:text-base">{data.name.replace(/_/g, ' ')}</h3>
+                <h3 className="mt-3 font-semibold text-gray-200 capitalize text-sm sm:text-base">{(data?.name || key).replace(/_/g, ' ')}</h3>
                 <p className="text-xs text-indigo-400 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">Click to view →</p>
                 {/* Breakdown stats */}
                 <div className="mt-2 space-y-1 text-xs text-gray-500">
