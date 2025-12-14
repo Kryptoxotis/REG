@@ -88,6 +88,25 @@ function OfficeOverview({ onNavigate, onCitySelect }) {
     )
   }
 
+  // Null check for officeData structure
+  if (!officeData || !officeData.offices || !officeData.totals || !officeData.officeList) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex flex-col items-center justify-center h-64 text-gray-400"
+      >
+        <p>No data available</p>
+        <button
+          onClick={fetchOfficeStats}
+          className="mt-4 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700"
+        >
+          Refresh
+        </button>
+      </motion.div>
+    )
+  }
+
   const { offices, totals, officeList } = officeData
 
   return (

@@ -4,8 +4,8 @@ const NOTION_API_KEY = process.env.NOTION_API_KEY
 const NOTION_VERSION = '2022-06-28'
 
 const DATABASE_IDS = {
-  TEAM_MEMBERS: '2bb746b9-e0e8-815b-a4de-d2d5aa5ef4e5',
-  PIPELINE: '2bb746b9-e0e8-81f3-90c9-d2d317085a50'
+  TEAM_MEMBERS: '2bb746b9-e0e8-811a-abaf-000bf8cf1640',
+  PIPELINE: '2bb746b9-e0e8-815d-94e0-000bfd1091e1'
 }
 
 function extractPlainText(richText) {
