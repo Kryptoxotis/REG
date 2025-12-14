@@ -54,11 +54,8 @@ async function queryDatabasePaginated(databaseId) {
     let allResults = []
     let hasMore = true
     let startCursor = undefined
-    let pageNum = 0
-    const maxPages = 5
 
-    while (hasMore && pageNum < maxPages) {
-      pageNum++
+    while (hasMore) {
       const response = await axios.post(
         `https://api.notion.com/v1/databases/${databaseId}/query`,
         { start_cursor: startCursor, page_size: 100 },

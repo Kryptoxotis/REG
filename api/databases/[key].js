@@ -82,18 +82,29 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await axios.post(
-      `https://api.notion.com/v1/databases/${databaseId}/query`,
-      queryBody,
-      {
-        headers: {
-          'Authorization': `Bearer ${NOTION_API_KEY}`,
-          'Notion-Version': NOTION_VERSION,
-          'Content-Type': 'application/json'
+    // Paginate through ALL results
+    let allResults = []
+    let hasMore = true
+    let startCursor = undefined
+
+    while (hasMore) {
+      const response = await axios.post(
+        `https://api.notion.com/v1/databases/${databaseId}/query`,
+        { ...queryBody, start_cursor: startCursor, page_size: 100 },
+        {
+          headers: {
+            'Authorization': `Bearer ${NOTION_API_KEY}`,
+            'Notion-Version': NOTION_VERSION,
+            'Content-Type': 'application/json'
+          }
         }
-      }
-    )
-    const formatted = response.data.results.map(formatPage)
+      )
+      allResults = allResults.concat(response.data.results)
+      hasMore = response.data.has_more
+      startCursor = response.data.next_cursor
+    }
+
+    const formatted = allResults.map(formatPage)
     res.status(200).json(formatted)
   } catch (error) {
     console.error('Error:', error.message, error.response?.data)
