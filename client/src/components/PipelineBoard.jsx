@@ -4,33 +4,51 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import axios from 'axios'
 
 const LOAN_STATUS_COLUMNS = [
-  { key: 'Loan Application Received', label: 'Application', shortLabel: 'App', color: 'gray' },
-  { key: 'Final Underwriting (FUW)', label: 'Underwriting', shortLabel: 'FUW', color: 'blue' },
-  { key: 'Clear to Close (CTC)', label: 'Clear to Close', shortLabel: 'CTC', color: 'cyan' },
-  { key: 'Closing Disclosure (CD) Issued', label: 'CD Issued', shortLabel: 'CD', color: 'yellow' },
-  { key: 'Closing Disclosure (CD) Signed', label: 'CD Signed', shortLabel: 'Signed', color: 'orange' },
-  { key: 'Closing Scheduled', label: 'Scheduled', shortLabel: 'Sched', color: 'pink' },
-  { key: 'Closed', label: 'Closed', shortLabel: 'Close', color: 'green' },
-  { key: 'Funded', label: 'Funded', shortLabel: 'Fund', color: 'emerald' },
-  { key: 'Loan Complete / Transfer', label: 'Complete', shortLabel: 'Done', color: 'teal' },
-  { key: 'Back On Market (BOM)', label: 'BOM', shortLabel: 'BOM', color: 'red' },
-  { key: 'CASH', label: 'Cash', shortLabel: 'Cash', color: 'purple' }
+  { key: 'Loan Application Received', label: 'Application Received', shortLabel: 'App', color: 'slate' },
+  { key: 'Disclosures Sent', label: 'Disclosures Sent', shortLabel: 'Disc Sent', color: 'gray' },
+  { key: 'Disclosures Signed', label: 'Disclosures Signed', shortLabel: 'Disc Sign', color: 'zinc' },
+  { key: 'Loan Documents Collected', label: 'Docs Collected', shortLabel: 'Docs', color: 'blue' },
+  { key: 'File in Processing', label: 'In Processing', shortLabel: 'Process', color: 'indigo' },
+  { key: 'Appraisal Ordered', label: 'Appraisal Ordered', shortLabel: 'Appr Ord', color: 'violet' },
+  { key: 'Appraisal Received', label: 'Appraisal Received', shortLabel: 'Appr Rec', color: 'purple' },
+  { key: 'Initial Underwriting (IUW)', label: 'Initial UW', shortLabel: 'IUW', color: 'fuchsia' },
+  { key: 'Conditions Requested', label: 'Conditions Req', shortLabel: 'Cond Req', color: 'pink' },
+  { key: 'Conditions Submitted', label: 'Conditions Sub', shortLabel: 'Cond Sub', color: 'rose' },
+  { key: 'Final Underwriting (FUW)', label: 'Final UW', shortLabel: 'FUW', color: 'orange' },
+  { key: 'Clear to Close (CTC)', label: 'Clear to Close', shortLabel: 'CTC', color: 'amber' },
+  { key: 'Closing Disclosure (CD) Issued', label: 'CD Issued', shortLabel: 'CD Iss', color: 'yellow' },
+  { key: 'Closing Disclosure (CD) Signed', label: 'CD Signed', shortLabel: 'CD Sign', color: 'lime' },
+  { key: 'Closing Scheduled', label: 'Closing Sched', shortLabel: 'Sched', color: 'green' },
+  { key: 'Closed', label: 'Closed', shortLabel: 'Closed', color: 'emerald' },
+  { key: 'Funded', label: 'Funded', shortLabel: 'Funded', color: 'teal' },
+  { key: 'Loan Complete / Transfer', label: 'Complete', shortLabel: 'Done', color: 'cyan' },
+  { key: 'Back On Market (BOM)', label: 'Back On Market', shortLabel: 'BOM', color: 'red' },
+  { key: 'CASH', label: 'Cash Deal', shortLabel: 'CASH', color: 'sky' }
 ]
 
 // Helper to get address from different database schemas
 const getAddress = (deal) => deal.Address || deal['Property Address'] || deal.address || ''
 
 const colorMap = {
+  slate: { bg: 'bg-slate-500/20', border: 'border-slate-500/30', text: 'text-slate-400', header: 'bg-slate-600', dot: 'bg-slate-500' },
   gray: { bg: 'bg-gray-500/20', border: 'border-gray-500/30', text: 'text-gray-400', header: 'bg-gray-600', dot: 'bg-gray-500' },
+  zinc: { bg: 'bg-zinc-500/20', border: 'border-zinc-500/30', text: 'text-zinc-400', header: 'bg-zinc-600', dot: 'bg-zinc-500' },
   blue: { bg: 'bg-blue-500/20', border: 'border-blue-500/30', text: 'text-blue-400', header: 'bg-blue-600', dot: 'bg-blue-500' },
-  cyan: { bg: 'bg-cyan-500/20', border: 'border-cyan-500/30', text: 'text-cyan-400', header: 'bg-cyan-600', dot: 'bg-cyan-500' },
-  yellow: { bg: 'bg-yellow-500/20', border: 'border-yellow-500/30', text: 'text-yellow-400', header: 'bg-yellow-600', dot: 'bg-yellow-500' },
-  orange: { bg: 'bg-orange-500/20', border: 'border-orange-500/30', text: 'text-orange-400', header: 'bg-orange-600', dot: 'bg-orange-500' },
+  indigo: { bg: 'bg-indigo-500/20', border: 'border-indigo-500/30', text: 'text-indigo-400', header: 'bg-indigo-600', dot: 'bg-indigo-500' },
+  violet: { bg: 'bg-violet-500/20', border: 'border-violet-500/30', text: 'text-violet-400', header: 'bg-violet-600', dot: 'bg-violet-500' },
+  purple: { bg: 'bg-purple-500/20', border: 'border-purple-500/30', text: 'text-purple-400', header: 'bg-purple-600', dot: 'bg-purple-500' },
+  fuchsia: { bg: 'bg-fuchsia-500/20', border: 'border-fuchsia-500/30', text: 'text-fuchsia-400', header: 'bg-fuchsia-600', dot: 'bg-fuchsia-500' },
   pink: { bg: 'bg-pink-500/20', border: 'border-pink-500/30', text: 'text-pink-400', header: 'bg-pink-600', dot: 'bg-pink-500' },
+  rose: { bg: 'bg-rose-500/20', border: 'border-rose-500/30', text: 'text-rose-400', header: 'bg-rose-600', dot: 'bg-rose-500' },
+  orange: { bg: 'bg-orange-500/20', border: 'border-orange-500/30', text: 'text-orange-400', header: 'bg-orange-600', dot: 'bg-orange-500' },
+  amber: { bg: 'bg-amber-500/20', border: 'border-amber-500/30', text: 'text-amber-400', header: 'bg-amber-600', dot: 'bg-amber-500' },
+  yellow: { bg: 'bg-yellow-500/20', border: 'border-yellow-500/30', text: 'text-yellow-400', header: 'bg-yellow-600', dot: 'bg-yellow-500' },
+  lime: { bg: 'bg-lime-500/20', border: 'border-lime-500/30', text: 'text-lime-400', header: 'bg-lime-600', dot: 'bg-lime-500' },
   green: { bg: 'bg-green-500/20', border: 'border-green-500/30', text: 'text-green-400', header: 'bg-green-600', dot: 'bg-green-500' },
   emerald: { bg: 'bg-emerald-500/20', border: 'border-emerald-500/30', text: 'text-emerald-400', header: 'bg-emerald-600', dot: 'bg-emerald-500' },
   teal: { bg: 'bg-teal-500/20', border: 'border-teal-500/30', text: 'text-teal-400', header: 'bg-teal-600', dot: 'bg-teal-500' },
-  purple: { bg: 'bg-purple-500/20', border: 'border-purple-500/30', text: 'text-purple-400', header: 'bg-purple-600', dot: 'bg-purple-500' },
+  cyan: { bg: 'bg-cyan-500/20', border: 'border-cyan-500/30', text: 'text-cyan-400', header: 'bg-cyan-600', dot: 'bg-cyan-500' },
+  sky: { bg: 'bg-sky-500/20', border: 'border-sky-500/30', text: 'text-sky-400', header: 'bg-sky-600', dot: 'bg-sky-500' },
   red: { bg: 'bg-red-500/20', border: 'border-red-500/30', text: 'text-red-400', header: 'bg-red-600', dot: 'bg-red-500' }
 }
 
@@ -814,54 +832,18 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       {/* Loan Status Tab - Kanban View */}
       {pipelineTab === 'loan-status' && (
         <>
-          {/* Quick Stats - Mobile Summary */}
-          <div className="grid grid-cols-3 sm:hidden gap-3">
-            {LOAN_STATUS_COLUMNS.slice(0, 3).map(col => {
-              const colors = colorMap[col.color]
-              const count = (groupedDeals[col.key] || []).length
-              return (
-                <div
-                  key={col.key}
-                  onClick={() => toggleColumn(col.key)}
-                  className={`${colors.bg} ${colors.border} border rounded-xl p-3 text-center cursor-pointer active:scale-95 transition-transform min-h-[72px] flex flex-col justify-center`}
-                >
-                  <div className={`text-xl font-bold ${colors.text}`}>{count}</div>
-                  <div className="text-sm text-gray-400">{col.shortLabel}</div>
-                </div>
-              )
-            })}
-          </div>
-          <div className="grid grid-cols-3 sm:hidden gap-3">
-            {LOAN_STATUS_COLUMNS.slice(3, 6).map(col => {
-              const colors = colorMap[col.color]
-              const count = (groupedDeals[col.key] || []).length
-              return (
-                <div
-                  key={col.key}
-                  onClick={() => toggleColumn(col.key)}
-                  className={`${colors.bg} ${colors.border} border rounded-xl p-3 text-center cursor-pointer active:scale-95 transition-transform min-h-[72px] flex flex-col justify-center`}
-                >
-                  <div className={`text-xl font-bold ${colors.text}`}>{count}</div>
-                  <div className="text-sm text-gray-400">{col.shortLabel}</div>
-                </div>
-              )
-            })}
-          </div>
-          <div className="grid grid-cols-2 sm:hidden gap-3">
-            {LOAN_STATUS_COLUMNS.slice(6).map(col => {
-              const colors = colorMap[col.color]
-              const count = (groupedDeals[col.key] || []).length
-              return (
-                <div
-                  key={col.key}
-                  onClick={() => toggleColumn(col.key)}
-                  className={`${colors.bg} ${colors.border} border rounded-xl p-3 text-center cursor-pointer active:scale-95 transition-transform min-h-[72px] flex flex-col justify-center`}
-                >
-                  <div className={`text-xl font-bold ${colors.text}`}>{count}</div>
-                  <div className="text-sm text-gray-400">{col.shortLabel}</div>
-                </div>
-              )
-            })}
+          {/* Mobile Summary Stats */}
+          <div className="sm:hidden bg-gray-800/50 rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <span className="text-2xl font-bold text-white">{deals.length}</span>
+              <span className="text-gray-400 ml-2">Active Deals</span>
+            </div>
+            <div className="text-right">
+              <span className="text-lg font-semibold text-emerald-400">
+                {(groupedDeals['Closed'] || []).length + (groupedDeals['Funded'] || []).length}
+              </span>
+              <span className="text-gray-500 text-sm ml-1">Closed/Funded</span>
+            </div>
           </div>
 
           {/* Mobile Accordion View */}
@@ -1125,9 +1107,9 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
                 {/* Change Status section - only show on Loan Status tab */}
                 {pipelineTab === 'loan-status' && (
-                  <div className="mt-4 p-4 bg-gray-800/50 rounded-xl border border-gray-700">
-                    <h3 className="text-sm font-semibold text-gray-300 mb-3">Change Status</h3>
-                    <div className="grid grid-cols-2 gap-2">
+                  <div className="mt-4 p-3 bg-gray-800/50 rounded-xl border border-gray-700">
+                    <h3 className="text-sm font-semibold text-gray-300 mb-2">Change Status</h3>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
                       {LOAN_STATUS_COLUMNS.map(col => {
                         const isCurrentStatus = selectedDeal['Loan Status'] === col.key
                         const colors = colorMap[col.color]
@@ -1136,7 +1118,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
                             key={col.key}
                             onClick={() => changeStatus(col.key)}
                             disabled={isCurrentStatus || isChangingStatus}
-                            className={`px-3 py-3 rounded-xl text-sm font-medium transition-all active:scale-95 ${
+                            className={`px-2 py-2 rounded-lg text-xs font-medium transition-all active:scale-95 ${
                               isCurrentStatus
                                 ? `${colors.header} text-white ring-2 ring-white/50`
                                 : isChangingStatus
@@ -1149,7 +1131,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
                         )
                       })}
                     </div>
-                    <p className="text-xs text-gray-500 mt-3 text-center">
+                    <p className="text-xs text-gray-500 mt-2 text-center">
                       Tap a status to move this deal
                     </p>
                   </div>
