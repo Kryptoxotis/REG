@@ -104,12 +104,18 @@ export default function FieldSettings({ isOpen, onClose }) {
   }
 
   const handleSave = () => {
-    setSaving(true)
-    localStorage.setItem('fieldPreferences', JSON.stringify(preferences))
-    setTimeout(() => {
-      setSaving(false)
+    try {
+      setSaving(true)
+      localStorage.setItem('fieldPreferences', JSON.stringify(preferences))
+      // Dispatch event to notify other components
+      window.dispatchEvent(new CustomEvent('fieldPreferencesChanged'))
       onClose()
-    }, 500)
+    } catch (error) {
+      console.error('Failed to save preferences:', error)
+      alert('Failed to save preferences')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const resetToDefaults = () => {

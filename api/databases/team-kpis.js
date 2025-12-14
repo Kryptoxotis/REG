@@ -1,12 +1,8 @@
 import axios from 'axios'
+import { DATABASE_IDS, NOTION_VERSION } from '../config/databases.js'
+import { handleCors } from '../config/utils.js'
 
 const NOTION_API_KEY = process.env.NOTION_API_KEY
-const NOTION_VERSION = '2022-06-28'
-
-const DATABASE_IDS = {
-  TEAM_MEMBERS: '2bb746b9-e0e8-815b-a4de-d2d5aa5ef4e5',
-  PIPELINE: '2bb746b9-e0e8-81f3-90c9-d2d317085a50'
-}
 
 function extractPlainText(richText) {
   if (!richText || !Array.isArray(richText)) return ''
@@ -45,6 +41,8 @@ async function queryDatabase(id) {
 }
 
 export default async function handler(req, res) {
+  if (handleCors(req, res)) return
+
   try {
     // Fetch team members and pipeline data
     const [teamMembers, pipeline] = await Promise.all([
@@ -56,8 +54,8 @@ export default async function handler(req, res) {
     const teamKpis = teamMembers.map(member => {
       const memberId = member.id
       const name = extractPlainText(member.properties.Name?.title)
-      // Field is "Stauts" (typo) and is status type, not select
-      const status = member.properties.Stauts?.status?.name || 'Unknown'
+      // Field is "Status" and is status type, not select
+      const status = member.properties.Status?.status?.name || 'Unknown'
       const role = member.properties.Role?.select?.name || ''
       const phone = member.properties.Phone?.phone_number || ''
       const email = member.properties['Email - ERA']?.email || ''

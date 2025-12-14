@@ -1,8 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { queryClient } from './lib/queryClient'
+import { ToastProvider } from './components/Toast'
 import Login from './pages/Login'
 import AdminDashboard from './pages/AdminDashboard'
 import EmployeeDashboard from './pages/EmployeeDashboard'
+import ErrorBoundary from './components/ErrorBoundary'
 
 function App() {
   const [user, setUser] = useState(null)
@@ -13,18 +17,43 @@ function App() {
   }, [])
 
   const checkAuth = async () => {
+    const token = localStorage.getItem('authToken')
+
+    if (!token) {
+      setLoading(false)
+      return
+    }
+
     try {
       const response = await fetch('/api/auth/check', {
-        credentials: 'include'
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       })
       if (response.ok) {
         const data = await response.json()
         setUser(data.user)
+      } else {
+        // Token invalid or expired, clear it
+        localStorage.removeItem('authToken')
       }
     } catch (error) {
       console.error('Auth check failed:', error)
+      localStorage.removeItem('authToken')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSetUser = (userData, token) => {
+    if (userData && token) {
+      localStorage.setItem('authToken', token)
+      setUser(userData)
+    } else if (userData === null) {
+      localStorage.removeItem('authToken')
+      setUser(null)
+    } else {
+      setUser(userData)
     }
   }
 
@@ -37,24 +66,30 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route
-          path="/login"
-          element={!user ? <Login setUser={setUser} /> : <Navigate to="/" />}
-        />
-        <Route
-          path="/"
-          element={
-            user ? (
-              user.role === 'admin' ? <AdminDashboard user={user} setUser={setUser} /> : <EmployeeDashboard user={user} setUser={setUser} />
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
-      </Routes>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <ErrorBoundary>
+          <BrowserRouter>
+            <Routes>
+              <Route
+                path="/login"
+                element={!user ? <Login setUser={handleSetUser} /> : <Navigate to="/" />}
+              />
+              <Route
+                path="/"
+                element={
+                  user ? (
+                    user.role === 'admin' ? <AdminDashboard user={user} setUser={handleSetUser} /> : <EmployeeDashboard user={user} setUser={handleSetUser} />
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                }
+              />
+            </Routes>
+          </BrowserRouter>
+        </ErrorBoundary>
+      </ToastProvider>
+    </QueryClientProvider>
   )
 }
 

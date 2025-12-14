@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
+import { useStats } from '../hooks/useApi'
+import { useToast } from '../components/Toast'
 import DatabaseViewer from '../components/DatabaseViewer'
 import OfficeOverview from '../components/OfficeOverview'
 import Settings from '../components/Settings'
@@ -10,14 +12,22 @@ import PipelineBoard from '../components/PipelineBoard'
 
 function AdminDashboard({ user, setUser }) {
   const [activeView, setActiveView] = useState('overview')
-  const [stats, setStats] = useState(null)
-  const [loading, setLoading] = useState(true)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [highlightedDealId, setHighlightedDealId] = useState(null)
   const [selectedCity, setSelectedCity] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const toast = useToast()
 
-  useEffect(() => { fetchStats() }, [])
+  // Use React Query for stats (cached, auto-refresh)
+  const { data: stats, isLoading: loading, error: statsError } = useStats()
+
+  // Show toast on stats error
+  useEffect(() => {
+    if (statsError) {
+      toast.error('Failed to load dashboard statistics')
+    }
+  }, [statsError])
 
   // Close mobile menu on resize to desktop
   useEffect(() => {
@@ -28,17 +38,19 @@ function AdminDashboard({ user, setUser }) {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  const fetchStats = async () => {
-    try {
-      const response = await axios.get('/api/databases/stats', { withCredentials: true })
-      setStats(response.data)
-    } catch (error) { console.error('Failed to fetch stats:', error) }
-    finally { setLoading(false) }
-  }
-
   const handleLogout = async () => {
-    try { await axios.post('/api/auth/logout', {}, { withCredentials: true }); setUser(null) }
-    catch (error) { console.error('Logout failed:', error) }
+    const token = localStorage.getItem('authToken')
+    try {
+      await axios.post('/api/auth/logout', {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+    } catch (error) {
+      console.error('Logout API failed:', error)
+      // Still proceed with logout even if API fails
+    } finally {
+      // Always clear client-side state
+      setUser(null)
+    }
   }
 
   const handleNavClick = (view) => {
@@ -46,14 +58,14 @@ function AdminDashboard({ user, setUser }) {
     setMobileMenuOpen(false)
     setHighlightedDealId(null) // Clear highlight when navigating normally
     setSelectedCity(null) // Clear city filter when navigating normally
+    setSearchTerm('') // Clear search when navigating normally
   }
 
   // Navigate to a view and highlight a specific deal or search for a value
   const handleDealNavigate = (view, dealId, searchValue = null) => {
     setHighlightedDealId(dealId)
     setActiveView(view)
-    // If searchValue is provided, we could store it for the target view
-    // For now, just navigate - the user can find the record
+    setSearchTerm(searchValue || '')
   }
 
   // Navigate to Pipeline with city filter
@@ -318,7 +330,7 @@ function AdminDashboard({ user, setUser }) {
                 ) : activeView === 'PIPELINE' ? (
                   <PipelineBoard highlightedDealId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} cityFilter={selectedCity} onClearCity={() => setSelectedCity(null)} />
                 ) : (
-                  <DatabaseViewer databaseKey={activeView} databaseName={databases.find(db => db.key === activeView)?.name} highlightedId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} onNavigate={handleDealNavigate} />
+                  <DatabaseViewer databaseKey={activeView} databaseName={databases.find(db => db.key === activeView)?.name} highlightedId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} onNavigate={handleDealNavigate} searchTerm={searchTerm} onClearSearch={() => setSearchTerm('')} />
                 )}
               </motion.div>
             )}

@@ -50,7 +50,7 @@ function Login({ setUser }) {
 
     try {
       const response = await axios.post('/api/auth/login', { email, password }, { withCredentials: true })
-      setUser(response.data.user)
+      setUser(response.data.user, response.data.token)
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed')
     } finally {
@@ -82,7 +82,7 @@ function Login({ setUser }) {
         password,
         confirmPassword
       }, { withCredentials: true })
-      setUser(response.data.user)
+      setUser(response.data.user, response.data.token)
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to create password')
     } finally {

@@ -573,9 +573,11 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         >
           <span className="hidden sm:inline">📋 Presale</span>
           <span className="sm:hidden text-base">Presale</span>
-          <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-black/20">
-            {deals.filter(d => !d.Executed).length}
-          </span>
+          {pipelineTab === 'presale' && (
+            <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-black/20">
+              {deals.length}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setPipelineTab('loan-status')}
@@ -587,9 +589,11 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         >
           <span className="hidden sm:inline">💰 Loan Status</span>
           <span className="sm:hidden text-base">Loan</span>
-          <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-black/20">
-            {deals.filter(d => d.Executed && d['Loan Status'] !== 'Closed' && d['Loan Status'] !== 'Funded').length}
-          </span>
+          {pipelineTab === 'loan-status' && (
+            <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-black/20">
+              {filteredDeals.length}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setPipelineTab('closed')}
@@ -601,9 +605,11 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         >
           <span className="hidden sm:inline">✅ Closed Deals</span>
           <span className="sm:hidden text-base">Closed</span>
-          <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-black/20">
-            {deals.filter(d => d['Loan Status'] === 'Closed' || d['Loan Status'] === 'Funded').length}
-          </span>
+          {pipelineTab === 'closed' && (
+            <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-black/20">
+              {deals.length}
+            </span>
+          )}
         </button>
       </div>
 

@@ -1,24 +1,33 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import axios from 'axios'
+import { useStatsOverview } from '../hooks/useApi'
+import { useToast } from '../components/Toast'
 import StatsOverview from '../components/StatsOverview'
 
 function EmployeeDashboard({ user, setUser }) {
-  const [stats, setStats] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const toast = useToast()
 
-  useEffect(() => { fetchStats() }, [])
+  // Use React Query for stats (cached, auto-refresh)
+  const { data: stats, isLoading: loading, error: statsError } = useStatsOverview()
 
-  const fetchStats = async () => {
-    try {
-      const response = await axios.get('/api/databases/stats/overview', { withCredentials: true })
-      setStats(response.data)
-    } catch (error) { console.error('Failed to fetch stats:', error) }
-    finally { setLoading(false) }
-  }
+  // Show toast on stats error
+  useEffect(() => {
+    if (statsError) {
+      toast.error('Failed to load dashboard overview')
+    }
+  }, [statsError])
 
   const handleLogout = async () => {
-    try { await axios.post('/api/auth/logout', {}, { withCredentials: true }); setUser(null) }
-    catch (error) { console.error('Logout failed:', error) }
+    const token = localStorage.getItem('authToken')
+    try {
+      await axios.post('/api/auth/logout', {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+    } catch (error) {
+      console.error('Logout API failed:', error)
+    } finally {
+      setUser(null)
+    }
   }
 
   const quickLinks = [

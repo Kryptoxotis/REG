@@ -1,7 +1,7 @@
 import axios from 'axios'
+import { NOTION_VERSION } from '../../config/databases.js'
 
 const NOTION_API_KEY = process.env.NOTION_API_KEY
-const NOTION_VERSION = '2022-06-28'
 
 // Field type mappings for new database schema
 const SELECT_FIELDS = [

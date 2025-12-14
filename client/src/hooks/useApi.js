@@ -1,0 +1,166 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import axios from 'axios'
+
+// Get auth token for requests
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('authToken')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+// Base API call function
+const api = {
+  get: async (url) => {
+    const { data } = await axios.get(url, { headers: getAuthHeaders() })
+    return data
+  },
+  post: async (url, body) => {
+    const { data } = await axios.post(url, body, { headers: getAuthHeaders() })
+    return data
+  },
+  patch: async (url, body) => {
+    const { data } = await axios.patch(url, body, { headers: getAuthHeaders() })
+    return data
+  },
+  delete: async (url) => {
+    const { data } = await axios.delete(url, { headers: getAuthHeaders() })
+    return data
+  }
+}
+
+// ==================== Dashboard Stats ====================
+
+export function useStats() {
+  return useQuery({
+    queryKey: ['stats'],
+    queryFn: () => api.get('/api/databases/stats'),
+    staleTime: 60 * 1000, // Stats can be stale for 1 minute
+  })
+}
+
+export function useStatsOverview() {
+  return useQuery({
+    queryKey: ['stats', 'overview'],
+    queryFn: () => api.get('/api/databases/stats/overview'),
+    staleTime: 60 * 1000,
+  })
+}
+
+// ==================== Database Queries ====================
+
+export function useDatabase(databaseKey, options = {}) {
+  return useQuery({
+    queryKey: ['database', databaseKey],
+    queryFn: () => api.get(`/api/databases/${databaseKey}`),
+    enabled: !!databaseKey,
+    ...options
+  })
+}
+
+export function useDatabaseRefresh(databaseKey) {
+  const queryClient = useQueryClient()
+  return () => queryClient.invalidateQueries({ queryKey: ['database', databaseKey] })
+}
+
+// ==================== Pipeline ====================
+
+export function usePipeline() {
+  return useQuery({
+    queryKey: ['pipeline'],
+    queryFn: () => api.get('/api/databases/PIPELINE'),
+    staleTime: 30 * 1000,
+  })
+}
+
+export function useProperties() {
+  return useQuery({
+    queryKey: ['properties'],
+    queryFn: () => api.get('/api/databases/PROPERTIES'),
+    staleTime: 30 * 1000,
+  })
+}
+
+export function useClosedDeals() {
+  return useQuery({
+    queryKey: ['closed-deals'],
+    queryFn: () => api.get('/api/databases/CLOSED_DEALS'),
+    staleTime: 60 * 1000, // Closed deals change less frequently
+  })
+}
+
+// ==================== Team Members ====================
+
+export function useTeamMembers() {
+  return useQuery({
+    queryKey: ['team-members'],
+    queryFn: () => api.get('/api/databases/TEAM_MEMBERS'),
+    staleTime: 2 * 60 * 1000, // Team data is more stable
+  })
+}
+
+// ==================== Clients ====================
+
+export function useClients() {
+  return useQuery({
+    queryKey: ['clients'],
+    queryFn: () => api.get('/api/databases/CLIENTS'),
+    staleTime: 60 * 1000,
+  })
+}
+
+// ==================== Schedule ====================
+
+export function useSchedule() {
+  return useQuery({
+    queryKey: ['schedule'],
+    queryFn: () => api.get('/api/databases/SCHEDULE'),
+    staleTime: 30 * 1000,
+  })
+}
+
+// ==================== Activity Log ====================
+
+export function useActivityLog() {
+  return useQuery({
+    queryKey: ['activity-log'],
+    queryFn: () => api.get('/api/databases/ACTIVITY_LOG'),
+    staleTime: 30 * 1000,
+  })
+}
+
+// ==================== Mutations ====================
+
+export function useCreateRecord(databaseKey) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data) => api.post('/api/databases/actions', { action: 'create', database: databaseKey, data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['database', databaseKey] })
+      queryClient.invalidateQueries({ queryKey: ['stats'] })
+    }
+  })
+}
+
+export function useUpdateRecord(databaseKey) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ pageId, data }) => api.post('/api/databases/actions', { action: 'update', pageId, data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['database', databaseKey] })
+      queryClient.invalidateQueries({ queryKey: ['stats'] })
+    }
+  })
+}
+
+// ==================== Invalidation Helpers ====================
+
+export function useInvalidateAll() {
+  const queryClient = useQueryClient()
+  return () => queryClient.invalidateQueries()
+}
+
+export function useInvalidateDatabase(databaseKey) {
+  const queryClient = useQueryClient()
+  return () => queryClient.invalidateQueries({ queryKey: ['database', databaseKey] })
+}

@@ -1,13 +1,8 @@
 import axios from 'axios'
+import { DATABASE_IDS, NOTION_VERSION } from '../config/databases.js'
+import { handleCors } from '../config/utils.js'
 
 const NOTION_API_KEY = process.env.NOTION_API_KEY
-const NOTION_VERSION = '2022-06-28'
-
-const DATABASE_IDS = {
-  PIPELINE: '2bb746b9-e0e8-81f3-90c9-d2d317085a50',
-  CLOSED_DEALS: '2c8746b9-e0e8-8050-9cb1-d9445440a513',
-  ACTIVITY_LOG: '2c8746b9-e0e8-804a-8214-da6c76e7af4e'
-}
 
 // Move property from Presale to Pipeline
 async function moveToPipeline(data) {
@@ -159,6 +154,8 @@ async function logActivity(data) {
 }
 
 export default async function handler(req, res) {
+  if (handleCors(req, res)) return
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

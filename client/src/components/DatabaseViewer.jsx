@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, ChevronUp, Users, Building2, TrendingUp, UserCheck, Calendar, X, Filter, ChevronRight, Eye, EyeOff } from 'lucide-react'
-import axios from 'axios'
+import { ChevronDown, ChevronUp, Users, Building2, TrendingUp, UserCheck, Calendar, X, Filter, ChevronRight, Eye, EyeOff, RefreshCw, AlertCircle } from 'lucide-react'
+import { useDatabase } from '../hooks/useApi'
+import { useToast } from './Toast'
 import { getFieldPreferences } from './FieldSettings'
 
 const CITIES = ['El Paso', 'Las Cruces', 'McAllen', 'San Antonio']
@@ -162,14 +163,35 @@ const EXCLUDED_RELATIONS = {
   'TEAM_MEMBERS': ['Name']   // Name in Team Members is the primary field
 }
 
-export default function DatabaseViewer({ databaseKey, highlightedId, onClearHighlight, onNavigate }) {
+export default function DatabaseViewer({ databaseKey, highlightedId, onClearHighlight, onNavigate, searchTerm = '', onClearSearch }) {
   const baseConfig = dbConfig[databaseKey] || dbConfig.TEAM_MEMBERS
   const Icon = baseConfig.icon
-  const [data, setData] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
+  const toast = useToast()
+
+  // Use React Query for data fetching (cached, auto-refresh)
+  const { data: queryData, isLoading, error, refetch } = useDatabase(databaseKey)
+  const data = queryData || []
+
   const [selectedItem, setSelectedItem] = useState(null)
   const [showTerminated, setShowTerminated] = useState(false)
   const [cityFilter, setCityFilter] = useState('')
+  const [prefVersion, setPrefVersion] = useState(0)
+
+  // Show toast on error
+  useEffect(() => {
+    if (error) {
+      toast.error(`Failed to load ${baseConfig.title}: ${error.message}`)
+    }
+  }, [error, baseConfig.title])
+
+  // Listen for field preferences changes
+  useEffect(() => {
+    const handlePrefsChange = () => {
+      setPrefVersion(v => v + 1)
+    }
+    window.addEventListener('fieldPreferencesChanged', handlePrefsChange)
+    return () => window.removeEventListener('fieldPreferencesChanged', handlePrefsChange)
+  }, [])
 
   // Auto-select item when highlightedId changes
   useEffect(() => {
@@ -202,8 +224,8 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
     }
   }
 
-  // Get field preferences from localStorage
-  const fieldPrefs = useMemo(() => getFieldPreferences(databaseKey), [databaseKey])
+  // Get field preferences from localStorage (refreshes when prefVersion changes)
+  const fieldPrefs = useMemo(() => getFieldPreferences(databaseKey), [databaseKey, prefVersion])
 
   // Merge preferences with base config
   const config = useMemo(() => {
@@ -221,21 +243,8 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
     }
   }, [baseConfig, fieldPrefs, databaseKey])
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true)
-      try {
-        const response = await axios.get(`/api/databases/${databaseKey}`, { withCredentials: true })
-        setData(response.data || [])
-      } catch (error) {
-        console.error('Failed to fetch database:', error)
-        setData([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    if (databaseKey) fetchData()
-  }, [databaseKey])
+  // Note: Data fetching is now handled by useDatabase hook (React Query)
+  // This provides automatic caching, refetching, and error handling
 
   const safeData = data || []
   const terminatedCount = useMemo(() => { if (databaseKey !== 'TEAM_MEMBERS') return 0; return safeData.filter(item => { const status = item[config.statusField]; return status && status.toLowerCase().includes('terminated') }).length }, [safeData, databaseKey, config.statusField])
@@ -253,8 +262,20 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
         return itemEdwards === edwardsCo
       })
     }
+    // Filter by search term (searches all string fields)
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase()
+      result = result.filter(item => {
+        return Object.values(item).some(value => {
+          if (typeof value === 'string') {
+            return value.toLowerCase().includes(term)
+          }
+          return false
+        })
+      })
+    }
     return result
-  }, [safeData, databaseKey, showTerminated, cityFilter, config.statusField])
+  }, [safeData, databaseKey, showTerminated, cityFilter, config.statusField, searchTerm])
 
   const formatPrice = (value) => {
     if (!value) return '-'
@@ -338,10 +359,36 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
 
   if (isLoading) return (<div className="bg-gray-800 rounded-2xl border border-gray-700 p-6"><div className="animate-pulse space-y-4"><div className="h-6 bg-gray-700 rounded w-1/4"></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{[1, 2, 3].map(i => <div key={i} className="h-32 bg-gray-700 rounded-xl"></div>)}</div></div></div>)
 
+  if (error) return (
+    <div className="bg-gray-800 rounded-2xl border border-gray-700 p-8">
+      <div className="flex flex-col items-center justify-center text-center">
+        <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4">
+          <AlertCircle className="w-8 h-8 text-red-400" />
+        </div>
+        <h3 className="text-lg font-semibold text-white mb-2">Failed to load {baseConfig.title}</h3>
+        <p className="text-gray-400 mb-4 max-w-md">{error.message || 'An error occurred while fetching data'}</p>
+        <button onClick={() => refetch()} className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg transition-colors">
+          <RefreshCw className="w-4 h-4" /> Try Again
+        </button>
+      </div>
+    </div>
+  )
+
   return (
     <div className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden">
       <div className="p-4 border-b border-gray-700 flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3"><div className="p-2 bg-violet-500/20 rounded-xl"><Icon className="w-5 h-5 text-violet-400" /></div><div><h2 className="font-semibold text-white">{config.title}</h2><p className="text-sm text-gray-400">{filteredData.length} records</p></div></div>
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-violet-500/20 rounded-xl"><Icon className="w-5 h-5 text-violet-400" /></div>
+          <div><h2 className="font-semibold text-white">{config.title}</h2><p className="text-sm text-gray-400">{filteredData.length} records</p></div>
+          {searchTerm && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-violet-500/20 text-violet-300 rounded-xl text-sm">
+              <span>Searching: "{searchTerm}"</span>
+              {onClearSearch && (
+                <button onClick={onClearSearch} className="hover:text-white transition-colors"><X className="w-4 h-4" /></button>
+              )}
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {databaseKey === 'PROPERTIES' && (
             <select
