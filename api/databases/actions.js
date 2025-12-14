@@ -11,6 +11,7 @@ const DATABASE_IDS = {
 
 // Move property from Presale to Pipeline
 async function moveToPipeline(data) {
+  console.log('moveToPipeline called with:', JSON.stringify(data))
   const { propertyId, address, closedDate, executeDate, salesPrice, agent, buyerName } = data
 
   if (!propertyId) throw new Error('Property ID is required')
@@ -189,10 +190,15 @@ export default async function handler(req, res) {
 
     res.status(200).json(result)
   } catch (error) {
-    console.error(`Action ${action} error:`, error.response?.data || error.message)
+    console.error(`Action ${action} error:`, JSON.stringify({
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    }))
     res.status(500).json({
       error: `Failed to execute ${action}`,
-      details: error.response?.data?.message || error.message
+      details: error.response?.data?.message || error.message,
+      notionError: error.response?.data
     })
   }
 }

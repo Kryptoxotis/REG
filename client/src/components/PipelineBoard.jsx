@@ -152,8 +152,8 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       setMoveForm({ closedDate: '', executeDate: '' })
       fetchDeals()
     } catch (err) {
-      console.error('Failed to move property:', err)
-      alert('Failed to move property to pipeline')
+      console.error('Failed to move property:', err.response?.data || err)
+      alert(`Failed to move property: ${err.response?.data?.details || err.response?.data?.error || err.message}`)
     } finally {
       setIsMoving(false)
     }
