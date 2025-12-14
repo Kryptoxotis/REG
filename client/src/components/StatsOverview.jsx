@@ -2,7 +2,10 @@ import { motion } from 'framer-motion'
 import OfficeOverview from './OfficeOverview'
 
 function StatsOverview({ stats, onNavigate }) {
-  if (!stats) {
+  // Validate that stats is a proper object with expected structure (not an error object)
+  const isValidStats = stats && typeof stats === 'object' && !stats.code && !stats.error && !stats.message
+
+  if (!stats || !isValidStats) {
     return (
       <motion.div
         initial={{ opacity: 0 }}
@@ -30,7 +33,7 @@ function StatsOverview({ stats, onNavigate }) {
   }
 
   const statsList = Object.entries(stats)
-  const totalRecords = statsList.reduce((sum, [_, data]) => sum + data.count, 0)
+  const totalRecords = statsList.reduce((sum, [_, data]) => sum + (data?.count || 0), 0)
 
   // Map stats keys to navigation views
   const navMap = {
@@ -126,7 +129,7 @@ function StatsOverview({ stats, onNavigate }) {
                     transition={{ delay: idx * 0.1 + 0.4, type: 'spring' }}
                     className="text-2xl sm:text-3xl font-bold text-white"
                   >
-                    {data.count}
+                    {data?.count || 0}
                   </motion.span>
                 </div>
                 <h3 className="mt-3 font-semibold text-gray-200 capitalize text-sm sm:text-base">{data.name.replace(/_/g, ' ')}</h3>
