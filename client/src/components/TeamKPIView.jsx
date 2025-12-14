@@ -57,7 +57,7 @@ function TeamKPIView({ onNavigate }) {
   if (error) {
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6 text-center">
-        <p className="text-red-400">{error}</p>
+        <p className="text-red-400">{typeof error === 'object' ? (error?.message || 'An error occurred') : error}</p>
         <button onClick={fetchData} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg">Try Again</button>
       </motion.div>
     )

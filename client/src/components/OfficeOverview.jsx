@@ -87,7 +87,7 @@ function OfficeOverview({ onNavigate, onCitySelect }) {
         className="text-center py-20"
       >
         <p className="text-6xl mb-4">⚠️</p>
-        <p className="text-gray-400">{error}</p>
+        <p className="text-gray-400">{typeof error === 'object' ? (error?.message || 'An error occurred') : error}</p>
         <button
           onClick={fetchOfficeStats}
           className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg"

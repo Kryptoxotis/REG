@@ -482,7 +482,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
   if (error) {
     return (
       <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6 text-center">
-        <p className="text-red-400">{error}</p>
+        <p className="text-red-400">{typeof error === 'object' ? (error?.message || 'An error occurred') : error}</p>
         <button onClick={fetchDeals} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg">Try Again</button>
       </div>
     )
