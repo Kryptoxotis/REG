@@ -1,6 +1,9 @@
 import axios from 'axios'
 import { DATABASE_IDS, NOTION_VERSION } from '../../config/databases.js'
-import { handleCors } from '../../config/utils.js'
+import { handleCors, verifyToken } from '../../config/utils.js'
+
+// Actions that require admin role
+const ADMIN_ONLY_ACTIONS = ['move-to-pipeline', 'move-to-closed']
 
 const NOTION_API_KEY = process.env.NOTION_API_KEY
 
@@ -160,10 +163,24 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
+  // Auth check - all actions require authentication
+  const authHeader = req.headers.authorization
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+  const user = verifyToken(token)
+
+  if (!user) {
+    return res.status(401).json({ error: 'Authentication required' })
+  }
+
   const { action, ...data } = req.body
 
   if (!action) {
     return res.status(400).json({ error: 'Action is required' })
+  }
+
+  // Check if action requires admin role
+  if (ADMIN_ONLY_ACTIONS.includes(action) && user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required for this action' })
   }
 
   try {

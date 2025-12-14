@@ -1,6 +1,46 @@
 // Shared utility functions for API endpoints
 import crypto from 'crypto'
-import { TOKEN_SECRET } from './databases.js'
+import axios from 'axios'
+import { TOKEN_SECRET, DATABASE_IDS, NOTION_VERSION } from './databases.js'
+
+// Simple in-memory rate limiter (per function instance)
+// Note: This resets on each cold start, but still helps against rapid attacks
+const rateLimitStore = new Map()
+const RATE_LIMIT_WINDOW = 60 * 1000 // 1 minute
+const RATE_LIMIT_MAX_ATTEMPTS = 10 // 10 attempts per minute per IP
+
+export function checkRateLimit(req) {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.headers['x-real-ip'] || 'unknown'
+  const now = Date.now()
+
+  // Clean old entries
+  for (const [key, value] of rateLimitStore.entries()) {
+    if (now - value.windowStart > RATE_LIMIT_WINDOW) {
+      rateLimitStore.delete(key)
+    }
+  }
+
+  const record = rateLimitStore.get(ip)
+
+  if (!record) {
+    rateLimitStore.set(ip, { windowStart: now, attempts: 1 })
+    return { allowed: true, remaining: RATE_LIMIT_MAX_ATTEMPTS - 1 }
+  }
+
+  if (now - record.windowStart > RATE_LIMIT_WINDOW) {
+    // Window expired, reset
+    rateLimitStore.set(ip, { windowStart: now, attempts: 1 })
+    return { allowed: true, remaining: RATE_LIMIT_MAX_ATTEMPTS - 1 }
+  }
+
+  record.attempts++
+
+  if (record.attempts > RATE_LIMIT_MAX_ATTEMPTS) {
+    return { allowed: false, remaining: 0 }
+  }
+
+  return { allowed: true, remaining: RATE_LIMIT_MAX_ATTEMPTS - record.attempts }
+}
 
 // Token functions
 export function generateToken(user) {
@@ -112,4 +152,58 @@ export function sanitizeString(input) {
 export function sanitizeEmail(email) {
   if (typeof email !== 'string') return ''
   return email.toLowerCase().trim().slice(0, 255)
+}
+
+// Find user by email in Team Members database
+export async function findUserByEmail(email) {
+  const NOTION_API_KEY = process.env.NOTION_API_KEY
+  const normalizedEmail = email.toLowerCase().trim()
+
+  const response = await axios.post(
+    `https://api.notion.com/v1/databases/${DATABASE_IDS.TEAM_MEMBERS}/query`,
+    {},
+    {
+      headers: {
+        'Authorization': `Bearer ${NOTION_API_KEY}`,
+        'Notion-Version': NOTION_VERSION,
+        'Content-Type': 'application/json'
+      }
+    }
+  )
+
+  for (const page of response.data.results) {
+    const formatted = formatPage(page)
+    const eraEmail = formatted['Email - ERA']?.toLowerCase().trim()
+    const personalEmail = formatted['Email - Personal']?.toLowerCase().trim()
+
+    if (eraEmail === normalizedEmail || personalEmail === normalizedEmail) {
+      return {
+        id: page.id,
+        name: formatted['Name'] || '',
+        email: eraEmail || personalEmail,
+        status: formatted['Status'] || formatted['Stauts'] || null, // Handle typo in Notion
+        password: formatted['Password'] || '',
+        role: formatted['View'] || 'Employee'
+      }
+    }
+  }
+
+  return null
+}
+
+// Update a Notion page's properties
+export async function updateNotionPage(pageId, properties) {
+  const NOTION_API_KEY = process.env.NOTION_API_KEY
+
+  await axios.patch(
+    `https://api.notion.com/v1/pages/${pageId}`,
+    { properties },
+    {
+      headers: {
+        'Authorization': `Bearer ${NOTION_API_KEY}`,
+        'Notion-Version': NOTION_VERSION,
+        'Content-Type': 'application/json'
+      }
+    }
+  )
 }

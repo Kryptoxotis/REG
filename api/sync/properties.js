@@ -2,6 +2,9 @@
 // Parses xlsx/csv file and sends CSV data to n8n
 
 import * as XLSX from 'xlsx'
+import { verifyToken, handleCors } from '../../config/utils.js'
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB limit
 
 export const config = {
   api: {
@@ -102,18 +105,29 @@ function parseFileToCSV(buffer, filename) {
 }
 
 export default async function handler(req, res) {
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Credentials', 'true')
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
-  }
+  if (handleCors(req, res)) return
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  // Auth check - require admin role for file uploads
+  const authHeader = req.headers.authorization
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+  const user = verifyToken(token)
+
+  if (!user) {
+    return res.status(401).json({ error: 'Authentication required' })
+  }
+
+  if (user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required for file sync' })
+  }
+
+  // Check content-length for file size limit
+  const contentLength = parseInt(req.headers['content-length'] || '0', 10)
+  if (contentLength > MAX_FILE_SIZE) {
+    return res.status(413).json({ error: 'File too large. Maximum size is 10MB.' })
   }
 
   // n8n webhook URL
@@ -122,6 +136,11 @@ export default async function handler(req, res) {
   try {
     // Parse multipart form data
     const { fileBuffer, filename } = await parseMultipartForm(req)
+
+    // Double-check actual file size
+    if (fileBuffer.length > MAX_FILE_SIZE) {
+      return res.status(413).json({ error: 'File too large. Maximum size is 10MB.' })
+    }
 
     // Parse file to CSV
     const csvContent = parseFileToCSV(fileBuffer, filename)

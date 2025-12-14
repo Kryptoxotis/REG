@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { NOTION_VERSION } from '../../../config/databases.js'
+import { handleCors } from '../../../config/utils.js'
 
 const NOTION_API_KEY = process.env.NOTION_API_KEY
 
@@ -30,6 +31,8 @@ const PHONE_FIELDS = [
 ]
 
 export default async function handler(req, res) {
+  if (handleCors(req, res)) return
+
   if (req.method !== 'PATCH') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
