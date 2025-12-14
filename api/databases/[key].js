@@ -1,6 +1,6 @@
 import axios from 'axios'
-import { DATABASE_IDS as BASE_DB_IDS, NOTION_VERSION } from '../config/databases.js'
-import { handleCors } from '../config/utils.js'
+import { DATABASE_IDS as BASE_DB_IDS, NOTION_VERSION } from '../../config/databases.js'
+import { handleCors } from '../../config/utils.js'
 
 const NOTION_API_KEY = process.env.NOTION_API_KEY
 

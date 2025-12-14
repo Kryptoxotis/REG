@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { NOTION_VERSION } from '../../config/databases.js'
+import { NOTION_VERSION } from '../../../config/databases.js'
 
 const NOTION_API_KEY = process.env.NOTION_API_KEY
 

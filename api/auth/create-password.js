@@ -1,6 +1,6 @@
 import axios from 'axios'
-import { DATABASE_IDS, NOTION_VERSION } from '../config/databases.js'
-import { generateToken, formatPage, handleCors, sanitizeEmail, sanitizeString } from '../config/utils.js'
+import { DATABASE_IDS, NOTION_VERSION } from '../../config/databases.js'
+import { generateToken, formatPage, handleCors, sanitizeEmail, sanitizeString } from '../../config/utils.js'
 
 const NOTION_API_KEY = process.env.NOTION_API_KEY
 const TEAM_MEMBERS_DB = DATABASE_IDS.TEAM_MEMBERS

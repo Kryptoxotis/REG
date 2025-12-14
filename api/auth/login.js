@@ -1,6 +1,6 @@
 import axios from 'axios'
-import { DATABASE_IDS, NOTION_VERSION } from '../config/databases.js'
-import { generateToken, verifyToken, formatPage, handleCors, sanitizeEmail } from '../config/utils.js'
+import { DATABASE_IDS, NOTION_VERSION } from '../../config/databases.js'
+import { generateToken, verifyToken, formatPage, handleCors, sanitizeEmail } from '../../config/utils.js'
 
 // Re-export verifyToken for other files that import from login.js
 export { verifyToken }

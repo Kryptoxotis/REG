@@ -1,4 +1,4 @@
-import { verifyToken, handleCors } from '../config/utils.js'
+import { verifyToken, handleCors } from '../../config/utils.js'
 
 export default function handler(req, res) {
   if (handleCors(req, res)) return
