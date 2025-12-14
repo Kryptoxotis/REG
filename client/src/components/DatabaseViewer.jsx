@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, ChevronUp, Users, Building2, TrendingUp, UserCheck, Calendar, X, Filter, ChevronRight, Eye, EyeOff } from 'lucide-react'
 import axios from 'axios'
 
+const CITIES = ['El Paso', 'Las Cruces', 'McAllen', 'San Antonio']
+
 const dbConfig = {
   TEAM_MEMBERS: { title: 'Team Members', icon: Users, primaryField: 'Name', secondaryFields: ['Role', 'Phone', 'Email'], statusField: 'Status', mobileLayout: 'card' },
   PROPERTIES: { title: 'Properties', icon: Building2, primaryField: 'Address', secondaryFields: ['Status', 'Floorplan', 'Sales Price'], statusField: 'Status', mobileLayout: 'table', tableColumns: ['Address', 'Status', 'Floorplan', 'Sales Price', 'Subdivision'] },
@@ -63,6 +65,7 @@ export default function DatabaseViewer({ databaseKey }) {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedItem, setSelectedItem] = useState(null)
   const [showTerminated, setShowTerminated] = useState(false)
+  const [cityFilter, setCityFilter] = useState('')
 
   useEffect(() => {
     const fetchData = async () => {
@@ -82,7 +85,25 @@ export default function DatabaseViewer({ databaseKey }) {
 
   const safeData = data || []
   const terminatedCount = useMemo(() => { if (databaseKey !== 'TEAM_MEMBERS') return 0; return safeData.filter(item => { const status = item[config.statusField]; return status && status.toLowerCase().includes('terminated') }).length }, [safeData, databaseKey, config.statusField])
-  const filteredData = useMemo(() => { if (databaseKey !== 'TEAM_MEMBERS' || showTerminated) return safeData; return safeData.filter(item => { const status = item[config.statusField]; return !status || !status.toLowerCase().includes('terminated') }) }, [safeData, databaseKey, showTerminated, config.statusField])
+  const filteredData = useMemo(() => {
+    let result = safeData
+    // Filter terminated for TEAM_MEMBERS
+    if (databaseKey === 'TEAM_MEMBERS' && !showTerminated) {
+      result = result.filter(item => { const status = item[config.statusField]; return !status || !status.toLowerCase().includes('terminated') })
+    }
+    // Filter by city for PROPERTIES
+    if (databaseKey === 'PROPERTIES' && cityFilter) {
+      result = result.filter(item => {
+        const city = item.City || item.city || ''
+        const subdivision = item.Subdivision || item.subdivision || ''
+        const address = item.Address || item.address || ''
+        return city.toLowerCase().includes(cityFilter.toLowerCase()) ||
+               subdivision.toLowerCase().includes(cityFilter.toLowerCase()) ||
+               address.toLowerCase().includes(cityFilter.toLowerCase())
+      })
+    }
+    return result
+  }, [safeData, databaseKey, showTerminated, cityFilter, config.statusField])
 
   const formatPrice = (value) => {
     if (!value) return '-'
@@ -156,9 +177,23 @@ export default function DatabaseViewer({ databaseKey }) {
 
   return (
     <div className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden">
-      <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+      <div className="p-4 border-b border-gray-700 flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3"><div className="p-2 bg-violet-500/20 rounded-xl"><Icon className="w-5 h-5 text-violet-400" /></div><div><h2 className="font-semibold text-white">{config.title}</h2><p className="text-sm text-gray-400">{filteredData.length} records</p></div></div>
-        {databaseKey === 'TEAM_MEMBERS' && terminatedCount > 0 && <button onClick={() => setShowTerminated(!showTerminated)} className={(showTerminated ? 'bg-red-500/20 text-red-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600') + " flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors"}>{showTerminated ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}{showTerminated ? 'Hide' : 'Show'} Terminated ({terminatedCount})</button>}
+        <div className="flex items-center gap-2">
+          {databaseKey === 'PROPERTIES' && (
+            <select
+              value={cityFilter}
+              onChange={(e) => setCityFilter(e.target.value)}
+              className="bg-gray-700 text-gray-200 px-3 py-1.5 rounded-xl text-sm font-medium border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+            >
+              <option value="">All Cities</option>
+              {CITIES.map(city => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
+          )}
+          {databaseKey === 'TEAM_MEMBERS' && terminatedCount > 0 && <button onClick={() => setShowTerminated(!showTerminated)} className={(showTerminated ? 'bg-red-500/20 text-red-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600') + " flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors"}>{showTerminated ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}{showTerminated ? 'Hide' : 'Show'} Terminated ({terminatedCount})</button>}
+        </div>
       </div>
       <div className="p-4">{filteredData.length === 0 ? <div className="text-center py-8 text-gray-500"><Icon className="w-12 h-12 mx-auto mb-3 text-gray-600" /><p>No records found</p></div> : renderContent()}</div>
       <AnimatePresence>
