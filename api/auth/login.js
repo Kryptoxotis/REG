@@ -43,17 +43,15 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Account not active' })
     }
     
-    // Check password - support both hashed (bcrypt) and legacy plain text
-    const isHashed = user.password.startsWith('$2')
-    let passwordValid = false
+    // Check password - bcrypt only (no plain text)
+    const isHashed = user.password && user.password.startsWith('$2')
 
-    if (isHashed) {
-      passwordValid = await bcrypt.compare(password, user.password)
-    } else {
-      // Legacy plain text comparison (for existing users)
-      passwordValid = user.password === password
+    if (!isHashed) {
+      // Force password reset for legacy accounts
+      return res.status(401).json({ error: 'Password reset required. Please contact admin.' })
     }
 
+    const passwordValid = await bcrypt.compare(password, user.password)
     if (!passwordValid) {
       return res.status(401).json({ error: 'Invalid password' })
     }

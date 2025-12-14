@@ -217,10 +217,6 @@ export default async function handler(req, res) {
       response: error.response?.data,
       status: error.response?.status
     }))
-    res.status(500).json({
-      error: `Failed to execute ${action}`,
-      details: error.response?.data?.message || error.message,
-      notionError: error.response?.data
-    })
+    res.status(500).json({ error: 'Operation failed' })
   }
 }

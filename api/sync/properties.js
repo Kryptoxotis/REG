@@ -198,7 +198,7 @@ export default async function handler(req, res) {
     console.error('Proxy error:', error.message)
     res.status(500).json({
       error: 'Sync failed',
-      details: error.message
+      message: 'Check server logs for details'
     })
   }
 }

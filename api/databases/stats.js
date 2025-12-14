@@ -216,6 +216,6 @@ export default async function handler(req, res) {
     res.status(200).json(stats)
   } catch (error) {
     console.error('Error:', error.message, error.response?.data)
-    res.status(500).json({ error: 'Failed to fetch stats', details: error.message, hasApiKey: !!NOTION_API_KEY })
+    res.status(500).json({ error: 'Failed to fetch stats' })
   }
 }

@@ -94,9 +94,6 @@ export default async function handler(req, res) {
     res.status(200).json({ success: true, id: response.data.id })
   } catch (error) {
     console.error('Update error:', error.response?.data || error.message)
-    res.status(500).json({
-      error: 'Failed to update',
-      details: error.response?.data?.message || error.message
-    })
+    res.status(500).json({ error: 'Failed to update' })
   }
 }

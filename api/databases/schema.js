@@ -49,6 +49,6 @@ export default async function handler(req, res) {
     })
   } catch (error) {
     console.error('Error fetching schema:', error.message, error.response?.data)
-    res.status(500).json({ error: 'Failed to fetch schema', details: error.message })
+    res.status(500).json({ error: 'Failed to fetch schema' })
   }
 }

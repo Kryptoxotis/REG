@@ -104,7 +104,7 @@ export function generateToken(user) {
     role: user.role,
     fullName: user.name,
     tokenVersion: user.tokenVersion || 0,
-    exp: Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 days
+    exp: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
   }
   const data = Buffer.from(JSON.stringify(payload)).toString('base64')
   const signature = crypto.createHmac('sha256', TOKEN_SECRET).update(data).digest('hex')
