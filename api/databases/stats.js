@@ -27,19 +27,29 @@ function formatPage(page) {
 }
 
 async function queryDatabaseSimple(id, filter = null) {
-  const body = filter ? { filter } : {}
-  const response = await axios.post(
-    `https://api.notion.com/v1/databases/${id}/query`,
-    body,
-    {
-      headers: {
-        'Authorization': `Bearer ${NOTION_API_KEY}`,
-        'Notion-Version': NOTION_VERSION,
-        'Content-Type': 'application/json'
+  try {
+    const body = filter ? { filter } : {}
+    const response = await axios.post(
+      `https://api.notion.com/v1/databases/${id}/query`,
+      body,
+      {
+        headers: {
+          'Authorization': `Bearer ${NOTION_API_KEY}`,
+          'Notion-Version': NOTION_VERSION,
+          'Content-Type': 'application/json'
+        }
       }
+    )
+    // Validate response has expected structure
+    if (response.data?.object === 'error') {
+      console.error(`Notion error for ${id}:`, response.data.code, response.data.message)
+      return []
     }
-  )
-  return response.data.results
+    return response.data.results || []
+  } catch (error) {
+    console.error(`Error querying ${id}:`, error.message)
+    return []
+  }
 }
 
 async function queryDatabasePaginated(databaseId) {
@@ -60,7 +70,12 @@ async function queryDatabasePaginated(databaseId) {
           }
         }
       )
-      allResults = allResults.concat(response.data.results)
+      // Check for Notion error response
+      if (response.data?.object === 'error') {
+        console.error(`Notion error for ${databaseId}:`, response.data.code, response.data.message)
+        return []
+      }
+      allResults = allResults.concat(response.data.results || [])
       hasMore = response.data.has_more
       startCursor = response.data.next_cursor
     }

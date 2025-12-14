@@ -19,7 +19,14 @@ function OfficeOverview({ onNavigate, onCitySelect }) {
       const response = await axios.get('/api/databases/stats?type=by-office', {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       })
-      setOfficeData(response.data)
+      // Validate response has expected structure before setting
+      const data = response.data
+      if (data && data.offices && data.totals && data.officeList) {
+        setOfficeData(data)
+      } else {
+        console.error('Invalid office data format:', data)
+        setError('Invalid data format received')
+      }
     } catch (err) {
       console.error('Error fetching office stats:', err)
       setError('Failed to load office data')
