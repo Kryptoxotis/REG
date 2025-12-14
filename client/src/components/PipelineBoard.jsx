@@ -450,69 +450,69 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
           {/* Filter Toggle */}
           <motion.button
-            whileTap={{ scale: 0.9 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => setShowFilters(!showFilters)}
-            className={`p-2.5 border rounded-xl transition-colors ${
+            className={`p-3.5 border rounded-xl transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center ${
               showFilters || hasActiveFilters
                 ? 'bg-blue-600 border-blue-500 text-white'
-                : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'
+                : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white active:bg-gray-700'
             }`}
           >
-            🔍
+            <span className="text-lg">🔍</span>
           </motion.button>
 
           {/* Refresh */}
           <motion.button
-            whileTap={{ scale: 0.9 }}
+            whileTap={{ scale: 0.95 }}
             onClick={fetchDeals}
-            className="p-2.5 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white"
+            className="p-3.5 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white active:bg-gray-700 min-w-[48px] min-h-[48px] flex items-center justify-center"
           >
-            🔄
+            <span className="text-lg">🔄</span>
           </motion.button>
         </div>
       </div>
 
       {/* Pipeline Tabs */}
-      <div className="flex bg-gray-800/50 rounded-xl p-1 border border-gray-700">
+      <div className="flex bg-gray-800/50 rounded-xl p-1.5 border border-gray-700 gap-1">
         <button
           onClick={() => setPipelineTab('presale')}
-          className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
+          className={`flex-1 px-3 sm:px-4 py-3 sm:py-2.5 text-sm font-medium rounded-lg transition-all active:scale-[0.98] ${
             pipelineTab === 'presale'
               ? 'bg-amber-600 text-white shadow-lg'
-              : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+              : 'text-gray-400 hover:text-white hover:bg-gray-700/50 active:bg-gray-700'
           }`}
         >
           <span className="hidden sm:inline">📋 Presale</span>
-          <span className="sm:hidden">Presale</span>
-          <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-xs bg-black/20">
+          <span className="sm:hidden text-base">Presale</span>
+          <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-black/20">
             {deals.filter(d => !d.Executed).length}
           </span>
         </button>
         <button
           onClick={() => setPipelineTab('loan-status')}
-          className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
+          className={`flex-1 px-3 sm:px-4 py-3 sm:py-2.5 text-sm font-medium rounded-lg transition-all active:scale-[0.98] ${
             pipelineTab === 'loan-status'
               ? 'bg-blue-600 text-white shadow-lg'
-              : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+              : 'text-gray-400 hover:text-white hover:bg-gray-700/50 active:bg-gray-700'
           }`}
         >
           <span className="hidden sm:inline">💰 Loan Status</span>
-          <span className="sm:hidden">Loan</span>
-          <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-xs bg-black/20">
+          <span className="sm:hidden text-base">Loan</span>
+          <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-black/20">
             {deals.filter(d => d.Executed && d['Loan Status'] !== 'Closed' && d['Loan Status'] !== 'Funded').length}
           </span>
         </button>
         <button
           onClick={() => setPipelineTab('closed')}
-          className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
+          className={`flex-1 px-3 sm:px-4 py-3 sm:py-2.5 text-sm font-medium rounded-lg transition-all active:scale-[0.98] ${
             pipelineTab === 'closed'
               ? 'bg-emerald-600 text-white shadow-lg'
-              : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+              : 'text-gray-400 hover:text-white hover:bg-gray-700/50 active:bg-gray-700'
           }`}
         >
           <span className="hidden sm:inline">✅ Closed Deals</span>
-          <span className="sm:hidden">Closed</span>
-          <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-xs bg-black/20">
+          <span className="sm:hidden text-base">Closed</span>
+          <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-black/20">
             {deals.filter(d => d['Loan Status'] === 'Closed' || d['Loan Status'] === 'Funded').length}
           </span>
         </button>
@@ -744,96 +744,130 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       {pipelineTab === 'loan-status' && (
         <>
           {/* Quick Stats - Mobile Summary */}
-          <div className="grid grid-cols-4 sm:hidden gap-2">
-            {LOAN_STATUS_COLUMNS.slice(0, 4).map(col => {
+          <div className="grid grid-cols-3 sm:hidden gap-3">
+            {LOAN_STATUS_COLUMNS.slice(0, 3).map(col => {
               const colors = colorMap[col.color]
               const count = (groupedDeals[col.key] || []).length
               return (
                 <div
                   key={col.key}
                   onClick={() => toggleColumn(col.key)}
-                  className={`${colors.bg} ${colors.border} border rounded-xl p-2 text-center cursor-pointer`}
+                  className={`${colors.bg} ${colors.border} border rounded-xl p-3 text-center cursor-pointer active:scale-95 transition-transform min-h-[72px] flex flex-col justify-center`}
                 >
-                  <div className={`text-lg font-bold ${colors.text}`}>{count}</div>
-                  <div className="text-xs text-gray-400 truncate">{col.shortLabel}</div>
+                  <div className={`text-xl font-bold ${colors.text}`}>{count}</div>
+                  <div className="text-sm text-gray-400">{col.shortLabel}</div>
                 </div>
               )
             })}
           </div>
-          <div className="grid grid-cols-4 sm:hidden gap-2">
-            {LOAN_STATUS_COLUMNS.slice(4).map(col => {
+          <div className="grid grid-cols-3 sm:hidden gap-3">
+            {LOAN_STATUS_COLUMNS.slice(3, 6).map(col => {
               const colors = colorMap[col.color]
               const count = (groupedDeals[col.key] || []).length
               return (
                 <div
                   key={col.key}
                   onClick={() => toggleColumn(col.key)}
-                  className={`${colors.bg} ${colors.border} border rounded-xl p-2 text-center cursor-pointer`}
+                  className={`${colors.bg} ${colors.border} border rounded-xl p-3 text-center cursor-pointer active:scale-95 transition-transform min-h-[72px] flex flex-col justify-center`}
                 >
-                  <div className={`text-lg font-bold ${colors.text}`}>{count}</div>
-                  <div className="text-xs text-gray-400 truncate">{col.shortLabel}</div>
+                  <div className={`text-xl font-bold ${colors.text}`}>{count}</div>
+                  <div className="text-sm text-gray-400">{col.shortLabel}</div>
+                </div>
+              )
+            })}
+          </div>
+          <div className="grid grid-cols-2 sm:hidden gap-3">
+            {LOAN_STATUS_COLUMNS.slice(6).map(col => {
+              const colors = colorMap[col.color]
+              const count = (groupedDeals[col.key] || []).length
+              return (
+                <div
+                  key={col.key}
+                  onClick={() => toggleColumn(col.key)}
+                  className={`${colors.bg} ${colors.border} border rounded-xl p-3 text-center cursor-pointer active:scale-95 transition-transform min-h-[72px] flex flex-col justify-center`}
+                >
+                  <div className={`text-xl font-bold ${colors.text}`}>{count}</div>
+                  <div className="text-sm text-gray-400">{col.shortLabel}</div>
                 </div>
               )
             })}
           </div>
 
           {/* Mobile Accordion View */}
-          <div className="sm:hidden space-y-2">
-        {LOAN_STATUS_COLUMNS.map((col) => {
-          const colors = colorMap[col.color]
-          const columnDeals = groupedDeals[col.key] || []
-          const isExpanded = expandedColumns[col.key]
-
-          if (columnDeals.length === 0) return null
-
-          return (
-            <div key={col.key} className="rounded-xl overflow-hidden">
-              {/* Accordion Header */}
+          <div className="sm:hidden space-y-3">
+            {/* Expand/Collapse All Button */}
+            <div className="flex justify-end">
               <button
-                onClick={() => toggleColumn(col.key)}
-                className={`${colors.header} w-full px-4 py-3 flex items-center justify-between`}
+                onClick={() => {
+                  const columnsWithDeals = LOAN_STATUS_COLUMNS.filter(col => (groupedDeals[col.key] || []).length > 0)
+                  const allExpanded = columnsWithDeals.every(col => expandedColumns[col.key])
+                  const newState = {}
+                  columnsWithDeals.forEach(col => { newState[col.key] = !allExpanded })
+                  setExpandedColumns(newState)
+                }}
+                className="px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl text-sm text-gray-400 hover:text-white active:bg-gray-700 transition-colors"
               >
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-white">{col.label}</span>
-                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm text-white">
-                    {columnDeals.length}
-                  </span>
-                </div>
-                <motion.span
-                  animate={{ rotate: isExpanded ? 180 : 0 }}
-                  className="text-white/70"
-                >
-                  ▼
-                </motion.span>
+                {LOAN_STATUS_COLUMNS.filter(col => (groupedDeals[col.key] || []).length > 0).every(col => expandedColumns[col.key])
+                  ? '▲ Collapse All'
+                  : '▼ Expand All'}
               </button>
-
-              {/* Accordion Body */}
-              <AnimatePresence>
-                {isExpanded && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className={`${colors.bg} ${colors.border} border border-t-0`}
-                  >
-                    <div className="p-3 space-y-2">
-                      {columnDeals.map((deal) => (
-                        <MobileDealCard
-                          key={deal.id}
-                          deal={deal}
-                          onSelect={setSelectedDeal}
-                          formatCurrency={formatCurrency}
-                          formatDate={formatDate}
-                        />
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
-          )
-        })}
+
+            {LOAN_STATUS_COLUMNS.map((col) => {
+              const colors = colorMap[col.color]
+              const columnDeals = groupedDeals[col.key] || []
+              const isExpanded = expandedColumns[col.key]
+
+              if (columnDeals.length === 0) return null
+
+              return (
+                <div key={col.key} className="rounded-xl overflow-hidden shadow-lg">
+                  {/* Accordion Header */}
+                  <button
+                    onClick={() => toggleColumn(col.key)}
+                    className={`${colors.header} w-full px-5 py-4 flex items-center justify-between active:opacity-80 transition-opacity`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="font-semibold text-white text-base">{col.label}</span>
+                      <span className="bg-white/20 px-2.5 py-1 rounded-full text-sm font-medium text-white">
+                        {columnDeals.length}
+                      </span>
+                    </div>
+                    <motion.span
+                      animate={{ rotate: isExpanded ? 180 : 0 }}
+                      className="text-white/80 text-lg"
+                    >
+                      ▼
+                    </motion.span>
+                  </button>
+
+                  {/* Accordion Body */}
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className={`${colors.bg} ${colors.border} border border-t-0`}
+                      >
+                        <div className="p-4 space-y-3">
+                          {columnDeals.map((deal) => (
+                            <MobileDealCard
+                              key={deal.id}
+                              deal={deal}
+                              onSelect={setSelectedDeal}
+                              formatCurrency={formatCurrency}
+                              formatDate={formatDate}
+                            />
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )
+            })}
       </div>
 
       {/* Desktop Kanban View */}
@@ -1064,23 +1098,23 @@ function MobileDealCard({ deal, onSelect, formatCurrency, formatDate }) {
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       onClick={() => onSelect(deal)}
-      className={`${cardBg} rounded-xl p-4 border cursor-pointer`}
+      className={`${cardBg} rounded-2xl p-5 border cursor-pointer min-h-[80px] shadow-sm`}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-white truncate">{address}</p>
-          {buyer && <p className="text-gray-400 text-sm mt-0.5 truncate">{buyer}</p>}
+          <p className="font-semibold text-white text-base leading-tight">{address}</p>
+          {buyer && <p className="text-gray-400 text-sm mt-1.5 truncate">{buyer}</p>}
         </div>
         <div className="text-right flex-shrink-0">
-          <p className="text-emerald-400 font-semibold">{formatCurrency(price)}</p>
+          <p className="text-emerald-400 font-bold text-lg">{formatCurrency(price)}</p>
           {closingDate && (
-            <p className="text-gray-500 text-xs mt-0.5">{formatDate(closingDate)}</p>
+            <p className="text-gray-500 text-sm mt-1">{formatDate(closingDate)}</p>
           )}
         </div>
       </div>
       {executed && (
-        <div className="mt-2">
-          <span className="bg-emerald-500/20 text-emerald-400 text-xs px-2 py-0.5 rounded-full">
+        <div className="mt-3">
+          <span className="bg-emerald-500/20 text-emerald-400 text-sm px-3 py-1 rounded-full font-medium">
             Executed
           </span>
         </div>
