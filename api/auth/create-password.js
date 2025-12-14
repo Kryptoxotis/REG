@@ -1,4 +1,7 @@
+import bcrypt from 'bcrypt'
 import { generateToken, handleCors, sanitizeEmail, sanitizeString, findUserByEmail, updateNotionPage, checkRateLimit } from '../../config/utils.js'
+
+const SALT_ROUNDS = 10
 
 export default async function handler(req, res) {
   if (handleCors(req, res)) return
@@ -8,7 +11,7 @@ export default async function handler(req, res) {
   }
 
   // Rate limiting
-  const rateLimit = checkRateLimit(req)
+  const rateLimit = await checkRateLimit(req)
   if (!rateLimit.allowed) {
     return res.status(429).json({ error: 'Too many requests. Please try again later.' })
   }
@@ -49,10 +52,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Cannot create password for this account' })
     }
 
+    // Hash password before storing
+    const hashedPassword = await bcrypt.hash(sanitizedPassword, SALT_ROUNDS)
+
     // Update password and status in Notion
     await updateNotionPage(user.id, {
       'Password': {
-        rich_text: [{ text: { content: sanitizedPassword } }]
+        rich_text: [{ text: { content: hashedPassword } }]
       },
       'Status': {
         status: { name: 'Active' }

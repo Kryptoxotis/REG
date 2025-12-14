@@ -1,3 +1,4 @@
+import bcrypt from 'bcrypt'
 import { generateToken, verifyToken, handleCors, sanitizeEmail, findUserByEmail, checkRateLimit } from '../../config/utils.js'
 
 // Re-export verifyToken for other files that import from login.js
@@ -11,7 +12,7 @@ export default async function handler(req, res) {
   }
 
   // Rate limiting
-  const rateLimit = checkRateLimit(req)
+  const rateLimit = await checkRateLimit(req)
   if (!rateLimit.allowed) {
     return res.status(429).json({ error: 'Too many requests. Please try again later.' })
   }
@@ -42,7 +43,18 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Account not active' })
     }
     
-    if (user.password !== password) {
+    // Check password - support both hashed (bcrypt) and legacy plain text
+    const isHashed = user.password.startsWith('$2')
+    let passwordValid = false
+
+    if (isHashed) {
+      passwordValid = await bcrypt.compare(password, user.password)
+    } else {
+      // Legacy plain text comparison (for existing users)
+      passwordValid = user.password === password
+    }
+
+    if (!passwordValid) {
       return res.status(401).json({ error: 'Invalid password' })
     }
 

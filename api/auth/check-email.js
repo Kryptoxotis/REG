@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   }
 
   // Rate limiting
-  const rateLimit = checkRateLimit(req)
+  const rateLimit = await checkRateLimit(req)
   if (!rateLimit.allowed) {
     return res.status(429).json({ error: 'Too many requests. Please try again later.' })
   }

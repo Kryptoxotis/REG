@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { DATABASE_IDS, NOTION_VERSION } from '../../config/databases.js'
-import { handleCors, verifyToken } from '../../config/utils.js'
+import { handleCors, verifyToken, verifyTokenVersion } from '../../config/utils.js'
 
 // Actions that require admin role
 const ADMIN_ONLY_ACTIONS = ['move-to-pipeline', 'move-to-closed']
@@ -179,8 +179,15 @@ export default async function handler(req, res) {
   }
 
   // Check if action requires admin role
-  if (ADMIN_ONLY_ACTIONS.includes(action) && user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required for this action' })
+  if (ADMIN_ONLY_ACTIONS.includes(action)) {
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required for this action' })
+    }
+    // For admin actions, verify token hasn't been invalidated
+    const isValidVersion = await verifyTokenVersion(user.id, user.tokenVersion || 0)
+    if (!isValidVersion) {
+      return res.status(401).json({ error: 'Session expired. Please login again.' })
+    }
   }
 
   try {

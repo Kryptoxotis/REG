@@ -1,7 +1,7 @@
 // Vercel API proxy to n8n webhook for file sync
 // Parses xlsx/csv file and sends CSV data to n8n
 
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { verifyToken, handleCors } from '../../config/utils.js'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB limit
@@ -64,20 +64,36 @@ async function parseMultipartForm(req) {
 }
 
 // Parse file to CSV string
-function parseFileToCSV(buffer, filename) {
+async function parseFileToCSV(buffer, filename) {
   const isCSV = filename.toLowerCase().endsWith('.csv')
 
   if (isCSV) {
     return buffer.toString('utf-8')
   }
 
-  // Parse XLSX/XLS with xlsx library
-  const workbook = XLSX.read(buffer, { type: 'buffer' })
-  const sheetName = workbook.SheetNames[0]
-  const sheet = workbook.Sheets[sheetName]
+  // Parse XLSX/XLS with ExcelJS
+  const workbook = new ExcelJS.Workbook()
+  await workbook.xlsx.load(buffer)
 
-  // Convert to JSON first to process
-  const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 })
+  const worksheet = workbook.worksheets[0]
+  if (!worksheet || worksheet.rowCount === 0) {
+    throw new Error('Spreadsheet is empty')
+  }
+
+  // Convert worksheet to array of arrays
+  const jsonData = []
+  worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    const rowValues = []
+    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      // Ensure we fill in any gaps
+      while (rowValues.length < colNumber - 1) {
+        rowValues.push('')
+      }
+      rowValues.push(cell.value != null ? String(cell.value) : '')
+    })
+    jsonData.push(rowValues)
+  })
+
   if (jsonData.length === 0) throw new Error('Spreadsheet is empty')
 
   // Get headers
@@ -100,8 +116,17 @@ function parseFileToCSV(buffer, filename) {
     jsonData[0] = headers
   }
 
-  const newSheet = XLSX.utils.aoa_to_sheet(jsonData)
-  return XLSX.utils.sheet_to_csv(newSheet)
+  // Convert to CSV
+  return jsonData.map(row =>
+    row.map(cell => {
+      const str = String(cell || '')
+      // Escape quotes and wrap in quotes if contains comma, quote, or newline
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return '"' + str.replace(/"/g, '""') + '"'
+      }
+      return str
+    }).join(',')
+  ).join('\n')
 }
 
 export default async function handler(req, res) {
@@ -143,7 +168,7 @@ export default async function handler(req, res) {
     }
 
     // Parse file to CSV
-    const csvContent = parseFileToCSV(fileBuffer, filename)
+    const csvContent = await parseFileToCSV(fileBuffer, filename)
 
     // Send CSV to n8n webhook as JSON (matches existing workflow)
     const response = await fetch(N8N_WEBHOOK_URL, {
