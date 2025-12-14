@@ -23,11 +23,78 @@ const dbConfig = {
 function getStatusColor(status) {
   if (!status) return 'bg-gray-700 text-gray-300'
   const s = status.toLowerCase()
-  if (s.includes('active') || s.includes('won') || s.includes('closed')) return 'bg-emerald-500/20 text-emerald-400'
-  if (s.includes('pending') || s.includes('negotiation') || s.includes('showing')) return 'bg-amber-500/20 text-amber-400'
+  // Property-specific statuses
+  if (s === 'available' || s.includes('active')) return 'bg-emerald-500/20 text-emerald-400'
+  if (s === 'pending' || s.includes('under contract')) return 'bg-amber-500/20 text-amber-400'
+  if (s === 'sold' || s.includes('closed')) return 'bg-red-500/20 text-red-400'
+  if (s === 'model home' || s.includes('model')) return 'bg-purple-500/20 text-purple-400'
+  // General statuses
+  if (s.includes('won') || s.includes('completed')) return 'bg-emerald-500/20 text-emerald-400'
+  if (s.includes('negotiation') || s.includes('showing')) return 'bg-amber-500/20 text-amber-400'
   if (s.includes('new') || s.includes('lead') || s.includes('prospect')) return 'bg-blue-500/20 text-blue-400'
   if (s.includes('inactive') || s.includes('lost') || s.includes('terminated')) return 'bg-red-500/20 text-red-400'
   return 'bg-gray-700 text-gray-300'
+}
+
+function getStatusBorderColor(status) {
+  if (!status) return 'border-gray-700'
+  const s = status.toLowerCase()
+  if (s === 'available' || s.includes('active')) return 'border-l-emerald-500'
+  if (s === 'pending' || s.includes('under contract')) return 'border-l-amber-500'
+  if (s === 'sold' || s.includes('closed')) return 'border-l-red-500'
+  if (s === 'model home' || s.includes('model')) return 'border-l-purple-500'
+  return 'border-l-gray-600'
+}
+
+function PropertyCard({ item, config, onClick }) {
+  const status = item.Status || item.status || ''
+  const price = item['Sales Price'] || item['Sale Price'] || item.Price || 0
+  const formattedPrice = price ? '$' + Number(price).toLocaleString() : ''
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ scale: 1.02, y: -2 }}
+      className={`bg-gray-800 rounded-xl border border-gray-700 border-l-4 ${getStatusBorderColor(status)} overflow-hidden cursor-pointer hover:shadow-lg hover:shadow-black/20 transition-all duration-200`}
+      onClick={onClick}
+    >
+      <div className="p-4">
+        <div className="flex justify-between items-start mb-3">
+          <h3 className="font-semibold text-white truncate flex-1 text-sm sm:text-base">
+            {item.Address || item.address || 'No Address'}
+          </h3>
+          {status && (
+            <span className={`ml-2 px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getStatusColor(status)}`}>
+              {status}
+            </span>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          {item.Subdivision && (
+            <p className="text-sm text-gray-400 flex items-center gap-2">
+              <span className="text-gray-500">📍</span>
+              {item.Subdivision}
+            </p>
+          )}
+
+          {item.Floorplan && (
+            <p className="text-sm text-gray-400 flex items-center gap-2">
+              <span className="text-gray-500">🏠</span>
+              {item.Floorplan}
+            </p>
+          )}
+
+          {formattedPrice && (
+            <p className="text-lg font-bold text-emerald-400 mt-2">
+              {formattedPrice}
+            </p>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  )
 }
 
 function TeamMemberCard({ item, config, onClick }) {
@@ -192,7 +259,19 @@ export default function DatabaseViewer({ databaseKey }) {
 
   const renderListView = () => (<div className="space-y-2">{filteredData.map((item, idx) => <motion.div key={item.id || idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="bg-gray-800 rounded-xl border border-gray-700 p-3 cursor-pointer hover:bg-gray-700 transition-colors" onClick={() => setSelectedItem(item)}><div className="flex items-center justify-between"><div className="flex-1 min-w-0"><p className="font-medium text-white truncate">{item[config.primaryField] || 'Untitled'}</p><p className="text-sm text-gray-400 truncate">{config.secondaryFields.map(f => item[f]).filter(Boolean).join(' · ')}</p></div><ChevronRight className="w-5 h-5 text-gray-500 flex-shrink-0" /></div></motion.div>)}</div>)
 
-  const renderCardView = () => (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{filteredData.map((item, idx) => databaseKey === 'TEAM_MEMBERS' ? <TeamMemberCard key={item.id || idx} item={item} config={config} onClick={() => setSelectedItem(item)} /> : <SmartCardView key={item.id || idx} item={item} config={config} onClick={() => setSelectedItem(item)} />)}</div>)
+  const renderCardView = () => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {filteredData.map((item, idx) => {
+        if (databaseKey === 'TEAM_MEMBERS') {
+          return <TeamMemberCard key={item.id || idx} item={item} config={config} onClick={() => setSelectedItem(item)} />
+        }
+        if (databaseKey === 'PROPERTIES') {
+          return <PropertyCard key={item.id || idx} item={item} config={config} onClick={() => setSelectedItem(item)} />
+        }
+        return <SmartCardView key={item.id || idx} item={item} config={config} onClick={() => setSelectedItem(item)} />
+      })}
+    </div>
+  )
 
   const renderContent = () => { if (config.mobileLayout === 'table') return (<><div className="sm:hidden">{renderCardView()}</div><div className="hidden sm:block">{renderTableView()}</div></>); if (config.mobileLayout === 'list') return (<><div className="sm:hidden">{renderListView()}</div><div className="hidden sm:block">{renderCardView()}</div></>); return renderCardView() }
 
