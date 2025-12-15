@@ -35,7 +35,8 @@ async function queryDatabase(id) {
           'Authorization': `Bearer ${NOTION_API_KEY}`,
           'Notion-Version': NOTION_VERSION,
           'Content-Type': 'application/json'
-        }
+        },
+        timeout: 15000
       }
     )
     // Check for Notion error response

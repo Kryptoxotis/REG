@@ -17,7 +17,7 @@ function formatPage(page) {
       case 'rich_text': properties[key] = extractPlainText(value.rich_text); break
       case 'number': properties[key] = value.number; break
       case 'select': properties[key] = value.select?.name || null; break
-      case 'multi_select': properties[key] = value.multi_select.map(item => item.name); break
+      case 'multi_select': properties[key] = value.multi_select?.map(item => item.name) || []; break
       case 'date': properties[key] = value.date; break
       case 'checkbox': properties[key] = value.checkbox; break
       default: properties[key] = value
@@ -37,7 +37,8 @@ async function queryDatabaseSimple(id, filter = null) {
           'Authorization': `Bearer ${NOTION_API_KEY}`,
           'Notion-Version': NOTION_VERSION,
           'Content-Type': 'application/json'
-        }
+        },
+        timeout: 15000
       }
     )
     // Validate response has expected structure
@@ -67,7 +68,8 @@ async function queryDatabasePaginated(databaseId) {
             'Authorization': `Bearer ${NOTION_API_KEY}`,
             'Notion-Version': NOTION_VERSION,
             'Content-Type': 'application/json'
-          }
+          },
+          timeout: 15000
         }
       )
       // Check for Notion error response
