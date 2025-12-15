@@ -214,37 +214,49 @@ export async function findUserByEmail(email) {
   const NOTION_API_KEY = process.env.NOTION_API_KEY
   const normalizedEmail = email.toLowerCase().trim()
 
-  const response = await axios.post(
-    `https://api.notion.com/v1/databases/${DATABASE_IDS.TEAM_MEMBERS}/query`,
-    {},
-    {
-      headers: {
-        'Authorization': `Bearer ${NOTION_API_KEY}`,
-        'Notion-Version': NOTION_VERSION,
-        'Content-Type': 'application/json'
+  try {
+    const response = await axios.post(
+      `https://api.notion.com/v1/databases/${DATABASE_IDS.TEAM_MEMBERS}/query`,
+      {},
+      {
+        headers: {
+          'Authorization': `Bearer ${NOTION_API_KEY}`,
+          'Notion-Version': NOTION_VERSION,
+          'Content-Type': 'application/json'
+        }
+      }
+    )
+
+    // Check for Notion error response
+    if (response.data?.object === 'error') {
+      console.error('Notion error in findUserByEmail:', response.data.code, response.data.message)
+      throw new Error('Database query failed')
+    }
+
+    const results = response.data.results || []
+    for (const page of results) {
+      const formatted = formatPage(page)
+      const eraEmail = formatted['Email - ERA']?.toLowerCase().trim()
+      const personalEmail = formatted['Email - Personal']?.toLowerCase().trim()
+
+      if (eraEmail === normalizedEmail || personalEmail === normalizedEmail) {
+        return {
+          id: page.id,
+          name: formatted['Name'] || '',
+          email: eraEmail || personalEmail,
+          status: formatted['Status'] || formatted['Stauts'] || null, // Handle typo in Notion
+          password: formatted['Password'] || '',
+          role: formatted['View'] || 'Employee',
+          tokenVersion: formatted['Token Version'] || 0
+        }
       }
     }
-  )
 
-  for (const page of response.data.results) {
-    const formatted = formatPage(page)
-    const eraEmail = formatted['Email - ERA']?.toLowerCase().trim()
-    const personalEmail = formatted['Email - Personal']?.toLowerCase().trim()
-
-    if (eraEmail === normalizedEmail || personalEmail === normalizedEmail) {
-      return {
-        id: page.id,
-        name: formatted['Name'] || '',
-        email: eraEmail || personalEmail,
-        status: formatted['Status'] || formatted['Stauts'] || null, // Handle typo in Notion
-        password: formatted['Password'] || '',
-        role: formatted['View'] || 'Employee',
-        tokenVersion: formatted['Token Version'] || 0
-      }
-    }
+    return null
+  } catch (error) {
+    console.error('Error in findUserByEmail:', error.message)
+    throw error // Re-throw to be caught by the calling handler's catch block
   }
-
-  return null
 }
 
 // Update a Notion page's properties

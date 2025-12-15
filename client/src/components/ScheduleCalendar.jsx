@@ -28,8 +28,9 @@ function ScheduleCalendar({ onNavigate }) {
         axios.get('/api/databases/SCHEDULE', { headers }),
         axios.get('/api/databases/team-kpis', { headers })
       ])
-      setData(scheduleRes.data)
-      setTeamKpis(kpisRes.data)
+      // Validate responses are arrays before setting state
+      setData(Array.isArray(scheduleRes.data) ? scheduleRes.data : [])
+      setTeamKpis(Array.isArray(kpisRes.data) ? kpisRes.data : [])
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch schedule')
     } finally { setLoading(false) }

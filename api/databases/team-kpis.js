@@ -26,18 +26,28 @@ function isCurrentMonth(dateStr) {
 }
 
 async function queryDatabase(id) {
-  const response = await axios.post(
-    `https://api.notion.com/v1/databases/${id}/query`,
-    {},
-    {
-      headers: {
-        'Authorization': `Bearer ${NOTION_API_KEY}`,
-        'Notion-Version': NOTION_VERSION,
-        'Content-Type': 'application/json'
+  try {
+    const response = await axios.post(
+      `https://api.notion.com/v1/databases/${id}/query`,
+      {},
+      {
+        headers: {
+          'Authorization': `Bearer ${NOTION_API_KEY}`,
+          'Notion-Version': NOTION_VERSION,
+          'Content-Type': 'application/json'
+        }
       }
+    )
+    // Check for Notion error response
+    if (response.data?.object === 'error') {
+      console.error(`Notion error for ${id}:`, response.data.code, response.data.message)
+      return []
     }
-  )
-  return response.data.results
+    return response.data.results || []
+  } catch (error) {
+    console.error(`Error querying database ${id}:`, error.message)
+    return []
+  }
 }
 
 export default async function handler(req, res) {

@@ -22,7 +22,8 @@ function TeamKPIView({ onNavigate }) {
       const response = await axios.get('/api/databases/team-kpis', {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       })
-      setData(response.data)
+      // Validate response is an array before setting state
+      setData(Array.isArray(response.data) ? response.data : [])
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch team KPIs')
     } finally { setLoading(false) }
