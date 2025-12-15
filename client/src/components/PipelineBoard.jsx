@@ -105,13 +105,52 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     brokerName: '',
     realtorPartner: ''
   })
-  // Move to Pipeline form state
-  const [moveForm, setMoveForm] = useState({ closedDate: '', executeDate: '' })
+  // Move to Pipeline form state - full form for Presale to Loan Status
+  const [moveForm, setMoveForm] = useState({
+    agent: '',
+    buyerName: '',
+    buyerEmail: '',
+    buyerPhone: '',
+    assistingAgent: '',
+    brokerName: '',
+    loName: '',
+    loEmail: '',
+    loPhone: '',
+    loanAmount: '',
+    loanType: '',
+    realtorPartner: '',
+    realtorEmail: '',
+    realtorPhone: '',
+    notes: '',
+    closedDate: '',
+    executeDate: ''
+  })
+  const [teamMembers, setTeamMembers] = useState([])
   const [isMoving, setIsMoving] = useState(false)
   const [isChangingStatus, setIsChangingStatus] = useState(false)
+  const [isSendingBack, setIsSendingBack] = useState(false)
 
   // Fetch from correct database based on active tab
   useEffect(() => { fetchDeals() }, [pipelineTab])
+
+  // Fetch team members for Agent dropdown
+  useEffect(() => {
+    const fetchTeamMembers = async () => {
+      try {
+        const token = localStorage.getItem('authToken')
+        const response = await axios.get('/api/databases/TEAM_MEMBERS', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        })
+        const members = Array.isArray(response.data) ? response.data : []
+        // Filter to only active members
+        const activeMembers = members.filter(m => m.Status === 'Active' || m.status === 'Active')
+        setTeamMembers(activeMembers)
+      } catch (err) {
+        console.error('Failed to fetch team members:', err)
+      }
+    }
+    fetchTeamMembers()
+  }, [])
 
   // Auto-select deal when highlightedDealId changes
   useEffect(() => {
@@ -148,7 +187,24 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
   // Move property from Properties to Pipeline
   const moveToPipeline = async () => {
-    if (!selectedDeal || !moveForm.closedDate) return
+    // Validate required fields
+    if (!selectedDeal) return
+    if (!moveForm.agent) {
+      alert('Agent is required')
+      return
+    }
+    if (!moveForm.buyerName) {
+      alert('Buyer Name is required')
+      return
+    }
+    if (!moveForm.buyerEmail) {
+      alert('Buyer Email is required')
+      return
+    }
+    if (!moveForm.buyerPhone) {
+      alert('Buyer Phone is required')
+      return
+    }
 
     setIsMoving(true)
     try {
@@ -156,11 +212,27 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         action: 'move-to-pipeline',
         propertyId: selectedDeal.id,
         address: selectedDeal.Address || selectedDeal.address || '',
-        closedDate: moveForm.closedDate,
-        executeDate: moveForm.executeDate || null,
         salesPrice: selectedDeal['Sales Price'] || selectedDeal.Price || 0,
-        agent: selectedDeal.Agent || '',
-        buyerName: selectedDeal['Buyer Name'] || ''
+        edwardsCo: selectedDeal['Edwards Co.'] || selectedDeal['Edwards Co'] || selectedDeal.Office || '',
+        // Required fields from form
+        agent: moveForm.agent,
+        buyerName: moveForm.buyerName,
+        buyerEmail: moveForm.buyerEmail,
+        buyerPhone: moveForm.buyerPhone,
+        // Optional fields
+        assistingAgent: moveForm.assistingAgent || null,
+        brokerName: moveForm.brokerName || null,
+        loName: moveForm.loName || null,
+        loEmail: moveForm.loEmail || null,
+        loPhone: moveForm.loPhone || null,
+        loanAmount: moveForm.loanAmount ? parseFloat(moveForm.loanAmount) : null,
+        loanType: moveForm.loanType || null,
+        realtorPartner: moveForm.realtorPartner || null,
+        realtorEmail: moveForm.realtorEmail || null,
+        realtorPhone: moveForm.realtorPhone || null,
+        notes: moveForm.notes || null,
+        closedDate: moveForm.closedDate || null,
+        executeDate: moveForm.executeDate || null
       }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
 
       // Log the move
@@ -175,7 +247,12 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
       // Close modal and refresh
       setSelectedDeal(null)
-      setMoveForm({ closedDate: '', executeDate: '' })
+      setMoveForm({
+        agent: '', buyerName: '', buyerEmail: '', buyerPhone: '',
+        assistingAgent: '', brokerName: '', loName: '', loEmail: '', loPhone: '',
+        loanAmount: '', loanType: '', realtorPartner: '', realtorEmail: '', realtorPhone: '',
+        notes: '', closedDate: '', executeDate: ''
+      })
       fetchDeals()
     } catch (err) {
       console.error('Failed to move property:', err.response?.data || err)
@@ -329,6 +406,45 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     }
   }
 
+  // Send deal back to Properties (reverse move)
+  const sendBackToProperties = async () => {
+    if (!selectedDeal || isSendingBack) return
+
+    if (!confirm('Are you sure you want to send this deal back to Properties? This will archive it from Pipeline.')) {
+      return
+    }
+
+    setIsSendingBack(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      await axios.post('/api/databases/actions', {
+        action: 'send-back-to-properties',
+        dealId: selectedDeal.id,
+        address: selectedDeal.Address || '',
+        salesPrice: selectedDeal['Sales Price'] || 0,
+        status: 'Inventory'
+      }, { headers: { Authorization: `Bearer ${token}` } })
+
+      // Log the action
+      await axios.post('/api/databases/actions', {
+        action: 'log-activity',
+        logAction: `Deal sent back to Properties: ${selectedDeal.Address || 'Unknown'}`,
+        dealAddress: selectedDeal.Address || 'Unknown Address',
+        entityType: 'Deal',
+        actionType: 'Sent Back to Properties'
+      }, { headers: { Authorization: `Bearer ${token}` } })
+
+      // Remove from current list and refresh
+      setDeals(prev => prev.filter(d => d.id !== selectedDeal.id))
+      setSelectedDeal(null)
+    } catch (err) {
+      console.error('Failed to send back to properties:', err)
+      alert('Failed to send back to Properties')
+    } finally {
+      setIsSendingBack(false)
+    }
+  }
+
   const formatCurrency = (num) => num ? '$' + num.toLocaleString() : '-'
   const formatDate = (dateObj) => {
     if (!dateObj?.start) return '-'
@@ -435,7 +551,8 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     if (filters.realtorPartner && deal['Realtor Partner'] !== filters.realtorPartner) return false
 
     // Employee filter - only show deals where user is the Agent
-    if (isEmployee && employeeName) {
+    // BUT only for Loan Status tab - Presale shows all properties
+    if (isEmployee && employeeName && pipelineTab === 'loan-status') {
       const dealAgent = (deal.Agent || '').toLowerCase()
       const userNameLower = employeeName.toLowerCase()
       // Match exact or partial (for cases like "John" matching "John Smith")
@@ -1096,32 +1213,217 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
                 {/* Move to Pipeline section - only show on Presale tab */}
                 {pipelineTab === 'presale' && (
                   <div className="mt-4 p-4 bg-gray-800/50 rounded-xl border border-gray-700">
-                    <h3 className="text-sm font-semibold text-gray-300 mb-3">Move to Pipeline</h3>
-                    <div className="space-y-3">
+                    <h3 className="text-sm font-semibold text-gray-300 mb-3">Move to Loan Status</h3>
+                    <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
+                      {/* Required Fields */}
+                      <p className="text-xs text-amber-400 font-medium">Required Fields</p>
+
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Closed Date *</label>
+                        <label className="block text-xs text-gray-400 mb-1">Agent *</label>
+                        <select
+                          value={moveForm.agent}
+                          onChange={e => setMoveForm(prev => ({ ...prev, agent: e.target.value }))}
+                          className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                        >
+                          <option value="">Select Agent</option>
+                          {teamMembers.map(member => (
+                            <option key={member.id} value={member.Name || member.name}>
+                              {member.Name || member.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Buyer Name *</label>
                         <input
-                          type="date"
-                          value={moveForm.closedDate}
-                          onChange={e => setMoveForm(prev => ({ ...prev, closedDate: e.target.value }))}
+                          type="text"
+                          value={moveForm.buyerName}
+                          onChange={e => setMoveForm(prev => ({ ...prev, buyerName: e.target.value }))}
+                          placeholder="Full name"
                           className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
                         />
                       </div>
+
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Execute Date</label>
+                        <label className="block text-xs text-gray-400 mb-1">Buyer Email *</label>
                         <input
-                          type="date"
-                          value={moveForm.executeDate}
-                          onChange={e => setMoveForm(prev => ({ ...prev, executeDate: e.target.value }))}
+                          type="email"
+                          value={moveForm.buyerEmail}
+                          onChange={e => setMoveForm(prev => ({ ...prev, buyerEmail: e.target.value }))}
+                          placeholder="buyer@email.com"
                           className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
                         />
                       </div>
+
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Buyer Phone *</label>
+                        <input
+                          type="tel"
+                          value={moveForm.buyerPhone}
+                          onChange={e => setMoveForm(prev => ({ ...prev, buyerPhone: e.target.value }))}
+                          placeholder="(555) 555-5555"
+                          className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Optional Fields */}
+                      <p className="text-xs text-gray-500 font-medium mt-4 pt-3 border-t border-gray-700">Optional Fields</p>
+
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Assisting Agent</label>
+                        <select
+                          value={moveForm.assistingAgent}
+                          onChange={e => setMoveForm(prev => ({ ...prev, assistingAgent: e.target.value }))}
+                          className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                        >
+                          <option value="">None</option>
+                          {teamMembers.map(member => (
+                            <option key={member.id} value={member.Name || member.name}>
+                              {member.Name || member.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Broker Name</label>
+                          <input
+                            type="text"
+                            value={moveForm.brokerName}
+                            onChange={e => setMoveForm(prev => ({ ...prev, brokerName: e.target.value }))}
+                            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Loan Type</label>
+                          <select
+                            value={moveForm.loanType}
+                            onChange={e => setMoveForm(prev => ({ ...prev, loanType: e.target.value }))}
+                            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                          >
+                            <option value="">Select Type</option>
+                            <option value="Conventional">Conventional</option>
+                            <option value="FHA">FHA</option>
+                            <option value="VA">VA</option>
+                            <option value="USDA">USDA</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">LO Name</label>
+                        <input
+                          type="text"
+                          value={moveForm.loName}
+                          onChange={e => setMoveForm(prev => ({ ...prev, loName: e.target.value }))}
+                          className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">LO Email</label>
+                          <input
+                            type="email"
+                            value={moveForm.loEmail}
+                            onChange={e => setMoveForm(prev => ({ ...prev, loEmail: e.target.value }))}
+                            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">LO Phone</label>
+                          <input
+                            type="tel"
+                            value={moveForm.loPhone}
+                            onChange={e => setMoveForm(prev => ({ ...prev, loPhone: e.target.value }))}
+                            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Loan Amount</label>
+                        <input
+                          type="number"
+                          value={moveForm.loanAmount}
+                          onChange={e => setMoveForm(prev => ({ ...prev, loanAmount: e.target.value }))}
+                          placeholder="0"
+                          className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Realtor Partner</label>
+                        <input
+                          type="text"
+                          value={moveForm.realtorPartner}
+                          onChange={e => setMoveForm(prev => ({ ...prev, realtorPartner: e.target.value }))}
+                          className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Realtor Email</label>
+                          <input
+                            type="email"
+                            value={moveForm.realtorEmail}
+                            onChange={e => setMoveForm(prev => ({ ...prev, realtorEmail: e.target.value }))}
+                            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Realtor Phone</label>
+                          <input
+                            type="tel"
+                            value={moveForm.realtorPhone}
+                            onChange={e => setMoveForm(prev => ({ ...prev, realtorPhone: e.target.value }))}
+                            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Scheduled Closing</label>
+                          <input
+                            type="date"
+                            value={moveForm.closedDate}
+                            onChange={e => setMoveForm(prev => ({ ...prev, closedDate: e.target.value }))}
+                            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Execute Date</label>
+                          <input
+                            type="date"
+                            value={moveForm.executeDate}
+                            onChange={e => setMoveForm(prev => ({ ...prev, executeDate: e.target.value }))}
+                            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Notes</label>
+                        <textarea
+                          value={moveForm.notes}
+                          onChange={e => setMoveForm(prev => ({ ...prev, notes: e.target.value }))}
+                          rows={2}
+                          className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none resize-none"
+                        />
+                      </div>
+
                       <button
                         onClick={moveToPipeline}
-                        disabled={!moveForm.closedDate || isMoving}
+                        disabled={!moveForm.agent || !moveForm.buyerName || !moveForm.buyerEmail || !moveForm.buyerPhone || isMoving}
                         className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg transition-colors font-medium text-sm"
                       >
-                        {isMoving ? 'Moving...' : 'Move to Pipeline'}
+                        {isMoving ? 'Moving...' : 'Move to Loan Status'}
                       </button>
                     </div>
                   </div>
@@ -1156,6 +1458,20 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
                     <p className="text-xs text-gray-500 mt-2 text-center">
                       Tap a status to move this deal
                     </p>
+
+                    {/* Send back to Properties - Admin only */}
+                    <div className="mt-4 pt-3 border-t border-gray-700">
+                      <button
+                        onClick={sendBackToProperties}
+                        disabled={isSendingBack}
+                        className="w-full py-2 bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/50 text-orange-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                      >
+                        {isSendingBack ? 'Sending...' : '↩ Send Back to Properties'}
+                      </button>
+                      <p className="text-xs text-gray-600 mt-1 text-center">
+                        Returns deal to Presale/Properties
+                      </p>
+                    </div>
                   </div>
                 )}
 

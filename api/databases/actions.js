@@ -3,17 +3,30 @@ import { DATABASE_IDS, NOTION_VERSION } from '../../config/databases.js'
 import { handleCors, verifyToken, verifyTokenVersion } from '../../config/utils.js'
 
 // Actions that require admin role
-const ADMIN_ONLY_ACTIONS = ['move-to-pipeline', 'move-to-closed']
+const ADMIN_ONLY_ACTIONS = ['move-to-pipeline', 'move-to-closed', 'send-back-to-properties']
 
 const NOTION_API_KEY = process.env.NOTION_API_KEY
 
 // Move property from Presale to Pipeline
 async function moveToPipeline(data) {
   console.log('moveToPipeline called with:', JSON.stringify(data))
-  const { propertyId, address, closedDate, executeDate, salesPrice, agent, buyerName } = data
+  const {
+    propertyId, address, closedDate, executeDate, salesPrice,
+    // Required fields
+    agent, buyerName, buyerEmail, buyerPhone,
+    // Optional fields
+    assistingAgent, brokerName,
+    loName, loEmail, loPhone,
+    loanAmount, loanType,
+    realtorPartner, realtorEmail, realtorPhone,
+    notes
+  } = data
 
   if (!propertyId) throw new Error('Property ID is required')
-  if (!closedDate) throw new Error('Closed date is required')
+  if (!agent) throw new Error('Agent is required')
+  if (!buyerName) throw new Error('Buyer name is required')
+  if (!buyerEmail) throw new Error('Buyer email is required')
+  if (!buyerPhone) throw new Error('Buyer phone is required')
 
   const properties = {
     Address: {
@@ -22,16 +35,33 @@ async function moveToPipeline(data) {
     'Loan Status': {
       select: { name: 'Loan Application Received' }
     },
-    'Scheduled Closing': {
-      date: { start: closedDate }
-    }
+    'Agent': { rich_text: [{ type: 'text', text: { content: agent } }] },
+    'Buyer Name': { rich_text: [{ type: 'text', text: { content: buyerName } }] },
+    'Buyer Email': { email: buyerEmail },
+    'Buyer Phone': { phone_number: buyerPhone }
   }
 
+  // Optional date fields
+  if (closedDate) properties['Scheduled Closing'] = { date: { start: closedDate } }
   if (executeDate) properties['Execution Date'] = { date: { start: executeDate } }
-  if (salesPrice) properties['Sales Price'] = { number: parseFloat(salesPrice) || 0 }
-  if (agent) properties['Agent'] = { rich_text: [{ type: 'text', text: { content: agent } }] }
-  if (buyerName) properties['Buyer Name'] = { rich_text: [{ type: 'text', text: { content: buyerName } }] }
 
+  // Optional number fields
+  if (salesPrice) properties['Sales Price'] = { number: parseFloat(salesPrice) || 0 }
+  if (loanAmount) properties['Loan Amount'] = { number: parseFloat(loanAmount) || 0 }
+
+  // Optional text fields
+  if (assistingAgent) properties['Assisting Agent'] = { rich_text: [{ type: 'text', text: { content: assistingAgent } }] }
+  if (brokerName) properties['Broker Name'] = { rich_text: [{ type: 'text', text: { content: brokerName } }] }
+  if (loName) properties['LO Name'] = { rich_text: [{ type: 'text', text: { content: loName } }] }
+  if (loEmail) properties['LO Email'] = { email: loEmail }
+  if (loPhone) properties['LO Phone'] = { phone_number: loPhone }
+  if (loanType) properties['Loan Type'] = { select: { name: loanType } }
+  if (realtorPartner) properties['Realtor Partner'] = { rich_text: [{ type: 'text', text: { content: realtorPartner } }] }
+  if (realtorEmail) properties['Realtor Email'] = { email: realtorEmail }
+  if (realtorPhone) properties['Realtor Phone'] = { phone_number: realtorPhone }
+  if (notes) properties['Notes'] = { rich_text: [{ type: 'text', text: { content: notes } }] }
+
+  // Create new record in Pipeline
   const response = await axios.post(
     'https://api.notion.com/v1/pages',
     { parent: { database_id: DATABASE_IDS.PIPELINE }, properties },
@@ -44,7 +74,67 @@ async function moveToPipeline(data) {
     }
   )
 
+  // Archive the original property from Properties database (Fix 7)
+  await axios.patch(
+    `https://api.notion.com/v1/pages/${propertyId}`,
+    { archived: true },
+    {
+      headers: {
+        'Authorization': `Bearer ${NOTION_API_KEY}`,
+        'Notion-Version': NOTION_VERSION,
+        'Content-Type': 'application/json'
+      }
+    }
+  )
+
   return { success: true, pipelineId: response.data.id, message: 'Property moved to pipeline successfully' }
+}
+
+// Send deal back to Properties (reverse of move-to-pipeline)
+async function sendBackToProperties(data) {
+  console.log('sendBackToProperties called with:', JSON.stringify(data))
+  const { dealId, address, salesPrice, status } = data
+
+  if (!dealId) throw new Error('Deal ID is required')
+
+  const properties = {
+    Address: {
+      title: [{ type: 'text', text: { content: address || 'Unknown' } }]
+    },
+    'Status': {
+      select: { name: status || 'Inventory' }
+    }
+  }
+
+  if (salesPrice) properties['List Price'] = { number: parseFloat(salesPrice) || 0 }
+
+  // Create record back in Properties
+  const response = await axios.post(
+    'https://api.notion.com/v1/pages',
+    { parent: { database_id: DATABASE_IDS.PROPERTIES }, properties },
+    {
+      headers: {
+        'Authorization': `Bearer ${NOTION_API_KEY}`,
+        'Notion-Version': NOTION_VERSION,
+        'Content-Type': 'application/json'
+      }
+    }
+  )
+
+  // Archive the deal from Pipeline
+  await axios.patch(
+    `https://api.notion.com/v1/pages/${dealId}`,
+    { archived: true },
+    {
+      headers: {
+        'Authorization': `Bearer ${NOTION_API_KEY}`,
+        'Notion-Version': NOTION_VERSION,
+        'Content-Type': 'application/json'
+      }
+    }
+  )
+
+  return { success: true, propertyId: response.data.id, message: 'Deal sent back to Properties successfully' }
 }
 
 // Update loan status in Pipeline
@@ -205,6 +295,9 @@ export default async function handler(req, res) {
         break
       case 'log-activity':
         result = await logActivity(data)
+        break
+      case 'send-back-to-properties':
+        result = await sendBackToProperties(data)
         break
       default:
         return res.status(400).json({ error: `Unknown action: ${action}` })

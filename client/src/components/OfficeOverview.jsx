@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 
-function OfficeOverview({ onNavigate, onCitySelect }) {
+function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
   const [officeData, setOfficeData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [expandedOffice, setExpandedOffice] = useState(null)
+  const [expandedDeals, setExpandedDeals] = useState([]) // Deals for expanded office
 
   useEffect(() => {
     fetchOfficeStats()
@@ -39,6 +40,59 @@ function OfficeOverview({ onNavigate, onCitySelect }) {
     } finally {
       setLoading(false)
       console.log('[OfficeOverview] Fetch complete')
+    }
+  }
+
+  // Fetch deals for expanded office (admin only)
+  const fetchDealsForOffice = async (officeName) => {
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await axios.get('/api/databases/PIPELINE', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        timeout: 15000
+      })
+      const deals = Array.isArray(response.data) ? response.data : []
+
+      // Filter by office - match Edwards Co. field
+      const officeMap = {
+        'El Paso': ["Edward's LLC.", "Edwards LLC", "El Paso"],
+        'Las Cruces': ["Edward's NM.", "Edwards NM", "Las Cruces", "New Mexico"],
+        'McAllen': ["Edward's RGV", "Edwards RGV", "McAllen"],
+        'San Antonio': ["San Antonio"]
+      }
+      const matchTerms = officeMap[officeName] || [officeName]
+
+      const filteredDeals = deals.filter(deal => {
+        const officeField = deal['Edwards Co.'] || deal['Edwards Co'] || deal.Office || ''
+        const address = deal.Address || deal['Property Address'] || ''
+        return matchTerms.some(term =>
+          officeField.toLowerCase().includes(term.toLowerCase()) ||
+          address.toLowerCase().includes(term.toLowerCase())
+        )
+      })
+
+      setExpandedDeals(filteredDeals)
+    } catch (err) {
+      console.error('Error fetching deals:', err)
+      setExpandedDeals([])
+    }
+  }
+
+  // Handle office card click
+  const handleOfficeClick = (officeName) => {
+    if (readOnly) return // No interaction for read-only mode
+
+    if (onCitySelect) {
+      onCitySelect(officeName)
+    } else {
+      // Toggle expand
+      if (expandedOffice === officeName) {
+        setExpandedOffice(null)
+        setExpandedDeals([])
+      } else {
+        setExpandedOffice(officeName)
+        fetchDealsForOffice(officeName)
+      }
     }
   }
 
@@ -198,8 +252,8 @@ function OfficeOverview({ onNavigate, onCitySelect }) {
             >
               {/* Office Header */}
               <div
-                className={`bg-gradient-to-r ${colors.gradient} p-4 cursor-pointer`}
-                onClick={() => onCitySelect ? onCitySelect(officeName) : setExpandedOffice(isExpanded ? null : officeName)}
+                className={`bg-gradient-to-r ${colors.gradient} p-4 ${readOnly ? '' : 'cursor-pointer'}`}
+                onClick={() => handleOfficeClick(officeName)}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -211,12 +265,14 @@ function OfficeOverview({ onNavigate, onCitySelect }) {
                       </p>
                     </div>
                   </div>
-                  <motion.span
-                    animate={{ rotate: isExpanded ? 180 : 0 }}
-                    className="text-white/80"
-                  >
-                    ▼
-                  </motion.span>
+                  {!readOnly && (
+                    <motion.span
+                      animate={{ rotate: isExpanded ? 180 : 0 }}
+                      className="text-white/80"
+                    >
+                      ▼
+                    </motion.span>
+                  )}
                 </div>
               </div>
 
@@ -245,9 +301,9 @@ function OfficeOverview({ onNavigate, onCitySelect }) {
                   </div>
                 </div>
 
-                {/* Expandable Details */}
+                {/* Expandable Details - Property List */}
                 <AnimatePresence>
-                  {isExpanded && (
+                  {isExpanded && !readOnly && (
                     <motion.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
@@ -256,47 +312,36 @@ function OfficeOverview({ onNavigate, onCitySelect }) {
                       className="overflow-hidden"
                     >
                       <div className="mt-4 pt-4 border-t border-gray-700">
-                        {/* Progress Bars */}
-                        <div className="space-y-3">
-                          <div>
-                            <div className="flex justify-between text-xs mb-1">
-                              <span className="text-gray-400">Active Pipeline</span>
-                              <span className="text-emerald-400">{stats.active}</span>
-                            </div>
-                            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${Math.min((stats.active / (totals.active || 1)) * 100, 100)}%` }}
-                                className="h-full bg-emerald-500 rounded-full"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <div className="flex justify-between text-xs mb-1">
-                              <span className="text-gray-400">Pending Contracts</span>
-                              <span className="text-amber-400">{stats.pending}</span>
-                            </div>
-                            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${Math.min((stats.pending / (totals.pending || 1)) * 100, 100)}%` }}
-                                className="h-full bg-amber-500 rounded-full"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <div className="flex justify-between text-xs mb-1">
-                              <span className="text-gray-400">Closed Volume</span>
-                              <span className="text-cyan-400">{formatCurrency(stats.volume)}</span>
-                            </div>
-                            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${Math.min((stats.volume / (totals.volume || 1)) * 100, 100)}%` }}
-                                className="h-full bg-cyan-500 rounded-full"
-                              />
-                            </div>
-                          </div>
+                        {/* Property List */}
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                          <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">
+                            Properties in Pipeline ({expandedDeals.length})
+                          </p>
+                          {expandedDeals.length === 0 ? (
+                            <p className="text-gray-500 text-sm py-4 text-center">Loading...</p>
+                          ) : (
+                            expandedDeals.map(deal => (
+                              <div
+                                key={deal.id}
+                                className="bg-gray-900/50 rounded-lg p-3 border border-gray-700/50"
+                              >
+                                <p className="text-white text-sm font-medium truncate">
+                                  {deal.Address || deal['Property Address'] || 'No Address'}
+                                </p>
+                                <div className="flex items-center justify-between mt-1">
+                                  <span className="text-xs text-gray-400">
+                                    {deal['Loan Status'] || 'No Status'}
+                                  </span>
+                                  <span className="text-xs text-emerald-400 font-medium">
+                                    {deal['Sales Price'] ? formatCurrency(deal['Sales Price']) : '-'}
+                                  </span>
+                                </div>
+                                {deal.Agent && (
+                                  <p className="text-xs text-gray-500 mt-1">{deal.Agent}</p>
+                                )}
+                              </div>
+                            ))
+                          )}
                         </div>
 
                         {/* View Pipeline Button */}

@@ -14,7 +14,8 @@ function ScheduleCalendar({ user, onNavigate }) {
   const [scheduleIsOpen, setScheduleIsOpen] = useState(false)
 
   // Modal states
-  const [selectedDay, setSelectedDay] = useState(null) // Day click modal for employees
+  const [selectedDay, setSelectedDay] = useState(null) // Day click modal for employees (legacy)
+  const [selectedDays, setSelectedDays] = useState([]) // Multi-day selection for week submission
   const [selectedEvent, setSelectedEvent] = useState(null) // Event detail modal
   const [pendingRequests, setPendingRequests] = useState([]) // Current week's pending requests (for validation)
 
@@ -24,9 +25,11 @@ function ScheduleCalendar({ user, onNavigate }) {
   const [denyNotes, setDenyNotes] = useState('')
   const [actionLoading, setActionLoading] = useState(null) // Track which action is loading
 
-  // Admin filter
+  // Admin filter and settings
   const [statusFilter, setStatusFilter] = useState('all')
   const [viewMode, setViewMode] = useState('calendar') // calendar or list
+  const [editingOpenDay, setEditingOpenDay] = useState(false)
+  const [savingSettings, setSavingSettings] = useState(false)
 
   const isAdmin = user?.role === 'admin'
   const token = localStorage.getItem('authToken')
@@ -80,6 +83,11 @@ function ScheduleCalendar({ user, onNavigate }) {
   const { daysInMonth, startingDay, year, month } = getDaysInMonth(currentDate)
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+  // Check if displayed calendar is a future month (employees can only edit next month)
+  const today = new Date()
+  const isFutureMonth = (year > today.getFullYear()) || (year === today.getFullYear() && month > today.getMonth())
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth()
 
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1))
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1))
@@ -239,6 +247,70 @@ function ScheduleCalendar({ user, onNavigate }) {
     }
   }
 
+  // Toggle day selection for week submission
+  const toggleDaySelection = (day) => {
+    const dateStr = getISODate(day)
+    setSelectedDays(prev => {
+      if (prev.includes(dateStr)) {
+        return prev.filter(d => d !== dateStr)
+      } else {
+        return [...prev, dateStr]
+      }
+    })
+  }
+
+  // Submit all selected days for the week
+  const handleSubmitWeek = async () => {
+    if (!selectedModelHome) {
+      alert('Please select a Model Home first')
+      return
+    }
+    if (selectedDays.length === 0) {
+      alert('Please select at least one day')
+      return
+    }
+
+    // Validate 3-5 day rule
+    if (selectedDays.length < 3) {
+      const proceed = window.confirm(
+        `⚠️ MINIMUM NOT MET\n\n` +
+        `You've selected ${selectedDays.length} day(s).\n` +
+        `Minimum required: 3 days per week.\n\n` +
+        `Do you want to continue anyway?`
+      )
+      if (!proceed) return
+    }
+    if (selectedDays.length > 5) {
+      alert('❌ Maximum 5 days per week allowed. Please deselect some days.')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const modelHomeAddress = selectedModelHome.Address || selectedModelHome.address || selectedModelHome.Name
+
+      // Submit all selected days
+      for (const dateStr of selectedDays) {
+        await axios.post('/api/databases/schedule', {
+          date: dateStr,
+          modelHome: modelHomeAddress,
+          modelHomeId: selectedModelHome.id,
+          employeeId: user?.teamMemberId || user?.id,
+          employeeName: user?.fullName || user?.name || user?.email
+        }, { headers })
+      }
+
+      await fetchData()
+      setSelectedDays([])
+      setSelectedModelHome(null)
+      alert(`✓ Schedule request submitted for ${selectedDays.length} days! Awaiting admin approval.`)
+    } catch (err) {
+      alert('Failed to submit request: ' + (err.response?.data?.error || err.message))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   // Admin: Approve request
   const handleApprove = async (scheduleId) => {
     setActionLoading(scheduleId)
@@ -278,6 +350,28 @@ function ScheduleCalendar({ user, onNavigate }) {
       alert('Failed to deny: ' + (err.response?.data?.error || err.message))
     } finally {
       setActionLoading(null)
+    }
+  }
+
+  // Admin: Save schedule open day setting
+  const saveScheduleOpenDay = async (newDay) => {
+    if (newDay < 1 || newDay > 28) {
+      alert('Open day must be between 1-28')
+      return
+    }
+    setSavingSettings(true)
+    try {
+      await axios.patch('/api/databases/schedule', {
+        action: 'update-settings',
+        scheduleOpenDay: newDay
+      }, { headers })
+      setScheduleOpenDay(newDay)
+      setEditingOpenDay(false)
+      alert(`Schedule open day updated to the ${newDay}${newDay === 1 ? 'st' : newDay === 2 ? 'nd' : newDay === 3 ? 'rd' : 'th'} of each month`)
+    } catch (err) {
+      alert('Failed to save setting: ' + (err.response?.data?.error || err.message))
+    } finally {
+      setSavingSettings(false)
     }
   }
 
@@ -368,6 +462,45 @@ function ScheduleCalendar({ user, onNavigate }) {
               >
                 {viewMode === 'calendar' ? '📋 List' : '📅 Calendar'}
               </button>
+
+              {/* Schedule Open Day Setting */}
+              <div className="flex items-center gap-2">
+                {editingOpenDay ? (
+                  <>
+                    <select
+                      value={scheduleOpenDay}
+                      onChange={(e) => setScheduleOpenDay(parseInt(e.target.value))}
+                      className="px-2 py-2 bg-gray-800 border border-amber-500 rounded-lg text-sm text-white w-16"
+                      disabled={savingSettings}
+                    >
+                      {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
+                        <option key={day} value={day}>{day}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => saveScheduleOpenDay(scheduleOpenDay)}
+                      disabled={savingSettings}
+                      className="px-2 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm rounded-lg disabled:opacity-50"
+                    >
+                      {savingSettings ? '...' : '✓'}
+                    </button>
+                    <button
+                      onClick={() => setEditingOpenDay(false)}
+                      className="px-2 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg"
+                    >
+                      ✗
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setEditingOpenDay(true)}
+                    className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-400 hover:text-white flex items-center gap-1"
+                    title="Set schedule open day"
+                  >
+                    🔓 Opens: {scheduleOpenDay}th
+                  </button>
+                )}
+              </div>
             </>
           )}
           <button onClick={goToToday} className="px-3 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg">
@@ -393,11 +526,25 @@ function ScheduleCalendar({ user, onNavigate }) {
                 </span>
               </p>
             </div>
-          ) : (
+          ) : isCurrentMonth ? (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+              <p className="text-sm text-amber-400 flex items-center gap-2">
+                <span className="text-lg">📅</span>
+                <span><strong>Current Month (View Only)</strong> - Navigate to next month to submit your schedule requests.</span>
+              </p>
+            </div>
+          ) : isFutureMonth ? (
             <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
               <p className="text-sm text-green-400 flex items-center gap-2">
                 <span className="text-lg">🔓</span>
-                <span><strong>Schedule Open</strong> - Click on any future date to request a shift.</span>
+                <span><strong>Schedule Open</strong> - Click days to select them, then submit your week below.</span>
+              </p>
+            </div>
+          ) : (
+            <div className="bg-gray-500/10 border border-gray-500/30 rounded-xl p-4">
+              <p className="text-sm text-gray-400 flex items-center gap-2">
+                <span className="text-lg">📋</span>
+                <span><strong>Past Month</strong> - View only.</span>
               </p>
             </div>
           )}
@@ -524,12 +671,17 @@ function ScheduleCalendar({ user, onNavigate }) {
               const pendingEvents = events.filter(e => e.status === 'Pending')
               const deniedEvents = events.filter(e => e.status === 'Denied')
 
+              const isSelected = day && selectedDays.includes(getISODate(day))
+
+              // Employee can only select days in future months (not current month)
+              const canEmployeeEdit = !past && !isAdmin && scheduleIsOpen && isFutureMonth
+
               return (
                 <div
                   key={idx}
                   onClick={() => {
-                    if (day && !past && !isAdmin && scheduleIsOpen) {
-                      setSelectedDay(day)
+                    if (day && canEmployeeEdit) {
+                      toggleDaySelection(day)
                     } else if (day && isAdmin && pendingEvents.length > 0) {
                       setSelectedEvent(pendingEvents[0])
                     }
@@ -537,7 +689,8 @@ function ScheduleCalendar({ user, onNavigate }) {
                   className={`min-h-[80px] sm:min-h-[100px] p-1 sm:p-2 border-b border-r border-gray-700/50
                     ${!day ? 'bg-gray-900/30' : ''}
                     ${past ? 'opacity-50' : ''}
-                    ${day && !past && !isAdmin && scheduleIsOpen ? 'cursor-pointer hover:bg-gray-700/30' : ''}
+                    ${isSelected ? 'bg-amber-500/20 ring-2 ring-amber-500/50 ring-inset' : ''}
+                    ${day && canEmployeeEdit ? 'cursor-pointer hover:bg-gray-700/30' : ''}
                     ${day && isAdmin && pendingEvents.length > 0 ? 'cursor-pointer hover:bg-amber-500/10' : ''}
                   `}
                 >
@@ -616,6 +769,87 @@ function ScheduleCalendar({ user, onNavigate }) {
           </div>
         )}
       </div>
+
+      {/* Employee: Week Submission Section - Only show for future months */}
+      {!isAdmin && scheduleIsOpen && isFutureMonth && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-6 p-4 bg-gray-800 rounded-xl border border-gray-700"
+        >
+          <h3 className="text-lg font-semibold text-white mb-4">Submit Your Week</h3>
+
+          {/* Selected Days Summary */}
+          <div className="mb-4">
+            <p className="text-sm text-gray-400 mb-2">
+              Selected Days: <span className={`font-bold ${
+                selectedDays.length === 0 ? 'text-gray-500' :
+                selectedDays.length < 3 ? 'text-amber-400' :
+                selectedDays.length <= 5 ? 'text-emerald-400' :
+                'text-red-400'
+              }`}>{selectedDays.length}/5</span>
+            </p>
+            {selectedDays.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {selectedDays.sort().map(dateStr => (
+                  <span
+                    key={dateStr}
+                    onClick={() => setSelectedDays(prev => prev.filter(d => d !== dateStr))}
+                    className="px-2 py-1 bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs rounded cursor-pointer hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-400"
+                  >
+                    {new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} ×
+                  </span>
+                ))}
+              </div>
+            )}
+            {selectedDays.length === 0 && (
+              <p className="text-xs text-gray-500">Click days on the calendar to select them</p>
+            )}
+            {selectedDays.length > 0 && selectedDays.length < 3 && (
+              <p className="text-xs text-amber-400 mt-2">⚠️ Need {3 - selectedDays.length} more day(s) to meet minimum (3 required)</p>
+            )}
+          </div>
+
+          {/* Model Home Selection */}
+          <div className="mb-4">
+            <label className="block text-sm text-gray-400 mb-2">Select Model Home</label>
+            <select
+              value={selectedModelHome?.id || ''}
+              onChange={(e) => {
+                const home = modelHomes.find(h => h.id === e.target.value)
+                setSelectedModelHome(home || null)
+              }}
+              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white focus:border-amber-500 focus:outline-none"
+            >
+              <option value="">Choose a Model Home...</option>
+              {modelHomes.map(home => (
+                <option key={home.id} value={home.id}>
+                  {home.Address || home.address || home.Name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            onClick={handleSubmitWeek}
+            disabled={submitting || selectedDays.length === 0 || !selectedModelHome}
+            className="w-full py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg font-medium transition-colors"
+          >
+            {submitting ? 'Submitting...' : `Submit Week (${selectedDays.length} days)`}
+          </button>
+
+          {/* Clear Selection */}
+          {selectedDays.length > 0 && (
+            <button
+              onClick={() => { setSelectedDays([]); setSelectedModelHome(null) }}
+              className="w-full mt-2 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm transition-colors"
+            >
+              Clear Selection
+            </button>
+          )}
+        </motion.div>
+      )}
 
       {/* Employee: Day Selection Modal */}
       <AnimatePresence>

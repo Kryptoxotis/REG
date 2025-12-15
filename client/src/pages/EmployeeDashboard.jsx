@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ActivityLogger } from '../utils/activityLogger'
 import ScheduleCalendar from '../components/ScheduleCalendar'
 import PipelineBoard from '../components/PipelineBoard'
+import OfficeOverview from '../components/OfficeOverview'
 
 function EmployeeDashboard({ user, setUser }) {
   const [activeSection, setActiveSection] = useState('overview')
@@ -290,36 +291,10 @@ function EmployeeDashboard({ user, setUser }) {
                 <p className="text-gray-400 mt-1">Team overview for today</p>
               </div>
 
-              {/* Team Stats Grid */}
-              {loading.profile ? (
-                <div className="flex justify-center py-12">
-                  <div className="w-10 h-10 border-3 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
-                  <StatCard
-                    label="Team Deals"
-                    value={teamStats?.totalDeals || 0}
-                    icon="📋"
-                  />
-                  <StatCard
-                    label="Team Closed"
-                    value={teamStats?.closedDeals || 0}
-                    icon="✅"
-                    highlight
-                  />
-                  <StatCard
-                    label="Team Pending"
-                    value={teamStats?.pendingDeals || 0}
-                    icon="⏳"
-                  />
-                  <StatCard
-                    label="Team Close Rate"
-                    value={`${teamStats?.closingRate || 0}%`}
-                    icon="📈"
-                  />
-                </div>
-              )}
+              {/* Office Overview - Team Stats by City (read-only for employees) */}
+              <div className="mb-6">
+                <OfficeOverview readOnly={true} />
+              </div>
 
               {/* Quick Actions */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

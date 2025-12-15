@@ -125,11 +125,11 @@ async function getGeneralStats() {
   return stats
 }
 
-// By-office stats handler
+// By-office stats handler - pulls from PIPELINE database for actual deal stats
 async function getByOfficeStats() {
-  const propertiesRaw = await queryDatabasePaginated(DATABASE_IDS.PROPERTIES)
-  const propertiesData = propertiesRaw.map(formatPage)
-  const allDeals = propertiesData
+  const pipelineRaw = await queryDatabasePaginated(DATABASE_IDS.PIPELINE)
+  const pipelineData = pipelineRaw.map(formatPage)
+  const allDeals = pipelineData
 
   const offices = ['El Paso', 'Las Cruces', 'McAllen', 'San Antonio']
   const statusCategories = {
