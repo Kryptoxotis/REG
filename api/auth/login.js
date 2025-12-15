@@ -18,8 +18,54 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { email, password } = req.body
+    const { email, password, action } = req.body
 
+    // Handle check-email action (consolidated from check-email.js)
+    if (action === 'check-email') {
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' })
+      }
+
+      const user = await findUserByEmail(sanitizeEmail(email))
+
+      if (!user) {
+        return res.json({
+          status: 'not_found',
+          message: 'Please contact admin to create an account'
+        })
+      }
+
+      const status = user.status?.toLowerCase() || 'unknown'
+
+      if (status === 'active') {
+        return res.json({
+          status: 'active',
+          message: 'Please enter your password',
+          hasPassword: !!user.password
+        })
+      }
+
+      if (status === 'pending') {
+        return res.json({
+          status: 'pending',
+          message: 'Please create a password to activate your account'
+        })
+      }
+
+      if (status === 'terminated') {
+        return res.json({
+          status: 'terminated',
+          message: 'You do not have access. Please contact admin.'
+        })
+      }
+
+      return res.json({
+        status: 'unknown',
+        message: 'Account status unknown. Please contact admin.'
+      })
+    }
+
+    // Regular login flow
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password required' })
     }

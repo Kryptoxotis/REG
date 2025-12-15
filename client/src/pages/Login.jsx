@@ -21,7 +21,7 @@ function Login({ setUser }) {
     setLoading(true)
 
     try {
-      const response = await axios.post('/api/auth/check-email', { email }, { withCredentials: true })
+      const response = await axios.post('/api/auth/login', { email, action: 'check-email' }, { withCredentials: true })
       const { status, message } = response.data
 
       setUserStatus(status)
