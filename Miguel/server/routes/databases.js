@@ -54,6 +54,80 @@ router.get('/stats', requireAuth, async (req, res) => {
   }
 })
 
+// Get city-level pipeline stats for overview
+router.get('/stats/cities', requireAuth, async (req, res) => {
+  try {
+    const pipelineId = DATABASE_IDS.PIPELINE
+    const results = await queryDatabase(pipelineId)
+    const formatted = results.map(formatPage)
+
+    // Aggregate deals by city/subdivision
+    const cityStats = {}
+
+    formatted.forEach(deal => {
+      // Try to extract city from Subdivision, City field, or parse from Address
+      let city = deal.Subdivision || deal.City || deal['Builder/City'] || 'Other'
+
+      // If no city found, try to extract from address (last part before state/zip)
+      if (city === 'Other' && deal.Address) {
+        const addressParts = deal.Address.split(',')
+        if (addressParts.length >= 2) {
+          city = addressParts[addressParts.length - 2]?.trim() || 'Other'
+        }
+      }
+
+      if (!cityStats[city]) {
+        cityStats[city] = {
+          name: city,
+          dealCount: 0,
+          totalVolume: 0,
+          deals: [],
+          statuses: {}
+        }
+      }
+
+      cityStats[city].dealCount++
+
+      // Add to total volume if Sales Price exists
+      const salesPrice = deal['Sales Price'] || deal.SalesPrice || 0
+      if (typeof salesPrice === 'number') {
+        cityStats[city].totalVolume += salesPrice
+      }
+
+      // Track deal statuses
+      const status = deal['Loan Status'] || deal.Status || 'Unknown'
+      cityStats[city].statuses[status] = (cityStats[city].statuses[status] || 0) + 1
+
+      // Store deal details (limit to avoid huge payload)
+      if (cityStats[city].deals.length < 20) {
+        cityStats[city].deals.push({
+          id: deal.id,
+          address: deal.Address || 'N/A',
+          buyerName: deal['Buyer Name'] || 'N/A',
+          agent: deal.Agent || 'N/A',
+          salesPrice: salesPrice,
+          status: status,
+          scheduledClosing: deal['Scheduled Closing'] || null,
+          executed: deal.Executed
+        })
+      }
+    })
+
+    // Convert to array and sort by deal count
+    const citiesArray = Object.values(cityStats)
+      .sort((a, b) => b.dealCount - a.dealCount)
+      .slice(0, 10) // Top 10 cities
+
+    res.json({
+      cities: citiesArray,
+      totalDeals: formatted.length
+    })
+  } catch (error) {
+    console.error('Error fetching city stats:', error)
+    res.status(500).json({ error: 'Failed to fetch city stats' })
+  }
+})
+
 // Get data from a specific database
 router.get('/:databaseKey', requireAuth, async (req, res) => {
   try {
