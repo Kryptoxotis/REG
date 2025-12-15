@@ -407,8 +407,10 @@ async function saveScheduleSettings(openDay) {
           parent: { database_id: DATABASE_IDS.SCHEDULE },
           properties: {
             'Employee Name': { rich_text: [{ type: 'text', text: { content: SETTINGS_ENTRY_NAME } }] },
+            'Model Home': { rich_text: [{ type: 'text', text: { content: 'SETTINGS' } }] },
             Notes: { rich_text: [{ type: 'text', text: { content: settingsJson } }] },
-            Status: { select: { name: 'Approved' } }
+            Status: { select: { name: 'Approved' } },
+            Date: { date: { start: '2000-01-01' } }
           }
         },
         {
@@ -424,6 +426,7 @@ async function saveScheduleSettings(openDay) {
     return true
   } catch (err) {
     console.error('Failed to save schedule settings:', err.message)
+    console.error('Notion error details:', err.response?.data)
     return false
   }
 }
