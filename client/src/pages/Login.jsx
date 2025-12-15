@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
+import { ActivityLogger } from '../utils/activityLogger'
 
 function Login({ setUser }) {
   const [email, setEmail] = useState('')
@@ -51,6 +52,8 @@ function Login({ setUser }) {
     try {
       const response = await axios.post('/api/auth/login', { email, password }, { withCredentials: true })
       setUser(response.data.user, response.data.token)
+      // Log successful login
+      ActivityLogger.login(response.data.user?.fullName || response.data.user?.email || email)
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed')
     } finally {
@@ -83,6 +86,8 @@ function Login({ setUser }) {
         confirmPassword
       }, { withCredentials: true })
       setUser(response.data.user, response.data.token)
+      // Log successful login (first-time account activation)
+      ActivityLogger.login(response.data.user?.fullName || response.data.user?.email || email)
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to create password')
     } finally {

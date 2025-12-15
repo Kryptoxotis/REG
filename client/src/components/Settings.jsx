@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Settings as SettingsIcon, Activity, ChevronDown, ChevronUp, RefreshCw, Clock, User, Database } from 'lucide-react'
+import { Settings as SettingsIcon, Activity, ChevronDown, ChevronUp, RefreshCw, Clock, User, Database, Filter, X } from 'lucide-react'
 import CSVSync from './CSVSync'
 import FieldSettings from './FieldSettings'
 import { useDatabase } from '../hooks/useApi'
@@ -9,20 +9,103 @@ function Settings() {
   const [fieldSettingsOpen, setFieldSettingsOpen] = useState(false)
   const [activityExpanded, setActivityExpanded] = useState(false)
 
+  // Activity Log Filters
+  const [filterUser, setFilterUser] = useState('')
+  const [filterActionType, setFilterActionType] = useState('')
+  const [filterEntityType, setFilterEntityType] = useState('')
+  const [filterDateRange, setFilterDateRange] = useState('all') // all, today, week, month
+  const [showFilters, setShowFilters] = useState(false)
+
   // Fetch activity log data
   const { data: activityData, isLoading: activityLoading, refetch: refetchActivity } = useDatabase('ACTIVITY_LOG')
 
-  // Sort by most recent and limit to 20
-  const recentActivity = useMemo(() => {
+  // Get unique values for filter dropdowns
+  const filterOptions = useMemo(() => {
+    if (!activityData) return { users: [], actionTypes: [], entityTypes: [] }
+
+    const users = new Set()
+    const actionTypes = new Set()
+    const entityTypes = new Set()
+
+    activityData.forEach(item => {
+      if (item['User'] || item['User Name']) users.add(item['User'] || item['User Name'])
+      if (item['Action Type']) actionTypes.add(item['Action Type'])
+      if (item['Entity Type']) entityTypes.add(item['Entity Type'])
+    })
+
+    return {
+      users: Array.from(users).filter(Boolean).sort(),
+      actionTypes: Array.from(actionTypes).filter(Boolean).sort(),
+      entityTypes: Array.from(entityTypes).filter(Boolean).sort()
+    }
+  }, [activityData])
+
+  // Filter and sort activity data
+  const filteredActivity = useMemo(() => {
     if (!activityData) return []
-    return [...activityData]
+
+    let filtered = [...activityData]
+
+    // Filter by user
+    if (filterUser) {
+      filtered = filtered.filter(item =>
+        (item['User'] || item['User Name'] || '').toLowerCase().includes(filterUser.toLowerCase())
+      )
+    }
+
+    // Filter by action type
+    if (filterActionType) {
+      filtered = filtered.filter(item => item['Action Type'] === filterActionType)
+    }
+
+    // Filter by entity type
+    if (filterEntityType) {
+      filtered = filtered.filter(item => item['Entity Type'] === filterEntityType)
+    }
+
+    // Filter by date range
+    if (filterDateRange !== 'all') {
+      const now = new Date()
+      const cutoff = new Date()
+
+      switch (filterDateRange) {
+        case 'today':
+          cutoff.setHours(0, 0, 0, 0)
+          break
+        case 'week':
+          cutoff.setDate(now.getDate() - 7)
+          break
+        case 'month':
+          cutoff.setMonth(now.getMonth() - 1)
+          break
+      }
+
+      filtered = filtered.filter(item => {
+        const itemDate = new Date(item.Timestamp || item.created_time || 0)
+        return itemDate >= cutoff
+      })
+    }
+
+    // Sort by most recent
+    return filtered
       .sort((a, b) => {
         const dateA = new Date(a.Timestamp || a.created_time || 0)
         const dateB = new Date(b.Timestamp || b.created_time || 0)
         return dateB - dateA
       })
-      .slice(0, 20)
-  }, [activityData])
+      .slice(0, 100) // Show up to 100 with filters
+  }, [activityData, filterUser, filterActionType, filterEntityType, filterDateRange])
+
+  // Count active filters
+  const activeFilterCount = [filterUser, filterActionType, filterEntityType, filterDateRange !== 'all' ? filterDateRange : ''].filter(Boolean).length
+
+  // Clear all filters
+  const clearFilters = () => {
+    setFilterUser('')
+    setFilterActionType('')
+    setFilterEntityType('')
+    setFilterDateRange('all')
+  }
 
   // Format timestamp for display
   const formatTimestamp = (timestamp) => {
@@ -133,8 +216,36 @@ function Settings() {
               className="overflow-hidden"
             >
               <div className="px-6 pb-6 border-t border-gray-700">
+                {/* Filter Controls */}
                 <div className="flex items-center justify-between pt-4 pb-3">
-                  <span className="text-sm text-gray-400">Recent Activity (Last 20)</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowFilters(!showFilters)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                        showFilters || activeFilterCount > 0
+                          ? 'bg-violet-600 text-white'
+                          : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                      }`}
+                    >
+                      <Filter className="w-4 h-4" />
+                      Filters
+                      {activeFilterCount > 0 && (
+                        <span className="px-1.5 py-0.5 bg-white/20 rounded text-xs">{activeFilterCount}</span>
+                      )}
+                    </button>
+                    {activeFilterCount > 0 && (
+                      <button
+                        onClick={clearFilters}
+                        className="flex items-center gap-1 px-2 py-1.5 text-gray-400 hover:text-white text-sm transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                        Clear
+                      </button>
+                    )}
+                    <span className="text-sm text-gray-400 ml-2">
+                      {filteredActivity.length} {filteredActivity.length === 1 ? 'entry' : 'entries'}
+                    </span>
+                  </div>
                   <button
                     onClick={() => refetchActivity()}
                     disabled={activityLoading}
@@ -145,17 +256,88 @@ function Settings() {
                   </button>
                 </div>
 
+                {/* Filter Panel */}
+                <AnimatePresence>
+                  {showFilters && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pb-4">
+                        {/* User Filter */}
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">User</label>
+                          <input
+                            type="text"
+                            value={filterUser}
+                            onChange={(e) => setFilterUser(e.target.value)}
+                            placeholder="Search user..."
+                            className="w-full px-3 py-1.5 bg-gray-900 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-violet-500"
+                          />
+                        </div>
+
+                        {/* Action Type Filter */}
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Action Type</label>
+                          <select
+                            value={filterActionType}
+                            onChange={(e) => setFilterActionType(e.target.value)}
+                            className="w-full px-3 py-1.5 bg-gray-900 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-violet-500"
+                          >
+                            <option value="">All Actions</option>
+                            {filterOptions.actionTypes.map(type => (
+                              <option key={type} value={type}>{type}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Entity Type Filter */}
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Entity Type</label>
+                          <select
+                            value={filterEntityType}
+                            onChange={(e) => setFilterEntityType(e.target.value)}
+                            className="w-full px-3 py-1.5 bg-gray-900 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-violet-500"
+                          >
+                            <option value="">All Types</option>
+                            {filterOptions.entityTypes.map(type => (
+                              <option key={type} value={type}>{type}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Date Range Filter */}
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Date Range</label>
+                          <select
+                            value={filterDateRange}
+                            onChange={(e) => setFilterDateRange(e.target.value)}
+                            className="w-full px-3 py-1.5 bg-gray-900 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-violet-500"
+                          >
+                            <option value="all">All Time</option>
+                            <option value="today">Today</option>
+                            <option value="week">Last 7 Days</option>
+                            <option value="month">Last 30 Days</option>
+                          </select>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {activityLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <div className="animate-spin w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full" />
                   </div>
-                ) : recentActivity.length === 0 ? (
+                ) : filteredActivity.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
-                    No activity recorded yet
+                    {activeFilterCount > 0 ? 'No activity matches your filters' : 'No activity recorded yet'}
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {recentActivity.map((item, idx) => (
+                  <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                    {filteredActivity.map((item, idx) => (
                       <div
                         key={item.id || idx}
                         className="p-3 bg-gray-900 rounded-lg flex items-start gap-3"
@@ -164,12 +346,26 @@ function Settings() {
                           {item['Entity Type'] || 'Unknown'}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-gray-200 text-sm truncate">
-                            {item.Action || 'Activity logged'}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-gray-200 text-sm truncate">
+                              {item.Action || 'Activity logged'}
+                            </p>
+                            {item['Action Type'] && (
+                              <span className="px-1.5 py-0.5 bg-gray-700 text-gray-400 rounded text-xs">
+                                {item['Action Type']}
+                              </span>
+                            )}
+                          </div>
                           {item['Entity Title'] && (
                             <p className="text-gray-500 text-xs truncate mt-0.5">
                               {item['Entity Title']}
+                            </p>
+                          )}
+                          {(item['From Value'] || item['To Value']) && (
+                            <p className="text-gray-600 text-xs mt-0.5">
+                              {item['From Value'] && <span className="text-red-400">{item['From Value']}</span>}
+                              {item['From Value'] && item['To Value'] && ' → '}
+                              {item['To Value'] && <span className="text-emerald-400">{item['To Value']}</span>}
                             </p>
                           )}
                         </div>

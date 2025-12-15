@@ -9,6 +9,7 @@ import Settings from '../components/Settings'
 import TeamKPIView from '../components/TeamKPIView'
 import ScheduleCalendar from '../components/ScheduleCalendar'
 import PipelineBoard from '../components/PipelineBoard'
+import { ActivityLogger } from '../utils/activityLogger'
 
 function AdminDashboard({ user, setUser }) {
   const [activeView, setActiveView] = useState('overview')
@@ -59,6 +60,18 @@ function AdminDashboard({ user, setUser }) {
     setHighlightedDealId(null) // Clear highlight when navigating normally
     setSelectedCity(null) // Clear city filter when navigating normally
     setSearchTerm('') // Clear search when navigating normally
+
+    // Log navigation
+    const viewNames = {
+      overview: 'Dashboard Overview',
+      TEAM_MEMBERS: 'Team Members',
+      PROPERTIES: 'Properties',
+      PIPELINE: 'Pipeline',
+      CLIENTS: 'Clients',
+      SCHEDULE: 'Schedule',
+      settings: 'Settings'
+    }
+    ActivityLogger.navigate(viewNames[view] || view)
   }
 
   // Navigate to a view and highlight a specific deal or search for a value

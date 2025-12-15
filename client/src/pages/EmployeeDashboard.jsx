@@ -4,10 +4,18 @@ import { useStatsOverview } from '../hooks/useApi'
 import { useToast } from '../components/Toast'
 import StatsOverview from '../components/StatsOverview'
 import ScheduleCalendar from '../components/ScheduleCalendar'
+import { ActivityLogger } from '../utils/activityLogger'
 
 function EmployeeDashboard({ user, setUser }) {
   const [activeTab, setActiveTab] = useState('schedule')
   const toast = useToast()
+
+  // Log tab navigation
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId)
+    const tabNames = { schedule: 'Schedule Shifts', overview: 'Employee Dashboard' }
+    ActivityLogger.navigate(tabNames[tabId] || tabId)
+  }
 
   // Use React Query for stats (cached, auto-refresh)
   const { data: stats, isLoading: loading, error: statsError } = useStatsOverview()
@@ -73,7 +81,7 @@ function EmployeeDashboard({ user, setUser }) {
             {tabs.map(tab => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`px-4 py-3 text-sm font-medium rounded-t-lg transition-colors flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'bg-gray-900 text-white border-t border-x border-gray-700'

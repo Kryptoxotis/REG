@@ -5,6 +5,7 @@ import axios from 'axios'
 import { useDatabase } from '../hooks/useApi'
 import { useToast } from './Toast'
 import { getFieldPreferences } from './FieldSettings'
+import { ActivityLogger } from '../utils/activityLogger'
 
 const CITIES = ['El Paso', 'Las Cruces', 'McAllen', 'San Antonio']
 const CITY_TO_EDWARDS = {
@@ -261,6 +262,17 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
       await axios.patch(`/api/databases/${apiPath}/${selectedItem.id}`, updates, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       })
+
+      // Log each field edit
+      const entityType = baseConfig.title.replace(/s$/, '') // "Properties" -> "Property"
+      const entityTitle = selectedItem[config.primaryField] || selectedItem.Name || selectedItem.Address || 'Untitled'
+      Object.entries(updates).forEach(([fieldName, newValue]) => {
+        const oldValue = selectedItem[fieldName]
+        if (oldValue !== newValue) {
+          ActivityLogger.editRecord(entityType, entityTitle, fieldName, oldValue, newValue)
+        }
+      })
+
       // Update selected item and refetch data
       setSelectedItem(prev => ({ ...prev, ...editedFields }))
       setIsEditing(false)
@@ -313,6 +325,15 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
       }
     }
   }, [highlightedId, data, onClearHighlight])
+
+  // Log record view when selectedItem changes
+  useEffect(() => {
+    if (selectedItem) {
+      const entityType = baseConfig.title.replace(/s$/, '') // "Properties" -> "Property"
+      const entityTitle = selectedItem[config.primaryField] || selectedItem.Name || selectedItem.Address || 'Untitled'
+      ActivityLogger.viewRecord(entityType, entityTitle)
+    }
+  }, [selectedItem?.id]) // Only trigger when item ID changes
 
   // Check if a field should be rendered as a clickable relation
   const isClickableRelation = (fieldName) => {
