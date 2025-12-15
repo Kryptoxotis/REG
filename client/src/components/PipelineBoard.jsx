@@ -80,7 +80,7 @@ const getCloseDateUrgency = (deal) => {
   return 'none' // Default
 }
 
-function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClearCity }) {
+function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClearCity, user, isEmployee }) {
   const [deals, setDeals] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -91,6 +91,9 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
   const [expandedColumns, setExpandedColumns] = useState({}) // For mobile accordion
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+
+  // Get employee name for filtering
+  const employeeName = user?.fullName || user?.name || ''
   const [filters, setFilters] = useState({
     agent: '',
     loanStatus: '',
@@ -430,6 +433,16 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
     // Realtor Partner filter
     if (filters.realtorPartner && deal['Realtor Partner'] !== filters.realtorPartner) return false
+
+    // Employee filter - only show deals where user is the Agent
+    if (isEmployee && employeeName) {
+      const dealAgent = (deal.Agent || '').toLowerCase()
+      const userNameLower = employeeName.toLowerCase()
+      // Match exact or partial (for cases like "John" matching "John Smith")
+      if (!dealAgent.includes(userNameLower) && !userNameLower.includes(dealAgent)) {
+        return false
+      }
+    }
 
     return true
   })

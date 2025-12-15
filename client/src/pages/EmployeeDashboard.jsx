@@ -9,6 +9,8 @@ function EmployeeDashboard({ user, setUser }) {
   const [activeSection, setActiveSection] = useState('overview')
   const [profileData, setProfileData] = useState(null)
   const [personalStats, setPersonalStats] = useState(null)
+  const [teamStats, setTeamStats] = useState(null)
+  const [pipelineStats, setPipelineStats] = useState(null) // Personal stats from Pipeline
   const [propertiesData, setPropertiesData] = useState([])
   const [loading, setLoading] = useState({})
   const [error, setError] = useState(null)
@@ -87,8 +89,70 @@ function EmployeeDashboard({ user, setUser }) {
         s.email?.toLowerCase() === user?.email?.toLowerCase()
       )
       setPersonalStats(myStats || null)
+
+      // Calculate team totals for Overview
+      if (allStats.length > 0) {
+        const teamTotals = allStats.reduce((acc, s) => ({
+          totalDeals: (acc.totalDeals || 0) + (s.totalDeals || 0),
+          closedDeals: (acc.closedDeals || 0) + (s.closedDeals || 0),
+          pendingDeals: (acc.pendingDeals || 0) + (s.pendingDeals || 0),
+          totalVolume: (acc.totalVolume || 0) + (s.totalVolume || 0),
+          memberCount: (acc.memberCount || 0) + 1
+        }), {})
+        // Calculate team close rate
+        teamTotals.closingRate = teamTotals.totalDeals > 0
+          ? Math.round((teamTotals.closedDeals / teamTotals.totalDeals) * 100)
+          : 0
+        setTeamStats(teamTotals)
+      }
+
+      // Also fetch pipeline stats for Profile
+      fetchPipelineStats(profile)
     } catch (err) {
       console.error('Stats fetch error:', err)
+    }
+  }
+
+  // Fetch personal stats from Pipeline (for Profile section)
+  const fetchPipelineStats = async (profile) => {
+    try {
+      const [pipelineRes, closedRes] = await Promise.all([
+        axios.get('/api/databases/PIPELINE', { headers }),
+        axios.get('/api/databases/CLOSED_DEALS', { headers })
+      ])
+      const pipelineDeals = Array.isArray(pipelineRes.data) ? pipelineRes.data : []
+      const closedDeals = Array.isArray(closedRes.data) ? closedRes.data : []
+
+      // Get user's name for matching
+      const userName = profile?.Name || user?.fullName || user?.name || ''
+      const userNameLower = userName.toLowerCase()
+
+      // Filter deals by Agent matching current user
+      const myPipelineDeals = pipelineDeals.filter(d => {
+        const agent = (d.Agent || d.agent || '')?.toLowerCase()
+        return agent === userNameLower || agent.includes(userNameLower)
+      })
+
+      const myClosedDeals = closedDeals.filter(d => {
+        const agent = (d.Agent || d.agent || '')?.toLowerCase()
+        return agent === userNameLower || agent.includes(userNameLower)
+      })
+
+      // Calculate stats
+      const stats = {
+        totalDeals: myPipelineDeals.length + myClosedDeals.length,
+        activeDeals: myPipelineDeals.length,
+        closedDeals: myClosedDeals.length,
+        closingRate: (myPipelineDeals.length + myClosedDeals.length) > 0
+          ? Math.round((myClosedDeals.length / (myPipelineDeals.length + myClosedDeals.length)) * 100)
+          : 0,
+        totalVolume: myClosedDeals.reduce((sum, d) =>
+          sum + (parseFloat(d['Sale Price'] || d.salePrice || d['Contract Price'] || 0)), 0
+        )
+      }
+      setPipelineStats(stats)
+    } catch (err) {
+      console.error('Pipeline stats fetch error:', err)
     }
   }
 
@@ -223,10 +287,10 @@ function EmployeeDashboard({ user, setUser }) {
                 <h2 className="text-2xl font-bold text-white">
                   Welcome back, {user.fullName?.split(' ')[0] || 'there'}!
                 </h2>
-                <p className="text-gray-400 mt-1">Here's your overview for today</p>
+                <p className="text-gray-400 mt-1">Team overview for today</p>
               </div>
 
-              {/* Personal Stats Grid */}
+              {/* Team Stats Grid */}
               {loading.profile ? (
                 <div className="flex justify-center py-12">
                   <div className="w-10 h-10 border-3 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
@@ -234,24 +298,24 @@ function EmployeeDashboard({ user, setUser }) {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
                   <StatCard
-                    label="Total Deals"
-                    value={personalStats?.totalDeals || 0}
+                    label="Team Deals"
+                    value={teamStats?.totalDeals || 0}
                     icon="📋"
                   />
                   <StatCard
-                    label="Closed Deals"
-                    value={personalStats?.closedDeals || 0}
+                    label="Team Closed"
+                    value={teamStats?.closedDeals || 0}
                     icon="✅"
                     highlight
                   />
                   <StatCard
-                    label="Pending"
-                    value={personalStats?.pendingDeals || 0}
+                    label="Team Pending"
+                    value={teamStats?.pendingDeals || 0}
                     icon="⏳"
                   />
                   <StatCard
-                    label="Close Rate"
-                    value={`${personalStats?.closingRate || 0}%`}
+                    label="Team Close Rate"
+                    value={`${teamStats?.closingRate || 0}%`}
                     icon="📈"
                   />
                 </div>
@@ -359,28 +423,34 @@ function EmployeeDashboard({ user, setUser }) {
                     <ProfileField label="Status" value={profileData.Status} badge />
                     <ProfileField label="Start Date" value={profileData['Start Date']} />
 
-                    {/* Stats Section */}
-                    {personalStats && (
+                    {/* Stats Section - From Pipeline Data */}
+                    {pipelineStats && (
                       <div className="pt-4 border-t border-gray-700">
-                        <h4 className="text-sm font-medium text-gray-400 mb-3">Performance Stats</h4>
+                        <h4 className="text-sm font-medium text-gray-400 mb-3">Your Performance</h4>
                         <div className="grid grid-cols-2 gap-3">
                           <div className="bg-gray-900/50 rounded-lg p-3">
-                            <p className="text-2xl font-bold text-white">{personalStats.totalDeals || 0}</p>
+                            <p className="text-2xl font-bold text-white">{pipelineStats.totalDeals || 0}</p>
                             <p className="text-xs text-gray-500">Total Deals</p>
                           </div>
                           <div className="bg-gray-900/50 rounded-lg p-3">
-                            <p className="text-2xl font-bold text-green-400">{personalStats.closedDeals || 0}</p>
+                            <p className="text-2xl font-bold text-green-400">{pipelineStats.closedDeals || 0}</p>
                             <p className="text-xs text-gray-500">Closed</p>
                           </div>
                           <div className="bg-gray-900/50 rounded-lg p-3">
-                            <p className="text-2xl font-bold text-amber-400">${((personalStats.totalVolume || 0) / 1000).toFixed(0)}k</p>
-                            <p className="text-xs text-gray-500">Total Volume</p>
+                            <p className="text-2xl font-bold text-amber-400">{pipelineStats.activeDeals || 0}</p>
+                            <p className="text-xs text-gray-500">Active</p>
                           </div>
                           <div className="bg-gray-900/50 rounded-lg p-3">
-                            <p className="text-2xl font-bold text-blue-400">{personalStats.closingRate || 0}%</p>
+                            <p className="text-2xl font-bold text-blue-400">{pipelineStats.closingRate || 0}%</p>
                             <p className="text-xs text-gray-500">Close Rate</p>
                           </div>
                         </div>
+                        {pipelineStats.totalVolume > 0 && (
+                          <div className="mt-3 bg-gray-900/50 rounded-lg p-3 text-center">
+                            <p className="text-2xl font-bold text-emerald-400">${(pipelineStats.totalVolume / 1000).toFixed(0)}k</p>
+                            <p className="text-xs text-gray-500">Total Closed Volume</p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

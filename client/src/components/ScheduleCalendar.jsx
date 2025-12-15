@@ -46,13 +46,19 @@ function ScheduleCalendar({ user, onNavigate }) {
     setLoading(true)
     setError(null)
     try {
-      const [scheduleRes, modelHomesRes, settingsRes] = await Promise.all([
+      const [scheduleRes, propertiesRes, settingsRes] = await Promise.all([
         axios.get('/api/databases/schedule', { headers }),
-        axios.get('/api/databases/MODEL_HOMES', { headers }),
+        axios.get('/api/databases/PROPERTIES', { headers }),
         axios.get('/api/databases/schedule?settings=true', { headers }).catch(() => ({ data: { scheduleOpenDay: 15 } }))
       ])
       setScheduleData(Array.isArray(scheduleRes.data) ? scheduleRes.data : [])
-      setModelHomes(Array.isArray(modelHomesRes.data) ? modelHomesRes.data : [])
+      // Filter properties to only show Model Homes (Status = "Model Home")
+      const allProperties = Array.isArray(propertiesRes.data) ? propertiesRes.data : []
+      const modelHomesList = allProperties.filter(p =>
+        p.Status === 'Model Home' || p.Status === 'Model' ||
+        p.status === 'Model Home' || p.status === 'Model'
+      )
+      setModelHomes(modelHomesList)
       if (settingsRes.data?.scheduleOpenDay) {
         setScheduleOpenDay(settingsRes.data.scheduleOpenDay)
       }

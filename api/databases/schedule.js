@@ -4,6 +4,9 @@ import { handleCors, verifyToken } from '../../config/utils.js'
 
 const NOTION_API_KEY = process.env.NOTION_API_KEY
 
+// Settings entry identifier (used to store schedule open day in Notion)
+const SETTINGS_ENTRY_NAME = '__SCHEDULE_SETTINGS__'
+
 function extractPlainText(richText) {
   if (!richText || !Array.isArray(richText)) return ''
   return richText.map(text => text.plain_text).join('')
@@ -83,7 +86,12 @@ async function getSchedule() {
     startCursor = response.data.next_cursor
   }
 
-  return allResults.map(formatSchedulePage)
+  // Filter out settings entry
+  const filtered = allResults.filter(page => {
+    const empName = extractPlainText(page.properties['Employee Name']?.rich_text)
+    return empName !== SETTINGS_ENTRY_NAME
+  })
+  return filtered.map(formatSchedulePage)
 }
 
 // Create a new schedule request
@@ -327,10 +335,97 @@ async function denyRequest(scheduleId, reviewerId, reviewerName, notes) {
   return { success: true }
 }
 
-// In-memory schedule settings (persisted via env or resets on cold start)
-// Format: { scheduleOpenDay: 15 } - day of month when schedule opens
-let scheduleSettings = {
-  scheduleOpenDay: parseInt(process.env.SCHEDULE_OPEN_DAY) || 15
+// Schedule settings stored in Notion (no more in-memory state)
+// Uses a special entry in Schedule database with Type="Settings"
+
+async function getScheduleSettings() {
+  try {
+    // Find settings entry in Schedule database
+    const response = await axios.post(
+      `https://api.notion.com/v1/databases/${DATABASE_IDS.SCHEDULE}/query`,
+      {
+        filter: {
+          property: 'Employee Name',
+          rich_text: { equals: SETTINGS_ENTRY_NAME }
+        }
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${NOTION_API_KEY}`,
+          'Notion-Version': NOTION_VERSION,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      }
+    )
+
+    if (response.data.results.length > 0) {
+      const page = response.data.results[0]
+      const notes = extractPlainText(page.properties.Notes?.rich_text)
+      try {
+        const settings = JSON.parse(notes)
+        return { scheduleOpenDay: parseInt(settings.scheduleOpenDay) || 15, pageId: page.id }
+      } catch {
+        return { scheduleOpenDay: 15, pageId: page.id }
+      }
+    }
+    return { scheduleOpenDay: 15, pageId: null }
+  } catch (err) {
+    console.error('Failed to get schedule settings:', err.message)
+    return { scheduleOpenDay: 15, pageId: null }
+  }
+}
+
+async function saveScheduleSettings(openDay) {
+  try {
+    const current = await getScheduleSettings()
+    const settingsJson = JSON.stringify({ scheduleOpenDay: openDay })
+
+    if (current.pageId) {
+      // Update existing settings entry
+      await axios.patch(
+        `https://api.notion.com/v1/pages/${current.pageId}`,
+        {
+          properties: {
+            Notes: { rich_text: [{ type: 'text', text: { content: settingsJson } }] }
+          }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${NOTION_API_KEY}`,
+            'Notion-Version': NOTION_VERSION,
+            'Content-Type': 'application/json'
+          },
+          timeout: 10000
+        }
+      )
+    } else {
+      // Create new settings entry
+      await axios.post(
+        'https://api.notion.com/v1/pages',
+        {
+          parent: { database_id: DATABASE_IDS.SCHEDULE },
+          properties: {
+            'Employee Name': { rich_text: [{ type: 'text', text: { content: SETTINGS_ENTRY_NAME } }] },
+            Notes: { rich_text: [{ type: 'text', text: { content: settingsJson } }] },
+            Status: { select: { name: 'Approved' } }
+          }
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${NOTION_API_KEY}`,
+            'Notion-Version': NOTION_VERSION,
+            'Content-Type': 'application/json'
+          },
+          timeout: 10000
+        }
+      )
+    }
+    return true
+  } catch (err) {
+    console.error('Failed to save schedule settings:', err.message)
+    return false
+  }
 }
 
 export default async function handler(req, res) {
@@ -350,7 +445,8 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       // Check for settings query
       if (req.query.settings === 'true') {
-        return res.status(200).json({ scheduleOpenDay: scheduleSettings.scheduleOpenDay })
+        const settings = await getScheduleSettings()
+        return res.status(200).json({ scheduleOpenDay: settings.scheduleOpenDay })
       }
       const schedule = await getSchedule()
       return res.status(200).json(schedule)
@@ -374,9 +470,12 @@ export default async function handler(req, res) {
         if (scheduleOpenDay !== undefined) {
           const day = parseInt(scheduleOpenDay)
           if (day >= 1 && day <= 28) {
-            scheduleSettings.scheduleOpenDay = day
-            logActivity('updated schedule settings', `Open day set to ${day}`, user.name || user.email)
-            return res.status(200).json({ success: true, scheduleOpenDay: day })
+            const saved = await saveScheduleSettings(day)
+            if (saved) {
+              logActivity('updated schedule settings', `Open day set to ${day}`, user.name || user.email)
+              return res.status(200).json({ success: true, scheduleOpenDay: day })
+            }
+            return res.status(500).json({ error: 'Failed to save settings to database' })
           }
           return res.status(400).json({ error: 'Schedule open day must be between 1-28' })
         }
