@@ -1,10 +1,12 @@
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useStatsOverview } from '../hooks/useApi'
 import { useToast } from '../components/Toast'
 import StatsOverview from '../components/StatsOverview'
+import ScheduleCalendar from '../components/ScheduleCalendar'
 
 function EmployeeDashboard({ user, setUser }) {
+  const [activeTab, setActiveTab] = useState('schedule')
   const toast = useToast()
 
   // Use React Query for stats (cached, auto-refresh)
@@ -30,20 +32,19 @@ function EmployeeDashboard({ user, setUser }) {
     }
   }
 
-  const quickLinks = [
-    { name: 'Availability Schedule', icon: '📅', desc: 'View and update your availability', color: 'from-blue-500 to-cyan-400' },
-    { name: 'Team Scoreboard', icon: '🏆', desc: 'Check team performance', color: 'from-amber-500 to-orange-400' },
-    { name: 'Master Calendar', icon: '📆', desc: 'View upcoming events', color: 'from-teal-500 to-cyan-400' }
+  const tabs = [
+    { id: 'schedule', name: 'Schedule Shifts', icon: '📅' },
+    { id: 'overview', name: 'Dashboard', icon: '📊' }
   ]
 
   return (
     <div className="min-h-screen bg-gray-900">
       {/* Header */}
       <header className="bg-gray-950 border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
-              <span className="text-xl">🏢</span>
+            <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center">
+              <span className="text-xl">🏠</span>
             </div>
             <div>
               <h1 className="text-xl font-bold text-white">REG Portal</h1>
@@ -52,7 +53,7 @@ function EmployeeDashboard({ user, setUser }) {
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+              <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center text-white font-bold">
                 {(user.fullName || user.email || 'U').charAt(0).toUpperCase()}
               </div>
               <div className="hidden md:block">
@@ -65,43 +66,62 @@ function EmployeeDashboard({ user, setUser }) {
             </button>
           </div>
         </div>
-      </header>
 
-      {/* Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Welcome */}
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-8 text-white mb-8">
-          <h2 className="text-3xl font-bold">Welcome back, {user.fullName || 'there'}!</h2>
-          <p className="text-white/80 mt-2">Here is your dashboard overview for today</p>
-        </div>
-
-        {/* Quick Links */}
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold text-white mb-4">Quick Links</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {quickLinks.map((link, idx) => (
-              <div key={idx} className="bg-gray-800 rounded-2xl border border-gray-700 p-6 hover:border-gray-600 transition-all cursor-pointer group">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${link.color} flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform`}>
-                  {link.icon}
-                </div>
-                <h4 className="font-semibold text-white">{link.name}</h4>
-                <p className="text-sm text-gray-500 mt-1">{link.desc}</p>
-              </div>
+        {/* Tabs */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex gap-1">
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-3 text-sm font-medium rounded-t-lg transition-colors flex items-center gap-2 ${
+                  activeTab === tab.id
+                    ? 'bg-gray-900 text-white border-t border-x border-gray-700'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`}
+              >
+                <span>{tab.icon}</span>
+                <span className="hidden sm:inline">{tab.name}</span>
+              </button>
             ))}
           </div>
         </div>
+      </header>
 
-        {/* Stats */}
-        <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6">
-          <h3 className="text-lg font-semibold text-white mb-6">Dashboard Overview</h3>
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+      {/* Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        {activeTab === 'schedule' ? (
+          <>
+            {/* Welcome Banner */}
+            <div className="bg-gradient-to-r from-amber-600 to-orange-600 rounded-2xl p-6 sm:p-8 text-white mb-6">
+              <h2 className="text-2xl sm:text-3xl font-bold">Welcome back, {user.fullName?.split(' ')[0] || 'there'}!</h2>
+              <p className="text-white/80 mt-2">Request your Model Home shifts below. Select dates and choose available homes.</p>
             </div>
-          ) : (
-            <StatsOverview stats={stats} />
-          )}
-        </div>
+
+            {/* Schedule Calendar */}
+            <ScheduleCalendar user={user} />
+          </>
+        ) : (
+          <>
+            {/* Welcome Banner */}
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 sm:p-8 text-white mb-6">
+              <h2 className="text-2xl sm:text-3xl font-bold">Dashboard Overview</h2>
+              <p className="text-white/80 mt-2">View company statistics and team performance.</p>
+            </div>
+
+            {/* Stats */}
+            <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6">
+              <h3 className="text-lg font-semibold text-white mb-6">Company Stats</h3>
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : (
+                <StatsOverview stats={stats} />
+              )}
+            </div>
+          </>
+        )}
       </main>
     </div>
   )

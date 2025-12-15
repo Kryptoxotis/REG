@@ -326,7 +326,7 @@ function AdminDashboard({ user, setUser }) {
                 ) : activeView === 'TEAM_MEMBERS' ? (
                   <TeamKPIView onNavigate={handleDealNavigate} />
                 ) : activeView === 'SCHEDULE' ? (
-                  <ScheduleCalendar onNavigate={handleNavClick} />
+                  <ScheduleCalendar user={user} onNavigate={handleNavClick} />
                 ) : activeView === 'PIPELINE' ? (
                   <PipelineBoard highlightedDealId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} cityFilter={selectedCity} onClearCity={() => setSelectedCity(null)} />
                 ) : (
