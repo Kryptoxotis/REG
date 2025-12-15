@@ -9,6 +9,10 @@ function ScheduleCalendar({ user, onNavigate }) {
   const [error, setError] = useState(null)
   const [currentDate, setCurrentDate] = useState(new Date())
 
+  // Schedule open date setting
+  const [scheduleOpenDay, setScheduleOpenDay] = useState(15) // Default: 15th of month
+  const [scheduleIsOpen, setScheduleIsOpen] = useState(false)
+
   // Modal states
   const [selectedDay, setSelectedDay] = useState(null) // Day click modal for employees
   const [selectedEvent, setSelectedEvent] = useState(null) // Event detail modal
@@ -28,18 +32,30 @@ function ScheduleCalendar({ user, onNavigate }) {
   const token = localStorage.getItem('authToken')
   const headers = token ? { Authorization: `Bearer ${token}` } : {}
 
+  // Check if schedule is currently open
+  useEffect(() => {
+    const today = new Date()
+    const currentDay = today.getDate()
+    // Schedule is open from open day until end of month
+    setScheduleIsOpen(currentDay >= scheduleOpenDay || isAdmin)
+  }, [scheduleOpenDay, isAdmin])
+
   useEffect(() => { fetchData() }, [])
 
   const fetchData = async () => {
     setLoading(true)
     setError(null)
     try {
-      const [scheduleRes, modelHomesRes] = await Promise.all([
+      const [scheduleRes, modelHomesRes, settingsRes] = await Promise.all([
         axios.get('/api/databases/schedule', { headers }),
-        axios.get('/api/databases/MODEL_HOMES', { headers })
+        axios.get('/api/databases/MODEL_HOMES', { headers }),
+        axios.get('/api/databases/schedule?settings=true', { headers }).catch(() => ({ data: { scheduleOpenDay: 15 } }))
       ])
       setScheduleData(Array.isArray(scheduleRes.data) ? scheduleRes.data : [])
       setModelHomes(Array.isArray(modelHomesRes.data) ? modelHomesRes.data : [])
+      if (settingsRes.data?.scheduleOpenDay) {
+        setScheduleOpenDay(settingsRes.data.scheduleOpenDay)
+      }
     } catch (err) {
       console.error('Schedule fetch error:', err)
       setError(err.response?.data?.error || 'Failed to fetch schedule')
@@ -331,12 +347,35 @@ function ScheduleCalendar({ user, onNavigate }) {
         </div>
       </div>
 
-      {/* Employee: Week validation info */}
+      {/* Employee: Schedule status and rules */}
       {!isAdmin && (
-        <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
-          <p className="text-sm text-gray-300">
-            <span className="text-amber-400 font-medium">📌 Rules:</span> You must schedule at least 3 days per week (minimum) and no more than 5 days per week (maximum).
-          </p>
+        <div className="space-y-3">
+          {/* Schedule Open/Closed Banner */}
+          {!scheduleIsOpen ? (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+              <p className="text-sm text-red-400 flex items-center gap-2">
+                <span className="text-lg">🔒</span>
+                <span>
+                  <strong>Schedule Locked</strong> - Opens on the {scheduleOpenDay}th of each month.
+                  You can view the calendar but cannot submit requests until then.
+                </span>
+              </p>
+            </div>
+          ) : (
+            <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+              <p className="text-sm text-green-400 flex items-center gap-2">
+                <span className="text-lg">🔓</span>
+                <span><strong>Schedule Open</strong> - Click on any future date to request a shift.</span>
+              </p>
+            </div>
+          )}
+
+          {/* Rules */}
+          <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
+            <p className="text-sm text-gray-300">
+              <span className="text-amber-400 font-medium">📌 Rules:</span> You must schedule at least 3 days per week (minimum) and no more than 5 days per week (maximum).
+            </p>
+          </div>
         </div>
       )}
 
@@ -457,7 +496,7 @@ function ScheduleCalendar({ user, onNavigate }) {
                 <div
                   key={idx}
                   onClick={() => {
-                    if (day && !past && !isAdmin) {
+                    if (day && !past && !isAdmin && scheduleIsOpen) {
                       setSelectedDay(day)
                     } else if (day && isAdmin && pendingEvents.length > 0) {
                       setSelectedEvent(pendingEvents[0])
@@ -466,7 +505,7 @@ function ScheduleCalendar({ user, onNavigate }) {
                   className={`min-h-[80px] sm:min-h-[100px] p-1 sm:p-2 border-b border-r border-gray-700/50
                     ${!day ? 'bg-gray-900/30' : ''}
                     ${past ? 'opacity-50' : ''}
-                    ${day && !past && !isAdmin ? 'cursor-pointer hover:bg-gray-700/30' : ''}
+                    ${day && !past && !isAdmin && scheduleIsOpen ? 'cursor-pointer hover:bg-gray-700/30' : ''}
                     ${day && isAdmin && pendingEvents.length > 0 ? 'cursor-pointer hover:bg-amber-500/10' : ''}
                   `}
                 >

@@ -10,6 +10,7 @@ import TeamKPIView from '../components/TeamKPIView'
 import ScheduleCalendar from '../components/ScheduleCalendar'
 import PipelineBoard from '../components/PipelineBoard'
 import { ActivityLogger } from '../utils/activityLogger'
+import EmployeeDashboard from './EmployeeDashboard'
 
 function AdminDashboard({ user, setUser }) {
   const [activeView, setActiveView] = useState('overview')
@@ -18,6 +19,7 @@ function AdminDashboard({ user, setUser }) {
   const [highlightedDealId, setHighlightedDealId] = useState(null)
   const [selectedCity, setSelectedCity] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [previewEmployeeView, setPreviewEmployeeView] = useState(false)
   const toast = useToast()
 
   // Use React Query for stats (cached, auto-refresh)
@@ -214,6 +216,33 @@ function AdminDashboard({ user, setUser }) {
     </>
   )
 
+  // Show Employee Dashboard when in preview mode
+  if (previewEmployeeView) {
+    return (
+      <div className="relative">
+        {/* Floating back button */}
+        <motion.button
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setPreviewEmployeeView(false)}
+          className="fixed top-4 right-4 z-[100] flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-lg shadow-indigo-500/30 transition-colors"
+        >
+          <span>🔙</span>
+          <span>Back to Admin</span>
+        </motion.button>
+        {/* Banner indicating preview mode */}
+        <div className="fixed top-0 left-0 right-0 z-[90] bg-amber-500/90 text-amber-950 text-center py-1.5 text-xs sm:text-sm font-medium">
+          👁️ Preview Mode - This is what employees see
+        </div>
+        <div className="pt-7">
+          <EmployeeDashboard user={user} setUser={setUser} />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-900">
       {/* Mobile overlay */}
@@ -287,14 +316,30 @@ function AdminDashboard({ user, setUser }) {
                 <p className="text-xs sm:text-sm text-gray-400 hidden sm:block">Welcome back, {user.fullName || user.email}</p>
               </div>
             </div>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
-            >
-              <span className="hidden sm:inline">🚪</span> Sign out
-            </motion.button>
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Admin/Employee View Toggle */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setPreviewEmployeeView(!previewEmployeeView)}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium rounded-xl transition-all ${
+                  previewEmployeeView
+                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                    : 'text-gray-400 hover:text-indigo-400 hover:bg-indigo-500/10'
+                }`}
+              >
+                <span>{previewEmployeeView ? '👤' : '🔄'}</span>
+                <span className="hidden sm:inline">{previewEmployeeView ? 'Employee View' : 'Preview as Employee'}</span>
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
+              >
+                <span className="hidden sm:inline">🚪</span> Sign out
+              </motion.button>
+            </div>
           </div>
         </motion.header>
 

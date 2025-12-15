@@ -327,6 +327,12 @@ async function denyRequest(scheduleId, reviewerId, reviewerName, notes) {
   return { success: true }
 }
 
+// In-memory schedule settings (persisted via env or resets on cold start)
+// Format: { scheduleOpenDay: 15 } - day of month when schedule opens
+let scheduleSettings = {
+  scheduleOpenDay: parseInt(process.env.SCHEDULE_OPEN_DAY) || 15
+}
+
 export default async function handler(req, res) {
   if (handleCors(req, res)) return
 
@@ -340,8 +346,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    // GET - Fetch all schedule entries
+    // GET - Fetch all schedule entries or settings
     if (req.method === 'GET') {
+      // Check for settings query
+      if (req.query.settings === 'true') {
+        return res.status(200).json({ scheduleOpenDay: scheduleSettings.scheduleOpenDay })
+      }
       const schedule = await getSchedule()
       return res.status(200).json(schedule)
     }
@@ -352,9 +362,26 @@ export default async function handler(req, res) {
       return res.status(201).json(result)
     }
 
-    // PATCH - Approve or Deny a request
+    // PATCH - Approve, Deny, or Update settings
     if (req.method === 'PATCH') {
-      const { action, scheduleId, notes } = req.body
+      const { action, scheduleId, notes, scheduleOpenDay } = req.body
+
+      // Handle settings update
+      if (action === 'update-settings') {
+        if (user.role !== 'admin') {
+          return res.status(403).json({ error: 'Admin access required' })
+        }
+        if (scheduleOpenDay !== undefined) {
+          const day = parseInt(scheduleOpenDay)
+          if (day >= 1 && day <= 28) {
+            scheduleSettings.scheduleOpenDay = day
+            logActivity('updated schedule settings', `Open day set to ${day}`, user.name || user.email)
+            return res.status(200).json({ success: true, scheduleOpenDay: day })
+          }
+          return res.status(400).json({ error: 'Schedule open day must be between 1-28' })
+        }
+        return res.status(400).json({ error: 'No settings to update' })
+      }
 
       if (!scheduleId) {
         return res.status(400).json({ error: 'Schedule ID is required' })

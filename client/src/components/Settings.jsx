@@ -1,13 +1,55 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Settings as SettingsIcon, Activity, ChevronDown, ChevronUp, RefreshCw, Clock, User, Database, Filter, X } from 'lucide-react'
+import { Settings as SettingsIcon, Activity, ChevronDown, ChevronUp, RefreshCw, Clock, User, Database, Filter, X, Calendar } from 'lucide-react'
 import CSVSync from './CSVSync'
 import FieldSettings from './FieldSettings'
 import { useDatabase } from '../hooks/useApi'
+import axios from 'axios'
 
 function Settings() {
   const [fieldSettingsOpen, setFieldSettingsOpen] = useState(false)
   const [activityExpanded, setActivityExpanded] = useState(false)
+
+  // Schedule Settings
+  const [scheduleOpenDay, setScheduleOpenDay] = useState(15)
+  const [scheduleLoading, setScheduleLoading] = useState(false)
+  const [scheduleSaved, setScheduleSaved] = useState(false)
+
+  const token = localStorage.getItem('authToken')
+  const headers = token ? { Authorization: `Bearer ${token}` } : {}
+
+  // Fetch schedule settings on mount
+  useEffect(() => {
+    const fetchScheduleSettings = async () => {
+      try {
+        const res = await axios.get('/api/databases/schedule?settings=true', { headers })
+        if (res.data?.scheduleOpenDay) {
+          setScheduleOpenDay(res.data.scheduleOpenDay)
+        }
+      } catch (err) {
+        console.error('Failed to fetch schedule settings:', err)
+      }
+    }
+    fetchScheduleSettings()
+  }, [])
+
+  // Save schedule open day
+  const saveScheduleOpenDay = async () => {
+    setScheduleLoading(true)
+    setScheduleSaved(false)
+    try {
+      await axios.patch('/api/databases/schedule', {
+        action: 'update-settings',
+        scheduleOpenDay
+      }, { headers })
+      setScheduleSaved(true)
+      setTimeout(() => setScheduleSaved(false), 3000)
+    } catch (err) {
+      console.error('Failed to save schedule settings:', err)
+    } finally {
+      setScheduleLoading(false)
+    }
+  }
 
   // Activity Log Filters
   const [filterUser, setFilterUser] = useState('')
@@ -170,6 +212,72 @@ function Settings() {
           >
             Configure Fields
           </motion.button>
+        </div>
+      </motion.div>
+
+      {/* Schedule Settings Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="bg-gray-800 rounded-2xl border border-gray-700 p-6"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-pink-500/20 rounded-xl">
+            <Calendar className="w-5 h-5 text-pink-400" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-white">Schedule Settings</h2>
+            <p className="text-sm text-gray-400">Configure when employees can request shifts</p>
+          </div>
+        </div>
+
+        <div className="bg-gray-900/50 rounded-xl p-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Schedule Opens On Day
+            </label>
+            <p className="text-xs text-gray-500 mb-3">
+              Employees can only request shifts from this day of the month onwards.
+              Before this day, they can view the calendar but cannot submit requests.
+            </p>
+            <div className="flex items-center gap-3">
+              <select
+                value={scheduleOpenDay}
+                onChange={(e) => setScheduleOpenDay(parseInt(e.target.value))}
+                className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-pink-500"
+              >
+                {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
+                  <option key={day} value={day}>
+                    {day}{day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'} of each month
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={saveScheduleOpenDay}
+                disabled={scheduleLoading}
+                className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {scheduleLoading ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : scheduleSaved ? (
+                  <>✓ Saved</>
+                ) : (
+                  'Save'
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-gray-700">
+            <p className="text-xs text-gray-500">
+              <strong>Current status:</strong> {new Date().getDate() >= scheduleOpenDay ? (
+                <span className="text-green-400">Schedule is OPEN (today is the {new Date().getDate()}th)</span>
+              ) : (
+                <span className="text-amber-400">Schedule is LOCKED until the {scheduleOpenDay}th</span>
+              )}
+            </p>
+          </div>
         </div>
       </motion.div>
 
