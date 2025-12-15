@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, ChevronUp, Users, Building2, TrendingUp, UserCheck, Calendar, X, Filter, ChevronRight, Eye, EyeOff, RefreshCw, AlertCircle } from 'lucide-react'
+import { ChevronDown, ChevronUp, Users, Building2, TrendingUp, UserCheck, Calendar, X, Filter, ChevronRight, Eye, EyeOff, RefreshCw, AlertCircle, Maximize2, Minimize2, Edit3, Save, XCircle } from 'lucide-react'
+import axios from 'axios'
 import { useDatabase } from '../hooks/useApi'
 import { useToast } from './Toast'
 import { getFieldPreferences } from './FieldSettings'
@@ -48,22 +49,59 @@ function getStatusBorderColor(status) {
 }
 
 function PropertyCard({ item, config, onClick }) {
-  const status = item.Status || item.status || ''
-  const price = item['Sales Price'] || item['Sale Price'] || item.Price || 0
-  const formattedPrice = price ? '$' + Number(price).toLocaleString() : ''
+  const status = item[config.statusField] || item.Status || item.status || ''
+  const primaryValue = item[config.primaryField] || item.Address || 'No Address'
+  // Fields to show (from list preferences, excluding primary and status)
+  const displayFields = config.secondaryFields?.filter(f => f !== config.primaryField && f !== config.statusField) || []
+
+  // Get icon for field type
+  const getFieldIcon = (fieldName) => {
+    const name = fieldName.toLowerCase()
+    if (name.includes('subdivision') || name.includes('location') || name.includes('area')) return '📍'
+    if (name.includes('floorplan') || name.includes('floor') || name.includes('model')) return '🏠'
+    if (name.includes('beds') || name.includes('bedroom')) return '🛏️'
+    if (name.includes('baths') || name.includes('bathroom')) return '🚿'
+    if (name.includes('sqft') || name.includes('sq ft') || name.includes('size')) return '📐'
+    if (name.includes('agent') || name.includes('assigned')) return '👤'
+    if (name.includes('buyer') || name.includes('client')) return '🧑'
+    if (name.includes('date') || name.includes('closing')) return '📅'
+    return null
+  }
+
+  // Helper to format values
+  const formatValue = (key, value) => {
+    if (value === null || value === undefined || value === '') return null
+    // Price formatting
+    if (key.toLowerCase().includes('price') || key.toLowerCase().includes('value')) {
+      const num = Number(value)
+      return isNaN(num) ? value : '$' + num.toLocaleString()
+    }
+    return Array.isArray(value) ? value.join(', ') : String(value)
+  }
+
+  // Get status-based gradient
+  const getStatusGradient = (s) => {
+    if (!s) return ''
+    const lower = s.toLowerCase()
+    if (lower === 'available' || lower.includes('active')) return 'bg-gradient-to-br from-gray-800 to-emerald-900/20'
+    if (lower === 'pending' || lower.includes('under contract')) return 'bg-gradient-to-br from-gray-800 to-amber-900/20'
+    if (lower === 'sold' || lower.includes('closed')) return 'bg-gradient-to-br from-gray-800 to-red-900/20'
+    if (lower === 'model home' || lower.includes('model')) return 'bg-gradient-to-br from-gray-800 to-purple-900/20'
+    return 'bg-gray-800'
+  }
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ scale: 1.02, y: -2 }}
-      className={`bg-gray-800 rounded-xl border border-gray-700 border-l-4 ${getStatusBorderColor(status)} overflow-hidden cursor-pointer hover:shadow-lg hover:shadow-black/20 transition-all duration-200`}
+      className={`${getStatusGradient(status)} rounded-xl border border-gray-700 border-l-4 ${getStatusBorderColor(status)} overflow-hidden cursor-pointer hover:shadow-lg hover:shadow-black/20 transition-all duration-200`}
       onClick={onClick}
     >
       <div className="p-4">
         <div className="flex justify-between items-start mb-3">
           <h3 className="font-semibold text-white truncate flex-1 text-sm sm:text-base">
-            {item.Address || item.address || 'No Address'}
+            {primaryValue}
           </h3>
           {status && (
             <span className={`ml-2 px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getStatusColor(status)}`}>
@@ -72,26 +110,22 @@ function PropertyCard({ item, config, onClick }) {
           )}
         </div>
 
-        <div className="space-y-2">
-          {item.Subdivision && (
-            <p className="text-sm text-gray-400 flex items-center gap-2">
-              <span className="text-gray-500">📍</span>
-              {item.Subdivision}
-            </p>
-          )}
-
-          {item.Floorplan && (
-            <p className="text-sm text-gray-400 flex items-center gap-2">
-              <span className="text-gray-500">🏠</span>
-              {item.Floorplan}
-            </p>
-          )}
-
-          {formattedPrice && (
-            <p className="text-lg font-bold text-emerald-400 mt-2">
-              {formattedPrice}
-            </p>
-          )}
+        <div className="space-y-1.5">
+          {displayFields.map(field => {
+            const value = item[field]
+            const formatted = formatValue(field, value)
+            if (!formatted) return null
+            // Price fields get special styling
+            const isPrice = field.toLowerCase().includes('price') || field.toLowerCase().includes('value')
+            const icon = getFieldIcon(field)
+            return (
+              <p key={field} className={isPrice ? "text-lg font-bold text-emerald-400 mt-2" : "text-sm text-gray-400 flex items-center gap-1.5"}>
+                {!isPrice && icon && <span className="text-gray-500 text-xs">{icon}</span>}
+                {!isPrice && !icon && <span className="text-gray-500">{field}:</span>}
+                <span className={isPrice ? '' : 'truncate'}>{formatted}</span>
+              </p>
+            )
+          })}
         </div>
       </div>
     </motion.div>
@@ -100,10 +134,9 @@ function PropertyCard({ item, config, onClick }) {
 
 function TeamMemberCard({ item, config, onClick }) {
   const [expanded, setExpanded] = useState(false)
-  // Use cardFields from preferences for main display (excluding primary which is the title)
-  const cardFields = config.cardFields || [config.primaryField, ...config.secondaryFields, config.statusField].filter(Boolean)
-  const mainFields = cardFields.filter(f => f !== config.primaryField && f !== config.statusField)
-  // For expanded: use expandedFields if set, otherwise show all remaining fields
+  // Use secondaryFields from list preferences for main grid display (excluding primary which is the title)
+  const mainFields = config.secondaryFields?.filter(f => f !== config.primaryField && f !== config.statusField) || []
+  // For expanded: use expandedFields if set, otherwise show all remaining fields not in the main display
   const allFieldKeys = Object.keys(item).filter(k => k !== 'id' && k !== 'created_time' && k !== 'last_edited_time')
   const shownInCard = [config.primaryField, config.statusField, ...mainFields].filter(Boolean)
   const expandedFields = config.expandedFields?.length > 0
@@ -176,6 +209,83 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
   const [showTerminated, setShowTerminated] = useState(false)
   const [cityFilter, setCityFilter] = useState('')
   const [prefVersion, setPrefVersion] = useState(0)
+  const [isExpanded, setIsExpanded] = useState(false)
+  // Additional filters for Properties
+  const [statusFilter, setStatusFilter] = useState('')
+  const [subdivisionFilter, setSubdivisionFilter] = useState('')
+  const [bedsFilter, setBedsFilter] = useState('')
+  const [bathsFilter, setBathsFilter] = useState('')
+  const [priceMin, setPriceMin] = useState('')
+  const [priceMax, setPriceMax] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
+  // Additional filters for Clients
+  const [sourceFilter, setSourceFilter] = useState('')
+  const [clientStatusFilter, setClientStatusFilter] = useState('')
+  const [isEditing, setIsEditing] = useState(false)
+  const [editedFields, setEditedFields] = useState({})
+  const [saving, setSaving] = useState(false)
+
+  // Database key to API path mapping
+  const DB_KEY_TO_API = {
+    'TEAM_MEMBERS': 'team-members',
+    'PROPERTIES': 'properties',
+    'PIPELINE': 'pipeline',
+    'CLIENTS': 'clients',
+    'SCHEDULE': 'schedule'
+  }
+
+  // Handle starting edit mode
+  const handleStartEdit = () => {
+    setEditedFields({ ...selectedItem })
+    setIsEditing(true)
+  }
+
+  // Handle field change in edit mode
+  const handleFieldChange = (key, value) => {
+    setEditedFields(prev => ({ ...prev, [key]: value }))
+  }
+
+  // Handle save
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      const apiPath = DB_KEY_TO_API[databaseKey] || databaseKey.toLowerCase()
+      // Only send changed fields (exclude id, created_time, last_edited_time)
+      const updates = {}
+      Object.entries(editedFields).forEach(([key, value]) => {
+        if (!['id', 'created_time', 'last_edited_time'].includes(key)) {
+          updates[key] = value
+        }
+      })
+      await axios.patch(`/api/databases/${apiPath}/${selectedItem.id}`, updates, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      // Update selected item and refetch data
+      setSelectedItem(prev => ({ ...prev, ...editedFields }))
+      setIsEditing(false)
+      refetch() // Refresh from server
+      toast.success('Changes saved successfully')
+    } catch (err) {
+      toast.error('Failed to save: ' + (err.response?.data?.error || err.message))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    setIsEditing(false)
+    setEditedFields({})
+  }
+
+  // Reset state when closing modal
+  const handleCloseModal = () => {
+    setSelectedItem(null)
+    setIsExpanded(false)
+    setIsEditing(false)
+    setEditedFields({})
+  }
 
   // Show toast on error
   useEffect(() => {
@@ -248,6 +358,58 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
 
   const safeData = data || []
   const terminatedCount = useMemo(() => { if (databaseKey !== 'TEAM_MEMBERS') return 0; return safeData.filter(item => { const status = item[config.statusField]; return status && status.toLowerCase().includes('terminated') }).length }, [safeData, databaseKey, config.statusField])
+
+  // Extract unique filter options for Properties and Clients
+  const filterOptions = useMemo(() => {
+    if (databaseKey === 'PROPERTIES') {
+      const statuses = [...new Set(safeData.map(i => i.Status).filter(Boolean))].sort()
+      const subdivisions = [...new Set(safeData.map(i => i.Subdivision).filter(Boolean))].sort()
+      const beds = [...new Set(safeData.map(i => i.Beds || i.Bedrooms || i.beds).filter(v => v !== null && v !== undefined))].sort((a, b) => Number(a) - Number(b))
+      const baths = [...new Set(safeData.map(i => i.Baths || i.Bathrooms || i.baths).filter(v => v !== null && v !== undefined))].sort((a, b) => Number(a) - Number(b))
+      return { statuses, subdivisions, beds, baths }
+    }
+    if (databaseKey === 'CLIENTS') {
+      const sources = [...new Set(safeData.map(i => i.Source).filter(Boolean))].sort()
+      const statuses = [...new Set(safeData.map(i => i.Status).filter(Boolean))].sort()
+      return { sources, statuses }
+    }
+    return {}
+  }, [safeData, databaseKey])
+
+  // Count active filters
+  const activeFilterCount = useMemo(() => {
+    if (databaseKey === 'PROPERTIES') {
+      let count = 0
+      if (statusFilter) count++
+      if (subdivisionFilter) count++
+      if (bedsFilter) count++
+      if (bathsFilter) count++
+      if (priceMin) count++
+      if (priceMax) count++
+      return count
+    }
+    if (databaseKey === 'CLIENTS') {
+      let count = 0
+      if (sourceFilter) count++
+      if (clientStatusFilter) count++
+      return count
+    }
+    return 0
+  }, [databaseKey, statusFilter, subdivisionFilter, bedsFilter, bathsFilter, priceMin, priceMax, sourceFilter, clientStatusFilter])
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setCityFilter('')
+    setStatusFilter('')
+    setSubdivisionFilter('')
+    setBedsFilter('')
+    setBathsFilter('')
+    setPriceMin('')
+    setPriceMax('')
+    setSourceFilter('')
+    setClientStatusFilter('')
+  }
+
   const filteredData = useMemo(() => {
     let result = safeData
     // Filter terminated for TEAM_MEMBERS
@@ -262,6 +424,50 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
         return itemEdwards === edwardsCo
       })
     }
+    // Additional filters for PROPERTIES
+    if (databaseKey === 'PROPERTIES') {
+      if (statusFilter) {
+        result = result.filter(item => item.Status === statusFilter)
+      }
+      if (subdivisionFilter) {
+        result = result.filter(item => item.Subdivision === subdivisionFilter)
+      }
+      if (bedsFilter) {
+        result = result.filter(item => {
+          const beds = item.Beds || item.Bedrooms || item.beds
+          return beds !== null && beds !== undefined && String(beds) === String(bedsFilter)
+        })
+      }
+      if (bathsFilter) {
+        result = result.filter(item => {
+          const baths = item.Baths || item.Bathrooms || item.baths
+          return baths !== null && baths !== undefined && String(baths) === String(bathsFilter)
+        })
+      }
+      if (priceMin) {
+        const min = parseFloat(priceMin)
+        result = result.filter(item => {
+          const price = item['Sales Price'] || item['Sale Price'] || item.Price || 0
+          return price >= min
+        })
+      }
+      if (priceMax) {
+        const max = parseFloat(priceMax)
+        result = result.filter(item => {
+          const price = item['Sales Price'] || item['Sale Price'] || item.Price || 0
+          return price <= max
+        })
+      }
+    }
+    // Additional filters for CLIENTS
+    if (databaseKey === 'CLIENTS') {
+      if (sourceFilter) {
+        result = result.filter(item => item.Source === sourceFilter)
+      }
+      if (clientStatusFilter) {
+        result = result.filter(item => item.Status === clientStatusFilter)
+      }
+    }
     // Filter by search term (searches all string fields)
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
@@ -275,7 +481,7 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
       })
     }
     return result
-  }, [safeData, databaseKey, showTerminated, cityFilter, config.statusField, searchTerm])
+  }, [safeData, databaseKey, showTerminated, cityFilter, statusFilter, subdivisionFilter, bedsFilter, bathsFilter, priceMin, priceMax, sourceFilter, clientStatusFilter, config.statusField, searchTerm])
 
   const formatPrice = (value) => {
     if (!value) return '-'
@@ -391,47 +597,340 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
         </div>
         <div className="flex items-center gap-2">
           {databaseKey === 'PROPERTIES' && (
-            <select
-              value={cityFilter}
-              onChange={(e) => setCityFilter(e.target.value)}
-              className="bg-gray-700 text-gray-200 px-3 py-1.5 rounded-xl text-sm font-medium border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-            >
-              <option value="">All Cities</option>
-              {CITIES.map(city => (
-                <option key={city} value={city}>{city}</option>
-              ))}
-            </select>
+            <>
+              <select
+                value={cityFilter}
+                onChange={(e) => setCityFilter(e.target.value)}
+                className="bg-gray-700 text-gray-200 px-3 py-1.5 rounded-xl text-sm font-medium border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              >
+                <option value="">All Cities</option>
+                {CITIES.map(city => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${showFilters || activeFilterCount > 0 ? 'bg-violet-500/20 text-violet-300' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+              >
+                <Filter className="w-4 h-4" />
+                Filters {activeFilterCount > 0 && `(${activeFilterCount})`}
+              </button>
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={clearAllFilters}
+                  className="px-3 py-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-xl text-sm font-medium transition-colors"
+                >
+                  Clear All
+                </button>
+              )}
+            </>
+          )}
+          {databaseKey === 'CLIENTS' && (
+            <>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${showFilters || activeFilterCount > 0 ? 'bg-violet-500/20 text-violet-300' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+              >
+                <Filter className="w-4 h-4" />
+                Filters {activeFilterCount > 0 && `(${activeFilterCount})`}
+              </button>
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={clearAllFilters}
+                  className="px-3 py-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-xl text-sm font-medium transition-colors"
+                >
+                  Clear All
+                </button>
+              )}
+            </>
           )}
           {databaseKey === 'TEAM_MEMBERS' && terminatedCount > 0 && <button onClick={() => setShowTerminated(!showTerminated)} className={(showTerminated ? 'bg-red-500/20 text-red-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600') + " flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors"}>{showTerminated ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}{showTerminated ? 'Hide' : 'Show'} Terminated ({terminatedCount})</button>}
         </div>
       </div>
-      <div className="p-4">{filteredData.length === 0 ? <div className="text-center py-8 text-gray-500"><Icon className="w-12 h-12 mx-auto mb-3 text-gray-600" /><p>No records found</p></div> : renderContent()}</div>
+
+      {/* Clients Filter Panel */}
+      {databaseKey === 'CLIENTS' && showFilters && (
+        <div className="px-4 pb-4 pt-2 border-b border-gray-700 bg-gray-800/50">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Source</label>
+              <select
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value)}
+                className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              >
+                <option value="">All Sources</option>
+                {filterOptions.sources?.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Status</label>
+              <select
+                value={clientStatusFilter}
+                onChange={(e) => setClientStatusFilter(e.target.value)}
+                className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              >
+                <option value="">All Statuses</option>
+                {filterOptions.statuses?.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Properties Filter Panel */}
+      {databaseKey === 'PROPERTIES' && showFilters && (
+        <div className="px-4 pb-4 pt-2 border-b border-gray-700 bg-gray-800/50">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Status</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              >
+                <option value="">All Statuses</option>
+                {filterOptions.statuses?.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Subdivision</label>
+              <select
+                value={subdivisionFilter}
+                onChange={(e) => setSubdivisionFilter(e.target.value)}
+                className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              >
+                <option value="">All Subdivisions</option>
+                {filterOptions.subdivisions?.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Beds</label>
+              <select
+                value={bedsFilter}
+                onChange={(e) => setBedsFilter(e.target.value)}
+                className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              >
+                <option value="">Any</option>
+                {filterOptions.beds?.map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Baths</label>
+              <select
+                value={bathsFilter}
+                onChange={(e) => setBathsFilter(e.target.value)}
+                className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              >
+                <option value="">Any</option>
+                {filterOptions.baths?.map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Min Price</label>
+              <input
+                type="number"
+                placeholder="$0"
+                value={priceMin}
+                onChange={(e) => setPriceMin(e.target.value)}
+                className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Max Price</label>
+              <input
+                type="number"
+                placeholder="No Max"
+                value={priceMax}
+                onChange={(e) => setPriceMax(e.target.value)}
+                className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="p-4">{filteredData.length === 0 ? <div className="text-center py-8 text-gray-500"><Icon className="w-12 h-12 mx-auto mb-3 text-gray-600" /><p>No records found{activeFilterCount > 0 ? ' - try adjusting filters' : ''}</p></div> : renderContent()}</div>
       <AnimatePresence>
         {selectedItem && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setSelectedItem(null)}>
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-gray-900 rounded-2xl border border-gray-700 max-w-lg w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-              <div className="p-4 border-b border-gray-700 flex items-center justify-between sticky top-0 bg-gray-900"><h3 className="font-semibold text-lg text-white">{selectedItem[config.primaryField] || 'Details'}</h3><button onClick={() => setSelectedItem(null)} className="p-1 hover:bg-gray-700 rounded-lg transition-colors"><X className="w-5 h-5 text-gray-400" /></button></div>
-              <div className="p-4 space-y-3">
-                {Object.entries(selectedItem)
-                  .filter(([key]) => key !== 'id' && key !== 'created_time' && key !== 'last_edited_time')
-                  .map(([key, value]) => value !== null && value !== '' && value !== undefined && (
-                    <div key={key}>
-                      <p className="text-sm text-gray-500">{key}</p>
-                      {key === config.statusField ? (
-                        <span className={"px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(value)}>{String(value)}</span>
-                      ) : isClickableRelation(key) ? (
-                        <button
-                          onClick={() => handleRelationClick(key, value)}
-                          className="text-violet-400 hover:text-violet-300 underline decoration-dotted underline-offset-2 transition-colors text-left"
-                        >
-                          {String(value)} →
-                        </button>
-                      ) : (
-                        <p className="text-gray-200">{String(value)}</p>
-                      )}
-                    </div>
-                  ))
-                }
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={handleCloseModal}>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className={`bg-gray-900 rounded-2xl border border-gray-700 w-full max-h-[90vh] overflow-hidden flex flex-col transition-all ${isExpanded ? 'max-w-4xl' : 'max-w-lg'}`}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="p-4 border-b border-gray-700 flex items-center justify-between sticky top-0 bg-gray-900 z-10">
+                <h3 className="font-semibold text-lg text-white truncate flex-1">{selectedItem[config.primaryField] || 'Details'}</h3>
+                <div className="flex items-center gap-2 ml-4">
+                  {isExpanded && !isEditing && (
+                    <button
+                      onClick={handleStartEdit}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-sm transition-colors"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                      Edit
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
+                  >
+                    {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                    {isExpanded ? 'Collapse' : 'Expand'}
+                  </button>
+                  <button onClick={handleCloseModal} className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors">
+                    <X className="w-5 h-5 text-gray-400" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Editing Mode Actions */}
+              {isEditing && (
+                <div className="flex items-center gap-2 mx-4 mt-4 p-3 bg-violet-500/10 border border-violet-500/30 rounded-xl">
+                  <span className="text-violet-300 text-sm flex-1">Editing mode - make changes and save</span>
+                  <button
+                    onClick={handleCancelEdit}
+                    disabled={saving}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm transition-colors disabled:opacity-50"
+                  >
+                    <Save className="w-4 h-4" />
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              )}
+
+              {/* Content */}
+              <div className="p-4 overflow-y-auto flex-1">
+                {isExpanded ? (
+                  /* Expanded View - Fields based on preferences or all fields */
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {Object.entries(isEditing ? editedFields : selectedItem)
+                      .filter(([key]) => {
+                        if (['id', 'created_time', 'last_edited_time'].includes(key)) return false
+                        // If expandedFields has entries, only show those; otherwise show all
+                        if (config.expandedFields?.length > 0) {
+                          return config.expandedFields.includes(key)
+                        }
+                        return true
+                      })
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([key, value]) => (
+                        <div key={key} className="flex flex-col p-3 bg-gray-800 rounded-lg">
+                          <span className="text-gray-400 text-xs uppercase tracking-wide mb-1">{key}</span>
+                          {isEditing ? (
+                            typeof value === 'boolean' ? (
+                              <select
+                                value={value ? 'true' : 'false'}
+                                onChange={(e) => handleFieldChange(key, e.target.value === 'true')}
+                                className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-violet-500"
+                              >
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                              </select>
+                            ) : Array.isArray(value) ? (
+                              <input
+                                type="text"
+                                value={value.join(', ')}
+                                onChange={(e) => handleFieldChange(key, e.target.value.split(',').map(s => s.trim()))}
+                                className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-violet-500"
+                              />
+                            ) : (
+                              <input
+                                type="text"
+                                value={value ?? ''}
+                                onChange={(e) => handleFieldChange(key, e.target.value)}
+                                className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-violet-500"
+                              />
+                            )
+                          ) : (
+                            key === config.statusField && value ? (
+                              <span className={"inline-block px-2 py-1 text-xs font-medium rounded-full w-fit " + getStatusColor(value)}>{String(value)}</span>
+                            ) : isClickableRelation(key) && value ? (
+                              <button
+                                onClick={() => handleRelationClick(key, value)}
+                                className="text-violet-400 hover:text-violet-300 underline decoration-dotted underline-offset-2 transition-colors text-left text-sm"
+                              >
+                                {String(value)} →
+                              </button>
+                            ) : (
+                              <span className="text-gray-200 text-sm">
+                                {value === null || value === undefined || value === '' ? '-' :
+                                  Array.isArray(value) ? value.join(', ') :
+                                  typeof value === 'boolean' ? (value ? 'Yes' : 'No') :
+                                  String(value)}
+                              </span>
+                            )
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  /* Collapsed View - Show fields from cardFields preference */
+                  <div className="space-y-3">
+                    {Object.entries(selectedItem)
+                      .filter(([key, value]) => {
+                        if (['id', 'created_time', 'last_edited_time'].includes(key)) return false
+                        if (value === null || value === '' || value === undefined) return false
+                        // Use cardFields if available, otherwise show first 8
+                        if (config.cardFields?.length > 0) {
+                          return config.cardFields.includes(key)
+                        }
+                        return true
+                      })
+                      .slice(0, config.cardFields?.length > 0 ? config.cardFields.length : 8)
+                      .map(([key, value]) => (
+                        <div key={key}>
+                          <p className="text-sm text-gray-500">{key}</p>
+                          {key === config.statusField ? (
+                            <span className={"px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(value)}>{String(value)}</span>
+                          ) : isClickableRelation(key) ? (
+                            <button
+                              onClick={() => handleRelationClick(key, value)}
+                              className="text-violet-400 hover:text-violet-300 underline decoration-dotted underline-offset-2 transition-colors text-left"
+                            >
+                              {String(value)} →
+                            </button>
+                          ) : (
+                            <p className="text-gray-200">{Array.isArray(value) ? value.join(', ') : String(value)}</p>
+                          )}
+                        </div>
+                      ))
+                    }
+                    {(() => {
+                      const allKeys = Object.keys(selectedItem).filter(k => !['id', 'created_time', 'last_edited_time'].includes(k) && selectedItem[k] !== null && selectedItem[k] !== '' && selectedItem[k] !== undefined)
+                      const shownCount = config.cardFields?.length > 0 ? config.cardFields.filter(f => allKeys.includes(f)).length : Math.min(8, allKeys.length)
+                      const hiddenCount = allKeys.length - shownCount
+                      return hiddenCount > 0 ? (
+                        <p className="text-violet-400 text-sm text-center pt-2">
+                          + {hiddenCount} more fields - click Expand to see all
+                        </p>
+                      ) : null
+                    })()}
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>

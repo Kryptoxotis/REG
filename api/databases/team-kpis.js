@@ -9,6 +9,85 @@ function extractPlainText(richText) {
   return richText.map(text => text.plain_text).join('')
 }
 
+// Extract all fields from a Notion page
+function extractAllFields(page) {
+  const fields = {}
+  if (!page?.properties) return fields
+
+  for (const [key, value] of Object.entries(page.properties)) {
+    // Skip system fields
+    if (['id'].includes(key)) continue
+
+    let extracted = null
+    switch (value.type) {
+      case 'title':
+        extracted = extractPlainText(value.title)
+        break
+      case 'rich_text':
+        extracted = extractPlainText(value.rich_text)
+        break
+      case 'number':
+        extracted = value.number
+        break
+      case 'select':
+        extracted = value.select?.name || null
+        break
+      case 'multi_select':
+        extracted = value.multi_select?.map(s => s.name) || []
+        break
+      case 'status':
+        extracted = value.status?.name || null
+        break
+      case 'date':
+        extracted = value.date?.start || null
+        break
+      case 'checkbox':
+        extracted = value.checkbox
+        break
+      case 'email':
+        extracted = value.email
+        break
+      case 'phone_number':
+        extracted = value.phone_number
+        break
+      case 'url':
+        extracted = value.url
+        break
+      case 'formula':
+        extracted = value.formula?.string || value.formula?.number || null
+        break
+      case 'rollup':
+        if (value.rollup?.type === 'number') extracted = value.rollup.number
+        else if (value.rollup?.type === 'array') extracted = value.rollup.array?.length || 0
+        break
+      case 'relation':
+        extracted = value.relation?.map(r => r.id) || []
+        break
+      case 'files':
+        extracted = value.files?.map(f => f.file?.url || f.external?.url).filter(Boolean) || []
+        break
+      case 'created_time':
+        extracted = value.created_time
+        break
+      case 'last_edited_time':
+        extracted = value.last_edited_time
+        break
+      case 'people':
+        extracted = value.people?.map(p => p.name || p.id) || []
+        break
+      default:
+        extracted = null
+    }
+
+    // Only include non-empty values
+    if (extracted !== null && extracted !== '' && !(Array.isArray(extracted) && extracted.length === 0)) {
+      fields[key] = extracted
+    }
+  }
+
+  return fields
+}
+
 // Get start and end of current month
 function getCurrentMonthRange() {
   const now = new Date()
@@ -153,6 +232,9 @@ export default async function handler(req, res) {
       const pendingDealsList = monthlyDeals.filter(d => d.properties.Executed?.checkbox === false).map(formatDeal)
       const executedDealsList = monthlyDeals.filter(d => d.properties.Executed?.checkbox === true).map(formatDeal)
 
+      // Extract all fields from Notion
+      const allFields = extractAllFields(member)
+
       return {
         id: member.id,
         name,
@@ -160,6 +242,7 @@ export default async function handler(req, res) {
         role,
         phone,
         email,
+        allFields,
         kpis: {
           // Monthly stats (primary)
           totalDeals,

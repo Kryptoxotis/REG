@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
-import { Eye, EyeOff, Search, X } from 'lucide-react'
+import { Eye, EyeOff, Search, X, Maximize2, Minimize2, Edit3, Save, XCircle } from 'lucide-react'
+import { getFieldPreferences } from './FieldSettings'
 
 function TeamKPIView({ onNavigate }) {
   const [data, setData] = useState([])
@@ -11,6 +12,21 @@ function TeamKPIView({ onNavigate }) {
   const [selectedDealType, setSelectedDealType] = useState(null) // 'all' | 'closed' | 'pending' | 'executed'
   const [showTerminated, setShowTerminated] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editedFields, setEditedFields] = useState({})
+  const [saving, setSaving] = useState(false)
+  const [prefVersion, setPrefVersion] = useState(0)
+
+  // Get field preferences for Team Members
+  const fieldPrefs = useMemo(() => getFieldPreferences('TEAM_MEMBERS'), [prefVersion])
+
+  // Listen for preference changes
+  useEffect(() => {
+    const handlePrefsChanged = () => setPrefVersion(v => v + 1)
+    window.addEventListener('fieldPreferencesChanged', handlePrefsChanged)
+    return () => window.removeEventListener('fieldPreferencesChanged', handlePrefsChanged)
+  }, [])
 
   useEffect(() => { fetchData() }, [])
 
@@ -27,6 +43,55 @@ function TeamKPIView({ onNavigate }) {
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch team KPIs')
     } finally { setLoading(false) }
+  }
+
+  // Handle starting edit mode
+  const handleStartEdit = () => {
+    setEditedFields({ ...selectedMember.allFields })
+    setIsEditing(true)
+  }
+
+  // Handle field change in edit mode
+  const handleFieldChange = (key, value) => {
+    setEditedFields(prev => ({ ...prev, [key]: value }))
+  }
+
+  // Handle save
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      await axios.patch(`/api/databases/team-members/${selectedMember.id}`, editedFields, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      // Update local data
+      setData(prev => prev.map(m =>
+        m.id === selectedMember.id
+          ? { ...m, allFields: editedFields }
+          : m
+      ))
+      setSelectedMember(prev => ({ ...prev, allFields: editedFields }))
+      setIsEditing(false)
+    } catch (err) {
+      alert('Failed to save: ' + (err.response?.data?.error || err.message))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    setIsEditing(false)
+    setEditedFields({})
+  }
+
+  // Reset state when closing modal
+  const handleCloseModal = () => {
+    setSelectedMember(null)
+    setSelectedDealType(null)
+    setIsExpanded(false)
+    setIsEditing(false)
+    setEditedFields({})
   }
 
   const terminatedCount = useMemo(() => data.filter(m => m.status?.toLowerCase() === 'terminated').length, [data])
@@ -221,7 +286,7 @@ function TeamKPIView({ onNavigate }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => { setSelectedMember(null); setSelectedDealType(null) }}
+            onClick={handleCloseModal}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           >
             <motion.div
@@ -229,100 +294,218 @@ function TeamKPIView({ onNavigate }) {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={e => e.stopPropagation()}
-              className="bg-gray-900 rounded-2xl border border-gray-700 max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col"
+              className={`bg-gray-900 rounded-2xl border border-gray-700 w-full max-h-[90vh] overflow-hidden flex flex-col transition-all ${isExpanded ? 'max-w-4xl' : 'max-w-lg'}`}
             >
               <div className="h-2 bg-gradient-to-r from-violet-500 to-purple-400" />
               <div className="p-6 overflow-y-auto">
                 {/* Header */}
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold">
-                    {selectedMember.name?.charAt(0) || '?'}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold">
+                      {selectedMember.name?.charAt(0) || '?'}
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-white">{selectedMember.name}</h2>
+                      <p className="text-gray-400">{selectedMember.role || 'Agent'} • {selectedMember.status}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">{selectedMember.name}</h2>
-                    <p className="text-gray-400">{selectedMember.role || 'Agent'} • {selectedMember.status}</p>
+                  <div className="flex items-center gap-2">
+                    {isExpanded && !isEditing && (
+                      <button
+                        onClick={handleStartEdit}
+                        className="flex items-center gap-1 px-3 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-sm transition-colors"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                        Edit
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setIsExpanded(!isExpanded)}
+                      className="flex items-center gap-1 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
+                    >
+                      {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                      {isExpanded ? 'Collapse' : 'Expand'}
+                    </button>
                   </div>
                 </div>
 
-                {/* Member Details from Notion - Show all fields prominently */}
-                {selectedMember.allFields && (
+                {/* Editing Mode Actions */}
+                {isEditing && (
+                  <div className="flex items-center gap-2 mb-4 p-3 bg-violet-500/10 border border-violet-500/30 rounded-xl">
+                    <span className="text-violet-300 text-sm flex-1">Editing mode - make changes and save</span>
+                    <button
+                      onClick={handleCancelEdit}
+                      disabled={saving}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm transition-colors disabled:opacity-50"
+                    >
+                      <Save className="w-4 h-4" />
+                      {saving ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Expanded View - Fields based on preferences or all fields */}
+                {isExpanded ? (
                   <div className="mb-6">
-                    <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Member Details</h3>
-                    <div className="bg-gray-800 rounded-xl p-4 space-y-2">
-                      {Object.entries(selectedMember.allFields)
-                        .filter(([key, value]) =>
-                          // Skip system fields and empty values
-                          !['id', 'created_time', 'last_edited_time'].includes(key) &&
-                          value !== null && value !== undefined && value !== ''
-                        )
+                    <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">All Fields</h3>
+                    <div className="bg-gray-800 rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {selectedMember.allFields && Object.entries(isEditing ? editedFields : selectedMember.allFields)
+                        .filter(([key]) => {
+                          // If expandedFields has entries, only show those; otherwise show all
+                          if (fieldPrefs.expanded?.length > 0) {
+                            return fieldPrefs.expanded.includes(key)
+                          }
+                          return true
+                        })
+                        .sort(([a], [b]) => a.localeCompare(b))
                         .map(([key, value]) => (
-                          <div key={key} className="flex justify-between items-start py-2 border-b border-gray-700 last:border-0">
-                            <span className="text-gray-400 text-sm">{key}</span>
-                            <span className="text-gray-200 text-sm text-right max-w-[60%]">
-                              {Array.isArray(value) ? value.join(', ') : String(value)}
-                            </span>
+                          <div key={key} className="flex flex-col p-3 bg-gray-900 rounded-lg">
+                            <span className="text-gray-400 text-xs uppercase tracking-wide mb-1">{key}</span>
+                            {isEditing ? (
+                              Array.isArray(value) ? (
+                                <input
+                                  type="text"
+                                  value={value.join(', ')}
+                                  onChange={(e) => handleFieldChange(key, e.target.value.split(',').map(s => s.trim()))}
+                                  className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-violet-500"
+                                />
+                              ) : typeof value === 'boolean' ? (
+                                <select
+                                  value={value ? 'true' : 'false'}
+                                  onChange={(e) => handleFieldChange(key, e.target.value === 'true')}
+                                  className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-violet-500"
+                                >
+                                  <option value="true">Yes</option>
+                                  <option value="false">No</option>
+                                </select>
+                              ) : (
+                                <input
+                                  type="text"
+                                  value={value ?? ''}
+                                  onChange={(e) => handleFieldChange(key, e.target.value)}
+                                  className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-violet-500"
+                                />
+                              )
+                            ) : (
+                              <span className="text-gray-200 text-sm">
+                                {Array.isArray(value) ? value.join(', ') : typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value ?? '-')}
+                              </span>
+                            )}
                           </div>
                         ))}
                     </div>
                   </div>
+                ) : (
+                  /* Collapsed View - Show fields from card preferences */
+                  selectedMember.allFields && (
+                    <div className="mb-6">
+                      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Member Details</h3>
+                      <div className="bg-gray-800 rounded-xl p-4 space-y-2">
+                        {Object.entries(selectedMember.allFields)
+                          .filter(([key, value]) => {
+                            if (['id', 'created_time', 'last_edited_time'].includes(key)) return false
+                            if (value === null || value === undefined || value === '') return false
+                            // Use card preferences if available
+                            if (fieldPrefs.card?.length > 0) {
+                              return fieldPrefs.card.includes(key)
+                            }
+                            return true
+                          })
+                          .slice(0, fieldPrefs.card?.length > 0 ? fieldPrefs.card.length : 6)
+                          .map(([key, value]) => (
+                            <div key={key} className="flex justify-between items-start py-2 border-b border-gray-700 last:border-0">
+                              <span className="text-gray-400 text-sm">{key}</span>
+                              <span className="text-gray-200 text-sm text-right max-w-[60%]">
+                                {Array.isArray(value) ? value.join(', ') : String(value)}
+                              </span>
+                            </div>
+                          ))}
+                        {(() => {
+                          const allKeys = Object.keys(selectedMember.allFields).filter(k =>
+                            !['id', 'created_time', 'last_edited_time'].includes(k) &&
+                            selectedMember.allFields[k] !== null && selectedMember.allFields[k] !== undefined && selectedMember.allFields[k] !== ''
+                          )
+                          const shownCount = fieldPrefs.card?.length > 0 ? fieldPrefs.card.filter(f => allKeys.includes(f)).length : Math.min(6, allKeys.length)
+                          const hiddenCount = allKeys.length - shownCount
+                          return hiddenCount > 0 ? (
+                            <p className="text-violet-400 text-xs text-center pt-2">
+                              + {hiddenCount} more fields - click Expand to see all
+                            </p>
+                          ) : null
+                        })()}
+                      </div>
+                    </div>
+                  )
                 )}
 
-                {/* Performance KPIs - Clickable to view deals */}
-                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Performance (click to view deals)</h3>
-                <div className="grid grid-cols-4 gap-2 mb-4">
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setSelectedDealType('all')}
-                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-3 text-center transition-colors"
-                  >
-                    <p className="text-2xl font-bold text-white">{selectedMember.kpis.totalDeals}</p>
-                    <p className="text-xs text-gray-400">Total</p>
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setSelectedDealType('closed')}
-                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-3 text-center transition-colors"
-                  >
-                    <p className="text-2xl font-bold text-emerald-400">{selectedMember.kpis.closedDeals}</p>
-                    <p className="text-xs text-gray-400">Closed</p>
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setSelectedDealType('executed')}
-                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-3 text-center transition-colors"
-                  >
-                    <p className="text-2xl font-bold text-blue-400">{selectedMember.kpis.executedDeals}</p>
-                    <p className="text-xs text-gray-400">Executed</p>
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setSelectedDealType('pending')}
-                    className="bg-gray-800 hover:bg-gray-700 rounded-xl p-3 text-center transition-colors"
-                  >
-                    <p className="text-2xl font-bold text-amber-400">{selectedMember.kpis.pendingDeals}</p>
-                    <p className="text-xs text-gray-400">Pending</p>
-                  </motion.button>
-                </div>
+                {/* Performance KPIs - Clickable to view deals (only show when not editing) */}
+                {!isEditing && (
+                  <>
+                    <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Performance (click to view deals)</h3>
+                    <div className="grid grid-cols-4 gap-2 mb-4">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setSelectedDealType('all')}
+                        className="bg-gray-800 hover:bg-gray-700 rounded-xl p-3 text-center transition-colors"
+                      >
+                        <p className="text-2xl font-bold text-white">{selectedMember.kpis.totalDeals}</p>
+                        <p className="text-xs text-gray-400">Total</p>
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setSelectedDealType('closed')}
+                        className="bg-gray-800 hover:bg-gray-700 rounded-xl p-3 text-center transition-colors"
+                      >
+                        <p className="text-2xl font-bold text-emerald-400">{selectedMember.kpis.closedDeals}</p>
+                        <p className="text-xs text-gray-400">Closed</p>
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setSelectedDealType('executed')}
+                        className="bg-gray-800 hover:bg-gray-700 rounded-xl p-3 text-center transition-colors"
+                      >
+                        <p className="text-2xl font-bold text-blue-400">{selectedMember.kpis.executedDeals}</p>
+                        <p className="text-xs text-gray-400">Executed</p>
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setSelectedDealType('pending')}
+                        className="bg-gray-800 hover:bg-gray-700 rounded-xl p-3 text-center transition-colors"
+                      >
+                        <p className="text-2xl font-bold text-amber-400">{selectedMember.kpis.pendingDeals}</p>
+                        <p className="text-xs text-gray-400">Pending</p>
+                      </motion.button>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="bg-gray-800 rounded-lg p-3">
-                    <p className="text-gray-400">Total Volume</p>
-                    <p className="text-lg font-semibold text-white">{formatCompact(selectedMember.kpis.totalVolume)}</p>
-                  </div>
-                  <div className="bg-gray-800 rounded-lg p-3">
-                    <p className="text-gray-400">Closing Rate</p>
-                    <p className={`text-lg font-semibold ${selectedMember.kpis.closingRate >= 50 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                      {selectedMember.kpis.closingRate}%
-                    </p>
-                  </div>
-                </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="bg-gray-800 rounded-lg p-3">
+                        <p className="text-gray-400">Total Volume</p>
+                        <p className="text-lg font-semibold text-white">{formatCompact(selectedMember.kpis.totalVolume)}</p>
+                      </div>
+                      <div className="bg-gray-800 rounded-lg p-3">
+                        <p className="text-gray-400">Closing Rate</p>
+                        <p className={`text-lg font-semibold ${selectedMember.kpis.closingRate >= 50 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          {selectedMember.kpis.closingRate}%
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <button
-                  onClick={() => { setSelectedMember(null); setSelectedDealType(null) }}
+                  onClick={handleCloseModal}
                   className="mt-6 w-full py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors"
                 >
                   Close
