@@ -36,9 +36,82 @@ router.get('/info', requireAuth, requireAdmin, async (req, res) => {
 // Get overview stats (for dashboard) - MUST come before /:databaseKey route
 router.get('/stats', requireAuth, async (req, res) => {
   try {
-    const stats = {}
+    const { type } = req.query
 
-    // Get counts from each database
+    // Handle office-level stats for OfficeOverview component
+    if (type === 'by-office') {
+      const pipelineId = DATABASE_IDS.PIPELINE
+      const results = await queryDatabase(pipelineId)
+      const formatted = results.map(formatPage)
+
+      // Office mapping based on Edwards Co. field
+      const officeMap = {
+        'El Paso': ["Edward's LLC.", "Edwards LLC", "El Paso"],
+        'Las Cruces': ["Edward's NM.", "Edwards NM", "Las Cruces", "New Mexico"],
+        'McAllen': ["Edward's RGV", "Edwards RGV", "McAllen"],
+        'San Antonio': ["San Antonio"]
+      }
+
+      const officeList = ['El Paso', 'Las Cruces', 'McAllen', 'San Antonio']
+      const offices = {}
+      const totals = { active: 0, pending: 0, sold: 0, executed: 0, closes: 0, volume: 0 }
+
+      // Initialize office stats
+      officeList.forEach(office => {
+        offices[office] = { active: 0, pending: 0, sold: 0, executed: 0, closes: 0, volume: 0 }
+      })
+      offices['Other'] = { active: 0, pending: 0, sold: 0, executed: 0, closes: 0, volume: 0 }
+
+      // Categorize each deal
+      formatted.forEach(deal => {
+        const officeField = deal['Edwards Co.'] || deal['Edwards Co'] || deal.Office || ''
+        const status = (deal['Loan Status'] || deal.Status || '').toLowerCase()
+        const salesPrice = deal['Sales Price'] || deal.SalesPrice || 0
+
+        // Find matching office
+        let matchedOffice = 'Other'
+        for (const [officeName, terms] of Object.entries(officeMap)) {
+          if (terms.some(term => officeField.toLowerCase().includes(term.toLowerCase()))) {
+            matchedOffice = officeName
+            break
+          }
+        }
+
+        // Categorize by status
+        const officeStats = offices[matchedOffice]
+        if (status.includes('active') || status.includes('application') || status.includes('processing')) {
+          officeStats.active++
+          totals.active++
+        } else if (status.includes('pending') || status.includes('conditions')) {
+          officeStats.pending++
+          totals.pending++
+        } else if (status.includes('sold') || status.includes('back on market')) {
+          officeStats.sold++
+          totals.sold++
+        } else if (status.includes('executed') || status.includes('funded')) {
+          officeStats.executed++
+          totals.executed++
+        } else if (status.includes('closed') || status.includes('close')) {
+          officeStats.closes++
+          totals.closes++
+        } else {
+          // Default to pending for unknown statuses
+          officeStats.pending++
+          totals.pending++
+        }
+
+        // Add volume
+        if (typeof salesPrice === 'number') {
+          officeStats.volume += salesPrice
+          totals.volume += salesPrice
+        }
+      })
+
+      return res.json({ offices, totals, officeList })
+    }
+
+    // Default: return basic stats for all databases
+    const stats = {}
     for (const [key, id] of Object.entries(DATABASE_IDS)) {
       const results = await queryDatabase(id)
       stats[key] = {

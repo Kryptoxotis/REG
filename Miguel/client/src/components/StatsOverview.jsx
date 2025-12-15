@@ -1,34 +1,7 @@
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import axios from 'axios'
+import { motion } from 'framer-motion'
+import OfficeOverview from './OfficeOverview'
 
-function StatsOverview({ stats }) {
-  const [cityData, setCityData] = useState(null)
-  const [expandedCities, setExpandedCities] = useState({})
-  const [loadingCities, setLoadingCities] = useState(true)
-
-  useEffect(() => {
-    fetchCityStats()
-  }, [])
-
-  const fetchCityStats = async () => {
-    try {
-      const response = await axios.get('/api/databases/stats/cities', { withCredentials: true })
-      setCityData(response.data)
-    } catch (error) {
-      console.error('Failed to fetch city stats:', error)
-    } finally {
-      setLoadingCities(false)
-    }
-  }
-
-  const toggleCity = (cityName) => {
-    setExpandedCities(prev => ({
-      ...prev,
-      [cityName]: !prev[cityName]
-    }))
-  }
-
+function StatsOverview({ stats, onNavigate }) {
   if (!stats) {
     return (
       <motion.div
@@ -64,36 +37,6 @@ function StatsOverview({ stats }) {
     if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`
     if (num >= 1000) return `$${(num / 1000).toFixed(0)}K`
     return `$${num.toLocaleString()}`
-  }
-
-  const formatDate = (dateValue) => {
-    if (!dateValue) return 'N/A'
-    // Handle Notion date object format
-    const dateStr = typeof dateValue === 'object' ? dateValue.start : dateValue
-    if (!dateStr) return 'N/A'
-    try {
-      return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    } catch {
-      return dateStr
-    }
-  }
-
-  const getStatusBadgeColor = (status) => {
-    if (!status) return 'bg-gray-600/30 text-gray-400'
-    const s = String(status).toLowerCase()
-    if (s.includes('closed') || s.includes('funded') || s.includes('clear') || s.includes('done')) {
-      return 'bg-emerald-500/20 text-emerald-400'
-    }
-    if (s.includes('pending') || s.includes('processing') || s.includes('progress') || s.includes('conditions') || s.includes('submitted')) {
-      return 'bg-amber-500/20 text-amber-400'
-    }
-    if (s.includes('cancelled') || s.includes('denied') || s.includes('failed') || s.includes('back on market')) {
-      return 'bg-red-500/20 text-red-400'
-    }
-    if (s.includes('new') || s.includes('application') || s.includes('disclosures') || s.includes('appraisal')) {
-      return 'bg-blue-500/20 text-blue-400'
-    }
-    return 'bg-gray-600/30 text-gray-400'
   }
 
   const containerVariants = {
@@ -266,150 +209,9 @@ function StatsOverview({ stats }) {
         </motion.div>
       </div>
 
-      {/* City Deals Section */}
-      <motion.div variants={itemVariants} className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg sm:text-xl font-bold text-white">Deals by City</h3>
-          {cityData && (
-            <span className="text-sm text-gray-400">{cityData.totalDeals} total deals</span>
-          )}
-        </div>
-
-        {loadingCities ? (
-          <div className="flex items-center justify-center py-8">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-              className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full"
-            />
-          </div>
-        ) : cityData?.cities?.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            {cityData.cities.map((city, idx) => {
-              const isExpanded = expandedCities[city.name]
-              const cityGradients = [
-                'from-indigo-500 to-purple-500',
-                'from-cyan-500 to-blue-500',
-                'from-emerald-500 to-teal-500',
-                'from-orange-500 to-red-500',
-                'from-pink-500 to-rose-500',
-                'from-violet-500 to-indigo-500',
-                'from-blue-500 to-cyan-500',
-                'from-teal-500 to-green-500',
-                'from-amber-500 to-orange-500',
-                'from-rose-500 to-pink-500'
-              ]
-              const gradient = cityGradients[idx % cityGradients.length]
-
-              return (
-                <motion.div
-                  key={city.name}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                  className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden"
-                >
-                  {/* City Header - Clickable */}
-                  <motion.button
-                    onClick={() => toggleCity(city.name)}
-                    whileHover={{ backgroundColor: 'rgba(55, 65, 81, 1)' }}
-                    whileTap={{ scale: 0.99 }}
-                    className="w-full p-4 flex items-center justify-between cursor-pointer transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center`}>
-                        <span className="text-white text-lg">🏙️</span>
-                      </div>
-                      <div className="text-left">
-                        <h4 className="font-semibold text-white">{city.name}</h4>
-                        <p className="text-xs text-gray-400">
-                          {city.dealCount} {city.dealCount === 1 ? 'deal' : 'deals'} • {formatCurrency(city.totalVolume)}
-                        </p>
-                      </div>
-                    </div>
-                    <motion.div
-                      animate={{ rotate: isExpanded ? 180 : 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="text-gray-400"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </motion.div>
-                  </motion.button>
-
-                  {/* Expandable Details */}
-                  <AnimatePresence>
-                    {isExpanded && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: 'easeInOut' }}
-                        className="overflow-hidden"
-                      >
-                        <div className="px-4 pb-4 border-t border-gray-700">
-                          {/* Status Summary */}
-                          <div className="flex flex-wrap gap-2 py-3">
-                            {Object.entries(city.statuses).map(([status, count]) => (
-                              <span
-                                key={status}
-                                className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeColor(status)}`}
-                              >
-                                {status}: {count}
-                              </span>
-                            ))}
-                          </div>
-
-                          {/* Deal List */}
-                          <div className="space-y-2 max-h-64 overflow-y-auto">
-                            {city.deals.map((deal, dealIdx) => (
-                              <motion.div
-                                key={deal.id || dealIdx}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: dealIdx * 0.05 }}
-                                className="bg-gray-900/50 rounded-lg p-3 border border-gray-700/50"
-                              >
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-medium text-white truncate">{deal.address}</p>
-                                    <p className="text-xs text-gray-400 truncate">{deal.buyerName}</p>
-                                  </div>
-                                  <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${getStatusBadgeColor(deal.status)}`}>
-                                    {deal.status}
-                                  </span>
-                                </div>
-                                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-                                  <span>Agent: <span className="text-gray-300">{deal.agent}</span></span>
-                                  <span>Price: <span className="text-emerald-400">{formatCurrency(deal.salesPrice)}</span></span>
-                                  {deal.scheduledClosing && (
-                                    <span>Closing: <span className="text-amber-400">{formatDate(deal.scheduledClosing)}</span></span>
-                                  )}
-                                </div>
-                              </motion.div>
-                            ))}
-                          </div>
-
-                          {city.deals.length >= 20 && (
-                            <p className="text-xs text-gray-500 mt-2 text-center">
-                              Showing first 20 deals
-                            </p>
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              )
-            })}
-          </div>
-        ) : (
-          <div className="bg-gray-800 rounded-xl border border-gray-700 p-8 text-center">
-            <span className="text-4xl mb-2 block">🏙️</span>
-            <p className="text-gray-400">No city data available</p>
-          </div>
-        )}
+      {/* Office Overview Section */}
+      <motion.div variants={itemVariants} className="mt-8">
+        <OfficeOverview onNavigate={onNavigate} />
       </motion.div>
     </motion.div>
   )
