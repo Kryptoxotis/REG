@@ -101,32 +101,50 @@ function ScheduleCalendar({ user, onNavigate }) {
     })
   }
 
-  // Get week boundaries (Sunday to Saturday)
+  // Get week boundaries (Sunday to Saturday) - returns ISO date strings for comparison
   const getWeekBounds = (dateStr) => {
-    const d = new Date(dateStr)
+    const d = new Date(dateStr + 'T12:00:00') // Noon to avoid timezone issues
     const dayOfWeek = d.getDay()
     const sunday = new Date(d)
     sunday.setDate(d.getDate() - dayOfWeek)
     const saturday = new Date(sunday)
     saturday.setDate(sunday.getDate() + 6)
-    return { sunday, saturday }
+
+    // Return as ISO date strings for easy comparison
+    const sundayStr = sunday.toISOString().split('T')[0]
+    const saturdayStr = saturday.toISOString().split('T')[0]
+    return { sunday: sundayStr, saturday: saturdayStr }
   }
 
-  // Count user's requests for a week
+  // Count user's requests for a week (approved + pending only)
   const getUserWeekRequests = (dateStr) => {
     const { sunday, saturday } = getWeekBounds(dateStr)
     const userId = user?.teamMemberId || user?.id
-    const userName = user?.fullName || user?.name || user?.email
+    const userEmail = user?.email?.toLowerCase()
+    const userName = (user?.fullName || user?.name || '')?.toLowerCase()
 
     return scheduleData.filter(item => {
       if (!item.date) return false
-      const itemDate = new Date(item.date)
+      const itemDate = item.date.split('T')[0] // Get just the date part
+
+      // Check if date is within week bounds
       if (itemDate < sunday || itemDate > saturday) return false
-      // Match by employee ID or name
-      if (item.employeeId === userId) return true
-      if (item.employeeName && userName && item.employeeName.toLowerCase().includes(userName.toLowerCase())) return true
+
+      // Skip denied requests - they don't count
+      if (item.status === 'Denied') return false
+
+      // Match by employee ID
+      if (userId && item.employeeId === userId) return true
+
+      // Match by email (most reliable)
+      if (userEmail && item.employeeName?.toLowerCase() === userEmail) return true
+
+      // Match by name
+      if (userName && item.employeeName?.toLowerCase() === userName) return true
+      if (userName && item.employeeName?.toLowerCase()?.includes(userName)) return true
+
       return false
-    }).filter(item => item.status !== 'Denied') // Don't count denied requests
+    })
   }
 
   // Check if slot is already taken (Approved by someone else)
@@ -167,21 +185,29 @@ function ScheduleCalendar({ user, onNavigate }) {
 
     const dateStr = getISODate(selectedDay)
     const weekRequests = getUserWeekRequests(dateStr)
+    const currentCount = weekRequests.length
 
-    // Validate 5-day max
-    if (weekRequests.length >= 5) {
-      alert('You already have 5 days scheduled this week (maximum allowed).')
+    // STRICT: Block if already at 5-day maximum
+    if (currentCount >= 5) {
+      alert(
+        '❌ MAXIMUM REACHED\n\n' +
+        'You already have 5 days scheduled this week.\n' +
+        'Maximum allowed: 5 days per week (Sun-Sat).\n\n' +
+        'You cannot add more shifts this week.'
+      )
       return
     }
 
-    // Validate 3-day minimum - require confirmation if under minimum
-    const newTotal = weekRequests.length + 1
+    // WARNING: If this will leave them under minimum, require confirmation
+    const newTotal = currentCount + 1
     if (newTotal < 3) {
+      const daysNeeded = 3 - newTotal
       const proceed = window.confirm(
-        `You'll only have ${newTotal} day(s) for this week after submitting.\n\n` +
+        `⚠️ MINIMUM NOT MET\n\n` +
+        `After this request, you'll have ${newTotal} day(s) this week.\n` +
         `Minimum required: 3 days per week.\n\n` +
-        `You still need to add ${3 - newTotal} more day(s) to meet the minimum.\n\n` +
-        `Continue with this request?`
+        `You still need to schedule ${daysNeeded} more day(s) to meet the weekly minimum.\n\n` +
+        `Do you want to continue and add more shifts after?`
       )
       if (!proceed) return
     }
@@ -609,15 +635,59 @@ function ScheduleCalendar({ user, onNavigate }) {
                 </h2>
                 <p className="text-gray-400 text-sm mb-6">Select a Model Home to request this shift</p>
 
-                {/* Week status */}
+                {/* Week status - prominent display */}
                 {(() => {
                   const weekRequests = getUserWeekRequests(getISODate(selectedDay))
+                  const count = weekRequests.length
+                  const isAtMax = count >= 5
+                  const isUnderMin = count < 3
+                  const willBeUnderMin = count + 1 < 3
+
                   return (
-                    <div className="mb-4 p-3 bg-gray-800 rounded-lg">
-                      <p className="text-sm text-gray-300">
-                        Your requests this week: <span className={`font-bold ${weekRequests.length >= 5 ? 'text-red-400' : weekRequests.length >= 3 ? 'text-emerald-400' : 'text-amber-400'}`}>{weekRequests.length}/5</span>
-                        {weekRequests.length < 3 && <span className="text-amber-400 ml-2">(Min: 3 required)</span>}
-                      </p>
+                    <div className={`mb-4 p-4 rounded-xl border ${
+                      isAtMax ? 'bg-red-500/10 border-red-500/30' :
+                      isUnderMin ? 'bg-amber-500/10 border-amber-500/30' :
+                      'bg-emerald-500/10 border-emerald-500/30'
+                    }`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-300">This Week's Schedule</span>
+                        <span className={`text-lg font-bold ${
+                          isAtMax ? 'text-red-400' :
+                          isUnderMin ? 'text-amber-400' :
+                          'text-emerald-400'
+                        }`}>{count}/5 days</span>
+                      </div>
+
+                      {/* Progress bar */}
+                      <div className="h-2 bg-gray-700 rounded-full overflow-hidden mb-2">
+                        <div
+                          className={`h-full transition-all ${
+                            isAtMax ? 'bg-red-500' :
+                            count >= 3 ? 'bg-emerald-500' :
+                            'bg-amber-500'
+                          }`}
+                          style={{ width: `${(count / 5) * 100}%` }}
+                        />
+                        {/* Minimum marker at 3/5 = 60% */}
+                        <div className="relative -mt-2 h-2">
+                          <div className="absolute left-[60%] w-0.5 h-2 bg-white/50" title="Minimum: 3 days" />
+                        </div>
+                      </div>
+
+                      {/* Status message */}
+                      {isAtMax ? (
+                        <p className="text-xs text-red-400 font-medium">
+                          ❌ Maximum reached - Cannot add more shifts this week
+                        </p>
+                      ) : isUnderMin ? (
+                        <p className="text-xs text-amber-400">
+                          ⚠️ Need {3 - count} more day(s) to meet minimum (3 required)
+                        </p>
+                      ) : (
+                        <p className="text-xs text-emerald-400">
+                          ✓ Minimum met - Can add {5 - count} more day(s)
+                        </p>
+                      )}
                     </div>
                   )
                 })()}
@@ -679,13 +749,23 @@ function ScheduleCalendar({ user, onNavigate }) {
 
                 {/* Actions */}
                 <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={handleSubmitRequest}
-                    disabled={!selectedModelHome || submitting}
-                    className="flex-1 py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium rounded-xl transition-colors"
-                  >
-                    {submitting ? 'Submitting...' : 'Submit Request'}
-                  </button>
+                  {(() => {
+                    const weekRequests = getUserWeekRequests(getISODate(selectedDay))
+                    const isAtMax = weekRequests.length >= 5
+                    return (
+                      <button
+                        onClick={handleSubmitRequest}
+                        disabled={!selectedModelHome || submitting || isAtMax}
+                        className={`flex-1 py-3 font-medium rounded-xl transition-colors ${
+                          isAtMax
+                            ? 'bg-red-900/50 text-red-400 cursor-not-allowed'
+                            : 'bg-amber-600 hover:bg-amber-500 disabled:bg-gray-700 disabled:text-gray-500 text-white'
+                        }`}
+                      >
+                        {submitting ? 'Submitting...' : isAtMax ? 'Max 5 Days Reached' : 'Submit Request'}
+                      </button>
+                    )
+                  })()}
                   <button
                     onClick={() => { setSelectedDay(null); setSelectedModelHome(null) }}
                     className="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors"
