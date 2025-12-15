@@ -84,10 +84,15 @@ function ScheduleCalendar({ user, onNavigate }) {
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-  // Check if displayed calendar is a future month (employees can only edit next month)
+  // Check if displayed calendar is next month ONLY (employees can only edit next month, not any future month)
   const today = new Date()
   const isFutureMonth = (year > today.getFullYear()) || (year === today.getFullYear() && month > today.getMonth())
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth()
+
+  // Calculate exactly what "next month" is
+  const nextMonthIndex = today.getMonth() === 11 ? 0 : today.getMonth() + 1
+  const nextMonthYear = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear()
+  const isNextMonth = year === nextMonthYear && month === nextMonthIndex
 
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1))
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1))
@@ -533,11 +538,18 @@ function ScheduleCalendar({ user, onNavigate }) {
                 <span><strong>Current Month (View Only)</strong> - Navigate to next month to submit your schedule requests.</span>
               </p>
             </div>
-          ) : isFutureMonth ? (
+          ) : isNextMonth ? (
             <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
               <p className="text-sm text-green-400 flex items-center gap-2">
                 <span className="text-lg">🔓</span>
                 <span><strong>Schedule Open</strong> - Click days to select them, then submit your week below.</span>
+              </p>
+            </div>
+          ) : isFutureMonth ? (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+              <p className="text-sm text-amber-400 flex items-center gap-2">
+                <span className="text-lg">🔒</span>
+                <span><strong>Future Month</strong> - You can only submit schedules for next month. Navigate back to {monthNames[nextMonthIndex]} {nextMonthYear}.</span>
               </p>
             </div>
           ) : (
@@ -673,8 +685,8 @@ function ScheduleCalendar({ user, onNavigate }) {
 
               const isSelected = day && selectedDays.includes(getISODate(day))
 
-              // Employee can only select days in future months (not current month)
-              const canEmployeeEdit = !past && !isAdmin && scheduleIsOpen && isFutureMonth
+              // Employee can only select days in NEXT month (not current, not 2+ months ahead)
+              const canEmployeeEdit = !past && !isAdmin && scheduleIsOpen && isNextMonth
 
               return (
                 <div
@@ -770,8 +782,8 @@ function ScheduleCalendar({ user, onNavigate }) {
         )}
       </div>
 
-      {/* Employee: Week Submission Section - Only show for future months */}
-      {!isAdmin && scheduleIsOpen && isFutureMonth && (
+      {/* Employee: Week Submission Section - Only show for NEXT month */}
+      {!isAdmin && scheduleIsOpen && isNextMonth && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
