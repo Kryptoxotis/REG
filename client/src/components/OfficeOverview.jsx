@@ -13,25 +13,32 @@ function OfficeOverview({ onNavigate, onCitySelect }) {
   }, [])
 
   const fetchOfficeStats = async () => {
+    console.log('[OfficeOverview] Starting fetch...')
     try {
       setLoading(true)
+      setError(null)
       const token = localStorage.getItem('authToken')
+      console.log('[OfficeOverview] Token exists:', !!token)
       const response = await axios.get('/api/databases/stats?type=by-office', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        timeout: 20000
       })
+      console.log('[OfficeOverview] Response received:', response.status)
       // Validate response has expected structure before setting
       const data = response.data
       if (data && data.offices && data.totals && data.officeList) {
+        console.log('[OfficeOverview] Data valid, setting state')
         setOfficeData(data)
       } else {
-        console.error('Invalid office data format:', data)
+        console.error('[OfficeOverview] Invalid data format:', data)
         setError('Invalid data format received')
       }
     } catch (err) {
-      console.error('Error fetching office stats:', err)
-      setError('Failed to load office data')
+      console.error('[OfficeOverview] Error:', err.message, err.response?.status)
+      setError(err.response?.data?.error || 'Failed to load office data')
     } finally {
       setLoading(false)
+      console.log('[OfficeOverview] Fetch complete')
     }
   }
 
