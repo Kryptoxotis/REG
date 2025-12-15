@@ -158,6 +158,18 @@ function ScheduleCalendar({ user, onNavigate }) {
       return
     }
 
+    // Validate 3-day minimum - require confirmation if under minimum
+    const newTotal = weekRequests.length + 1
+    if (newTotal < 3) {
+      const proceed = window.confirm(
+        `You'll only have ${newTotal} day(s) for this week after submitting.\n\n` +
+        `Minimum required: 3 days per week.\n\n` +
+        `You still need to add ${3 - newTotal} more day(s) to meet the minimum.\n\n` +
+        `Continue with this request?`
+      )
+      if (!proceed) return
+    }
+
     setSubmitting(true)
     try {
       await axios.post('/api/databases/schedule', {
