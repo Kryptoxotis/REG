@@ -126,13 +126,11 @@ function OfficeOverview({ onNavigate, onCitySelect }) {
 
   const { offices, totals, officeList } = officeData
 
+  // Debug: log what we're about to render
+  console.log('[OfficeOverview] Rendering with:', { officeList, totalsActive: totals.active })
+
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="space-y-6"
-    >
+    <div className="space-y-6">
       {/* Header */}
       <motion.div
         variants={itemVariants}
@@ -347,7 +345,7 @@ function OfficeOverview({ onNavigate, onCitySelect }) {
           </div>
         </motion.div>
       )}
-    </motion.div>
+    </div>
   )
 }
 
