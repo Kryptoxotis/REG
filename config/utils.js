@@ -174,7 +174,7 @@ export function getCorsHeaders(req) {
 
   return {
     'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Allow-Origin': isAllowed ? origin : allowedOrigins[0] || '*',
+    'Access-Control-Allow-Origin': isAllowed ? origin : allowedOrigins[0],
     'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization'
   }
@@ -207,6 +207,12 @@ export function sanitizeString(input) {
 export function sanitizeEmail(email) {
   if (typeof email !== 'string') return ''
   return email.toLowerCase().trim().slice(0, 255)
+}
+
+// UUID validation (Notion page IDs)
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+export function isValidUUID(id) {
+  return typeof id === 'string' && UUID_REGEX.test(id)
 }
 
 // Find user by email in Team Members database

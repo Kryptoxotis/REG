@@ -1,14 +1,15 @@
 // Centralized database configuration
 // All Notion database IDs in one place
+// Uses environment variables with fallback to defaults for development
 
 export const DATABASE_IDS = {
-  TEAM_MEMBERS: '2bb746b9-e0e8-815b-a4de-d2d5aa5ef4e5',
-  PROPERTIES: '2bb746b9-e0e8-8163-9afe-cf0c567c2586',
-  PIPELINE: '2bb746b9-e0e8-81f3-90c9-d2d317085a50',
-  CLIENTS: '2bb746b9-e0e8-8176-b5ed-dfe744fc0246',
-  SCHEDULE: '2bb746b9-e0e8-810a-b85d-e1a517ca1349',
-  ACTIVITY_LOG: '2c8746b9-e0e8-804a-8214-da6c76e7af4e',
-  CLOSED_DEALS: '2c8746b9-e0e8-8050-9cb1-d9445440a513'
+  TEAM_MEMBERS: process.env.NOTION_DB_TEAM_MEMBERS || '2bb746b9-e0e8-815b-a4de-d2d5aa5ef4e5',
+  PROPERTIES: process.env.NOTION_DB_PROPERTIES || '2bb746b9-e0e8-8163-9afe-cf0c567c2586',
+  PIPELINE: process.env.NOTION_DB_PIPELINE || '2bb746b9-e0e8-81f3-90c9-d2d317085a50',
+  CLIENTS: process.env.NOTION_DB_CLIENTS || '2bb746b9-e0e8-8176-b5ed-dfe744fc0246',
+  SCHEDULE: process.env.NOTION_DB_SCHEDULE || '2bb746b9-e0e8-810a-b85d-e1a517ca1349',
+  ACTIVITY_LOG: process.env.NOTION_DB_ACTIVITY_LOG || '2c8746b9-e0e8-804a-8214-da6c76e7af4e',
+  CLOSED_DEALS: process.env.NOTION_DB_CLOSED_DEALS || '2c8746b9-e0e8-8050-9cb1-d9445440a513'
 }
 
 export const NOTION_VERSION = '2022-06-28'
@@ -24,6 +25,12 @@ export function getDatabaseId(key) {
 export const TOKEN_SECRET = process.env.TOKEN_SECRET
 if (!TOKEN_SECRET) {
   throw new Error('TOKEN_SECRET environment variable is required')
+}
+
+// Notion API key - required env var
+export const NOTION_API_KEY = process.env.NOTION_API_KEY
+if (!NOTION_API_KEY) {
+  throw new Error('NOTION_API_KEY environment variable is required')
 }
 
 // Cities configuration (shared across components)

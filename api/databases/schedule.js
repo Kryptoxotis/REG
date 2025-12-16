@@ -1,16 +1,11 @@
 import axios from 'axios'
 import { DATABASE_IDS, NOTION_VERSION } from '../../config/databases.js'
-import { handleCors, verifyToken } from '../../config/utils.js'
+import { handleCors, verifyToken, extractPlainText, isValidUUID } from '../../config/utils.js'
 
 const NOTION_API_KEY = process.env.NOTION_API_KEY
 
 // Settings entry identifier (used to store schedule open day in Notion)
 const SETTINGS_ENTRY_NAME = '__SCHEDULE_SETTINGS__'
-
-function extractPlainText(richText) {
-  if (!richText || !Array.isArray(richText)) return ''
-  return richText.map(text => text.plain_text).join('')
-}
 
 function formatSchedulePage(page) {
   const props = page.properties
@@ -487,6 +482,10 @@ export default async function handler(req, res) {
 
       if (!scheduleId) {
         return res.status(400).json({ error: 'Schedule ID is required' })
+      }
+
+      if (!isValidUUID(scheduleId)) {
+        return res.status(400).json({ error: 'Invalid schedule ID format' })
       }
 
       // Admin check for approve/deny
