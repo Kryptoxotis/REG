@@ -8,8 +8,6 @@ function TeamKPIView() {
   const [error, setError] = useState(null)
   const [selectedMember, setSelectedMember] = useState(null)
 
-  useEffect(() => { fetchData() }, [])
-
   const fetchData = async () => {
     setLoading(true)
     setError(null)
@@ -20,6 +18,8 @@ function TeamKPIView() {
       setError(err.response?.data?.error || 'Failed to fetch team KPIs')
     } finally { setLoading(false) }
   }
+
+  useEffect(() => { fetchData() }, [])
 
   if (loading) {
     return (
