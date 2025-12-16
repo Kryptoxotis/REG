@@ -1,22 +1,24 @@
 import express from 'express'
+import validator from 'validator'
 import { queryDatabase, getDatabaseInfo, formatPage, DATABASE_IDS, updatePage, createPage, deletePage } from '../utils/notion.js'
+import { requireAuth, requireAdmin } from '../middleware/auth.js'
+import logger from '../utils/logger.js'
 
 const router = express.Router()
 
-// Middleware to check authentication
-function requireAuth(req, res, next) {
-  if (!req.session.user) {
-    return res.status(401).json({ error: 'Not authenticated' })
-  }
-  next()
-}
+// In-memory cache for stats endpoint (60 second TTL)
+const statsCache = { data: null, expires: 0 }
 
-// Middleware to check admin role
-function requireAdmin(req, res, next) {
-  if (!req.session.user || req.session.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' })
-  }
-  next()
+// Editable fields whitelist per database - server-side validation
+// Only these fields can be updated via the API (prevents system field tampering)
+const EDITABLE_FIELDS = {
+  TEAM_MEMBERS: ['Phone', 'Email', 'Address', 'Notes', 'Name', 'Role', 'Status'],
+  PIPELINE: ['Status', 'Agent', 'Notes', 'Scheduled Closing', 'Sales Price'],
+  PROPERTIES: ['Status', 'Notes', 'Price', 'Address'],
+  CLIENTS: ['Name', 'Email', 'Phone', 'Notes', 'Status'],
+  SCHEDULE: ['Date', 'Time', 'Notes', 'Status', 'Attendees'],
+  CLOSED_DEALS: ['Notes'], // Very limited editing on closed deals
+  ACTIVITY_LOG: [] // No editing allowed
 }
 
 // Get all database info (admin only)
@@ -28,7 +30,7 @@ router.get('/info', requireAuth, requireAdmin, async (req, res) => {
     }
     res.json(databases)
   } catch (error) {
-    console.error('Error fetching database info:', error)
+    logger.error('Error fetching database info:', error)
     res.status(500).json({ error: 'Failed to fetch database info' })
   }
 })
@@ -36,8 +38,16 @@ router.get('/info', requireAuth, requireAdmin, async (req, res) => {
 // Get team KPIs with aggregated pipeline data - MUST come before /:databaseKey route
 router.get('/team-kpis', requireAuth, async (req, res) => {
   try {
+    // Pagination params with sensible defaults
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100) // Max 100
+    const offset = parseInt(req.query.offset) || 0
+
     // Fetch team members
-    const teamMembers = await queryDatabase(DATABASE_IDS.TEAM_MEMBERS)
+    const allTeamMembers = await queryDatabase(DATABASE_IDS.TEAM_MEMBERS)
+    const total = allTeamMembers.length
+
+    // Apply pagination to team members
+    const teamMembers = allTeamMembers.slice(offset, offset + limit)
 
     // Fetch pipeline data
     const pipelineData = await queryDatabase(DATABASE_IDS.PIPELINE)
@@ -139,9 +149,18 @@ router.get('/team-kpis', requireAuth, async (req, res) => {
       }
     })
 
-    res.json(teamKPIs)
+    // Return paginated response
+    res.json({
+      data: teamKPIs,
+      pagination: {
+        total,
+        limit,
+        offset,
+        hasMore: offset + limit < total
+      }
+    })
   } catch (error) {
-    console.error('Error fetching team KPIs:', error)
+    logger.error('Error fetching team KPIs:', error)
     res.status(500).json({ error: 'Failed to fetch team KPIs' })
   }
 })
@@ -149,6 +168,11 @@ router.get('/team-kpis', requireAuth, async (req, res) => {
 // Get overview stats (for dashboard) - MUST come before /:databaseKey route
 router.get('/stats', requireAuth, async (req, res) => {
   try {
+    // Check cache first (60 second TTL)
+    if (statsCache.data && statsCache.expires > Date.now()) {
+      return res.json(statsCache.data)
+    }
+
     const stats = {}
 
     // Get counts from each database
@@ -160,9 +184,13 @@ router.get('/stats', requireAuth, async (req, res) => {
       }
     }
 
+    // Update cache
+    statsCache.data = stats
+    statsCache.expires = Date.now() + 60000 // 60 second TTL
+
     res.json(stats)
   } catch (error) {
-    console.error('Error fetching stats:', error)
+    logger.error('Error fetching stats:', error)
     res.status(500).json({ error: 'Failed to fetch stats' })
   }
 })
@@ -182,9 +210,9 @@ router.get('/stats/by-office', requireAuth, async (req, res) => {
     const dbNames = ['PROPERTIES', 'PIPELINE', 'CLOSED_DEALS']
     results.forEach((result, i) => {
       if (result.status === 'rejected') {
-        console.error(`Failed to fetch ${dbNames[i]}:`, result.reason?.message || result.reason)
+        logger.error(`Failed to fetch ${dbNames[i]}:`, result.reason?.message || result.reason)
       } else {
-        console.log(`${dbNames[i]}: ${result.value.length} items`)
+        logger.info(`${dbNames[i]}: ${result.value.length} items`)
       }
     })
 
@@ -306,7 +334,7 @@ router.get('/stats/by-office', requireAuth, async (req, res) => {
       officeList: offices
     })
   } catch (error) {
-    console.error('Error fetching office stats:', error)
+    logger.error('Error fetching office stats:', error)
     res.status(500).json({ error: 'Failed to fetch office stats' })
   }
 })
@@ -318,20 +346,20 @@ router.get('/:databaseKey', requireAuth, async (req, res) => {
     const upperKey = databaseKey.toUpperCase()
     const databaseId = DATABASE_IDS[upperKey]
 
-    console.log(`Fetching database: ${upperKey}, ID: ${databaseId}`)
+    logger.info(`Fetching database: ${upperKey}, ID: ${databaseId}`)
 
     if (!databaseId) {
-      console.error(`Database not found: ${upperKey}`)
+      logger.error(`Database not found: ${upperKey}`)
       return res.status(404).json({ error: `Database not found: ${databaseKey}` })
     }
 
     const results = await queryDatabase(databaseId)
-    console.log(`${upperKey}: fetched ${results.length} items`)
+    logger.info(`${upperKey}: fetched ${results.length} items`)
     const formatted = results.map(formatPage)
 
     res.json(formatted)
   } catch (error) {
-    console.error(`Error fetching ${databaseKey}:`, error.message)
+    logger.error(`Error fetching ${databaseKey}:`, error.message)
     res.status(500).json({ error: `Failed to fetch ${databaseKey}: ${error.message}` })
   }
 })
@@ -358,7 +386,7 @@ router.get('/:databaseKey/raw', requireAuth, requireAdmin, async (req, res) => {
       res.json({ message: 'No data in database' })
     }
   } catch (error) {
-    console.error('Error fetching raw data:', error)
+    logger.error('Error fetching raw data:', error)
     res.status(500).json({ error: 'Failed to fetch raw data' })
   }
 })
@@ -366,17 +394,42 @@ router.get('/:databaseKey/raw', requireAuth, requireAdmin, async (req, res) => {
 // Update a record in Notion
 router.put('/:databaseKey/:pageId', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { pageId } = req.params
+    const { databaseKey, pageId } = req.params
     const { properties } = req.body
 
     if (!properties) {
       return res.status(400).json({ error: 'Properties required' })
     }
 
-    const result = await updatePage(pageId, properties)
+    // Server-side field validation - only allow whitelisted fields
+    const allowedFields = EDITABLE_FIELDS[databaseKey.toUpperCase()] || []
+    if (allowedFields.length === 0) {
+      return res.status(403).json({ error: 'Editing not allowed for this database' })
+    }
+
+    // Filter properties to only include allowed fields
+    const sanitizedProperties = {}
+    const blockedFields = []
+    for (const [key, value] of Object.entries(properties)) {
+      if (allowedFields.includes(key)) {
+        sanitizedProperties[key] = value
+      } else {
+        blockedFields.push(key)
+      }
+    }
+
+    if (blockedFields.length > 0) {
+      logger.warn(`Blocked field update attempt: ${blockedFields.join(', ')} in ${databaseKey}`)
+    }
+
+    if (Object.keys(sanitizedProperties).length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' })
+    }
+
+    const result = await updatePage(pageId, sanitizedProperties)
     res.json({ success: true, data: formatPage(result) })
   } catch (error) {
-    console.error('Error updating page:', error)
+    logger.error('Error updating page:', error)
     res.status(500).json({ error: 'Failed to update record' })
   }
 })
@@ -399,7 +452,7 @@ router.post('/:databaseKey', requireAuth, requireAdmin, async (req, res) => {
     const result = await createPage(databaseId, properties)
     res.json({ success: true, data: formatPage(result) })
   } catch (error) {
-    console.error('Error creating page:', error)
+    logger.error('Error creating page:', error)
     res.status(500).json({ error: 'Failed to create record' })
   }
 })
@@ -412,7 +465,7 @@ router.delete('/:databaseKey/:pageId', requireAuth, requireAdmin, async (req, re
     await deletePage(pageId)
     res.json({ success: true, message: 'Record archived' })
   } catch (error) {
-    console.error('Error deleting page:', error)
+    logger.error('Error deleting page:', error)
     res.status(500).json({ error: 'Failed to delete record' })
   }
 })
@@ -434,7 +487,7 @@ router.patch('/pipeline/:pageId/status', requireAuth, async (req, res) => {
     const result = await updatePage(pageId, properties)
     res.json({ success: true, data: formatPage(result) })
   } catch (error) {
-    console.error('Error updating deal status:', error)
+    logger.error('Error updating deal status:', error)
     res.status(500).json({ error: 'Failed to update deal status' })
   }
 })
@@ -465,7 +518,7 @@ router.post('/activity-log', requireAuth, async (req, res) => {
     const result = await createPage(DATABASE_IDS.ACTIVITY_LOG, properties)
     res.json({ success: true, data: formatPage(result) })
   } catch (error) {
-    console.error('Error creating activity log:', error)
+    logger.error('Error creating activity log:', error)
     res.status(500).json({ error: 'Failed to create activity log entry' })
   }
 })
@@ -496,22 +549,25 @@ router.post('/actions', requireAuth, async (req, res) => {
           })
         }
 
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        if (!emailRegex.test(buyerEmail)) {
+        // Validate email format using validator.js
+        if (!validator.isEmail(buyerEmail)) {
           return res.status(400).json({ error: 'Invalid buyer email format' })
         }
-        if (loEmail && !emailRegex.test(loEmail)) {
+        if (loEmail && !validator.isEmail(loEmail)) {
           return res.status(400).json({ error: 'Invalid LO email format' })
         }
-        if (realtorEmail && !emailRegex.test(realtorEmail)) {
+        if (realtorEmail && !validator.isEmail(realtorEmail)) {
           return res.status(400).json({ error: 'Invalid realtor email format' })
         }
 
-        // Validate phone format
-        const phoneRegex = /^[\d\s\-\(\)\+]+$/
-        if (!phoneRegex.test(buyerPhone)) {
-          return res.status(400).json({ error: 'Invalid buyer phone format' })
+        // Validate phone format - must have 10-15 digits with optional formatting
+        const phoneDigits = buyerPhone.replace(/\D/g, '')
+        if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+          return res.status(400).json({ error: 'Phone must have 10-15 digits' })
+        }
+        // Only allow digits and common phone formatting chars
+        if (!/^[\d\s\-\(\)\+\.]+$/.test(buyerPhone)) {
+          return res.status(400).json({ error: 'Invalid phone format - use digits, spaces, dashes, parentheses, or plus' })
         }
 
         // Create pipeline entry
@@ -571,12 +627,29 @@ router.post('/actions', requireAuth, async (req, res) => {
           return res.status(400).json({ error: 'logAction required' })
         }
 
+        // Server-side validation for entity and action types
+        const ALLOWED_ENTITY_TYPES = ['Team Member', 'Property', 'Pipeline', 'Client', 'Schedule', 'System']
+        const ALLOWED_ACTION_TYPES = ['View', 'Edit', 'Create', 'Delete', 'Login', 'Logout', 'Navigate']
+
+        if (entityType && !ALLOWED_ENTITY_TYPES.includes(entityType)) {
+          return res.status(400).json({ error: 'Invalid entity type' })
+        }
+        if (actionType && !ALLOWED_ACTION_TYPES.includes(actionType)) {
+          return res.status(400).json({ error: 'Invalid action type' })
+        }
+
+        // Sanitize and limit string lengths
+        const sanitize = (str, maxLen = 500) => {
+          if (!str) return str
+          return String(str).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '').substring(0, maxLen).trim()
+        }
+
         const properties = {
-          'Action': { title: [{ text: { content: logAction } }] },
-          'User': { rich_text: [{ text: { content: user } }] },
-          'Deal Address': dealAddress ? { rich_text: [{ text: { content: dealAddress } }] } : undefined,
-          'Old Status': oldStatus ? { rich_text: [{ text: { content: oldStatus } }] } : undefined,
-          'New Status': newStatus ? { rich_text: [{ text: { content: newStatus } }] } : undefined,
+          'Action': { title: [{ text: { content: sanitize(logAction) } }] },
+          'User': { rich_text: [{ text: { content: sanitize(user) } }] },
+          'Deal Address': dealAddress ? { rich_text: [{ text: { content: sanitize(dealAddress) } }] } : undefined,
+          'Old Status': oldStatus ? { rich_text: [{ text: { content: sanitize(oldStatus) } }] } : undefined,
+          'New Status': newStatus ? { rich_text: [{ text: { content: sanitize(newStatus) } }] } : undefined,
           'Entity Type': entityType ? { rich_text: [{ text: { content: entityType } }] } : undefined,
           'Action Type': actionType ? { rich_text: [{ text: { content: actionType } }] } : undefined,
           'Date': { date: { start: new Date().toISOString() } }
@@ -645,7 +718,7 @@ router.post('/actions', requireAuth, async (req, res) => {
         return res.status(400).json({ error: `Unknown action: ${action}` })
     }
   } catch (error) {
-    console.error(`Action ${req.body.action} failed:`, error)
+    logger.error(`Action ${req.body.action} failed:`, error)
     res.status(500).json({
       error: 'Action failed',
       details: error.message
@@ -684,7 +757,7 @@ router.post('/properties/:pageId/move-to-pipeline', requireAuth, async (req, res
 
     res.json({ success: true, pipelineDeal: formatPage(pipelineDeal) })
   } catch (error) {
-    console.error('Error moving property to pipeline:', error)
+    logger.error('Error moving property to pipeline:', error)
     res.status(500).json({ error: 'Failed to move property to pipeline' })
   }
 })
@@ -718,7 +791,7 @@ router.post('/pipeline/:pageId/move-to-closed', requireAuth, async (req, res) =>
 
     res.json({ success: true, closedDeal: formatPage(closedDeal) })
   } catch (error) {
-    console.error('Error moving deal to closed:', error)
+    logger.error('Error moving deal to closed:', error)
     res.status(500).json({ error: 'Failed to move deal to closed' })
   }
 })
@@ -748,7 +821,7 @@ router.post('/closed-deals', requireAuth, async (req, res) => {
     const result = await createPage(DATABASE_IDS.CLOSED_DEALS, properties)
     res.json({ success: true, data: formatPage(result) })
   } catch (error) {
-    console.error('Error creating closed deal:', error)
+    logger.error('Error creating closed deal:', error)
     res.status(500).json({ error: 'Failed to create closed deal entry' })
   }
 })

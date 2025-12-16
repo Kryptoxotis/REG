@@ -4,6 +4,12 @@ import api from '../lib/api'
 import { Eye, EyeOff, Search, X, Maximize2, Minimize2, Edit3, Save, XCircle } from 'lucide-react'
 import { getFieldPreferences } from './FieldSettings'
 
+// #10 - Extract magic numbers to named constants
+const CLOSING_RATE_THRESHOLDS = {
+  HIGH: 50,    // >= 50% is green/excellent
+  MEDIUM: 25   // >= 25% is amber/good, < 25% is gray/needs improvement
+}
+
 function TeamKPIView({ onNavigate }) {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
@@ -28,20 +34,41 @@ function TeamKPIView({ onNavigate }) {
     return () => window.removeEventListener('fieldPreferencesChanged', handlePrefsChanged)
   }, [])
 
-  useEffect(() => { fetchData() }, [])
+  // #7 - Use AbortController for proper request cancellation on unmount
+  useEffect(() => {
+    const controller = new AbortController()
 
-  const fetchData = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      // HttpOnly cookies handle auth automatically via withCredentials
-      const response = await api.get('/api/databases/team-kpis')
-      // Validate response is an array before setting state
-      setData(Array.isArray(response.data) ? response.data : [])
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to fetch team KPIs')
-    } finally { setLoading(false) }
-  }
+    const fetchData = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        // HttpOnly cookies handle auth automatically via withCredentials
+        const response = await api.get('/api/databases/team-kpis', {
+          signal: controller.signal
+        })
+        // Handle paginated response format { data: [...], pagination: {...} }
+        const teamData = response.data?.data || response.data
+        setData(Array.isArray(teamData) ? teamData : [])
+      } catch (err) {
+        // Ignore aborted requests (component unmounted)
+        if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
+          return
+        }
+        setError(err.response?.data?.error || 'Failed to fetch team KPIs')
+      } finally {
+        // Only update loading if not aborted
+        if (!controller.signal.aborted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    fetchData()
+
+    return () => {
+      controller.abort()
+    }
+  }, [])
 
   // Handle starting edit mode
   const handleStartEdit = () => {
@@ -233,7 +260,17 @@ function TeamKPIView({ onNavigate }) {
             transition={{ delay: idx * 0.05 }}
             whileHover={{ scale: 1.01, y: -2 }}
             onClick={() => setSelectedMember(member)}
-            className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden hover:border-violet-500/50 transition-all cursor-pointer"
+            // #11 - Keyboard navigation and accessibility
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setSelectedMember(member)
+              }
+            }}
+            tabIndex={0}
+            role="button"
+            aria-label={`View profile for ${member.name || 'Unknown'}, ${member.role || 'Agent'}, ${member.kpis?.totalDeals || 0} total deals`}
+            className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden hover:border-violet-500/50 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-gray-900"
           >
             <div className="h-1.5 bg-gradient-to-r from-violet-500 to-purple-400" />
             <div className="p-5">
@@ -274,7 +311,7 @@ function TeamKPIView({ onNavigate }) {
               {/* Volume & Closing Rate */}
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-400">Volume: <span className="text-white font-semibold">{formatCompact(member.kpis.totalVolume)}</span></span>
-                <span className={`font-semibold ${member.kpis.closingRate >= 50 ? 'text-emerald-400' : member.kpis.closingRate >= 25 ? 'text-amber-400' : 'text-gray-400'}`}>
+                <span className={`font-semibold ${member.kpis.closingRate >= CLOSING_RATE_THRESHOLDS.HIGH ? 'text-emerald-400' : member.kpis.closingRate >= CLOSING_RATE_THRESHOLDS.MEDIUM ? 'text-amber-400' : 'text-gray-400'}`}>
                   {member.kpis.closingRate}% closing
                 </span>
               </div>
@@ -503,7 +540,7 @@ function TeamKPIView({ onNavigate }) {
                       </div>
                       <div className="bg-gray-800 rounded-lg p-3">
                         <p className="text-gray-400">Closing Rate</p>
-                        <p className={`text-lg font-semibold ${selectedMember.kpis.closingRate >= 50 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        <p className={`text-lg font-semibold ${selectedMember.kpis.closingRate >= CLOSING_RATE_THRESHOLDS.HIGH ? 'text-emerald-400' : 'text-amber-400'}`}>
                           {selectedMember.kpis.closingRate}%
                         </p>
                       </div>

@@ -25,12 +25,15 @@
     "dotenv": "^17.2.3",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
     "express-session": "^1.18.2",
     "form-data": "^4.0.0",
     "formidable": "^3.5.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.9.6"
+    "react-router-dom": "^7.9.6",
+    "validator": "^13.15.23",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.7.0",

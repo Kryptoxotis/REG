@@ -27,7 +27,8 @@ export function useStats() {
   return useQuery({
     queryKey: ['stats'],
     queryFn: () => api.get('/api/databases/stats'),
-    staleTime: 60 * 1000, // Stats can be stale for 1 minute
+    staleTime: 60 * 1000 // Stats can be stale for 1 minute
+    // Note: No placeholderData - components should handle loading/error states
   })
 }
 
@@ -35,7 +36,8 @@ export function useStatsOverview() {
   return useQuery({
     queryKey: ['stats', 'overview'],
     queryFn: () => api.get('/api/databases/stats'),
-    staleTime: 60 * 1000,
+    staleTime: 60 * 1000
+    // Note: No placeholderData - components should handle loading/error states
   })
 }
 
@@ -61,7 +63,7 @@ export function usePipeline() {
   return useQuery({
     queryKey: ['pipeline'],
     queryFn: () => api.get('/api/databases/PIPELINE'),
-    staleTime: 30 * 1000,
+    staleTime: 30 * 1000
   })
 }
 
@@ -69,7 +71,7 @@ export function useProperties() {
   return useQuery({
     queryKey: ['properties'],
     queryFn: () => api.get('/api/databases/PROPERTIES'),
-    staleTime: 30 * 1000,
+    staleTime: 30 * 1000
   })
 }
 
@@ -77,7 +79,7 @@ export function useClosedDeals() {
   return useQuery({
     queryKey: ['closed-deals'],
     queryFn: () => api.get('/api/databases/CLOSED_DEALS'),
-    staleTime: 60 * 1000, // Closed deals change less frequently
+    staleTime: 60 * 1000 // Closed deals change less frequently
   })
 }
 
@@ -87,7 +89,7 @@ export function useTeamMembers() {
   return useQuery({
     queryKey: ['team-members'],
     queryFn: () => api.get('/api/databases/TEAM_MEMBERS'),
-    staleTime: 2 * 60 * 1000, // Team data is more stable
+    staleTime: 2 * 60 * 1000 // Team data is more stable
   })
 }
 
@@ -97,7 +99,7 @@ export function useClients() {
   return useQuery({
     queryKey: ['clients'],
     queryFn: () => api.get('/api/databases/CLIENTS'),
-    staleTime: 60 * 1000,
+    staleTime: 60 * 1000
   })
 }
 
@@ -107,7 +109,7 @@ export function useSchedule() {
   return useQuery({
     queryKey: ['schedule'],
     queryFn: () => api.get('/api/databases/SCHEDULE'),
-    staleTime: 30 * 1000,
+    staleTime: 30 * 1000
   })
 }
 
@@ -117,7 +119,7 @@ export function useActivityLog() {
   return useQuery({
     queryKey: ['activity-log'],
     queryFn: () => api.get('/api/databases/ACTIVITY_LOG'),
-    staleTime: 30 * 1000,
+    staleTime: 30 * 1000
   })
 }
 

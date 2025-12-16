@@ -64,8 +64,10 @@ api.interceptors.response.use(
       if (csrfRetryCount >= MAX_CSRF_RETRIES) {
         console.error('Max CSRF retry attempts exceeded')
         csrfRetryCount = 0
-        // Redirect to login
-        window.location.href = '/login'
+        // Only redirect if not already on login page to prevent loop
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login'
+        }
         return Promise.reject(error)
       }
 

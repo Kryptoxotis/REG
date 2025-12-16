@@ -1,6 +1,7 @@
 import express from 'express'
 import bcrypt from 'bcrypt'
 import { queryDatabase, formatPage, updatePage, DATABASE_IDS } from '../utils/notion.js'
+import logger from '../utils/logger.js'
 
 const SALT_ROUNDS = 10
 
@@ -83,7 +84,7 @@ router.post('/check-email', async (req, res) => {
     })
 
   } catch (error) {
-    console.error('Check email error:', error)
+    logger.error('Check email error', { error: error.message })
     res.status(500).json({ error: 'Failed to check email' })
   }
 })
@@ -115,23 +116,18 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Account not active' })
     }
 
-    // Verify password with bcrypt
-    // Handle legacy plain text passwords by checking both formats
-    let isValidPassword = false
-    if (user.password.startsWith('$2b$') || user.password.startsWith('$2a$')) {
-      // Hashed password - use bcrypt compare
-      isValidPassword = await bcrypt.compare(password, user.password)
-    } else {
-      // Legacy plain text - compare directly (will be migrated on next login)
-      isValidPassword = user.password === password
-      if (isValidPassword) {
-        // Migrate to hashed password
-        const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
-        await updatePage(user.id, {
-          'Password': { rich_text: [{ text: { content: hashedPassword } }] }
-        })
-      }
+    // Verify password with bcrypt only - no plaintext fallback
+    if (!user.password.startsWith('$2b$') && !user.password.startsWith('$2a$')) {
+      // Legacy plaintext password detected - force password reset
+      logger.warn('Legacy password detected - forcing reset', { email: user.email })
+      return res.status(401).json({
+        error: 'Password reset required',
+        code: 'PASSWORD_RESET_REQUIRED',
+        message: 'Your password needs to be reset. Please contact admin.'
+      })
     }
+
+    const isValidPassword = await bcrypt.compare(password, user.password)
 
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid password' })
@@ -149,7 +145,7 @@ router.post('/login', async (req, res) => {
       user: req.session.user
     })
   } catch (error) {
-    console.error('Login error:', error)
+    logger.error('Login error', { error: error.message })
     res.status(500).json({ error: 'Login failed' })
   }
 })
@@ -216,7 +212,7 @@ router.post('/create-password', async (req, res) => {
     })
 
   } catch (error) {
-    console.error('Create password error:', error)
+    logger.error('Create password error', { error: error.message })
     res.status(500).json({ error: 'Failed to create password' })
   }
 })

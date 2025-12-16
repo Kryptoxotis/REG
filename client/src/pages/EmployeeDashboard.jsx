@@ -44,24 +44,29 @@ function EmployeeDashboard({ user, setUser }) {
 
   // Fetch profile data (own team member record)
   useEffect(() => {
+    let isMounted = true
     if (activeSection === 'profile' || activeSection === 'overview') {
-      fetchProfile()
+      fetchProfile(isMounted)
     }
+    return () => { isMounted = false }
   }, [activeSection])
 
   // Fetch properties for Properties view
   useEffect(() => {
+    let isMounted = true
     if (activeSection === 'properties') {
-      fetchProperties()
+      fetchProperties(isMounted)
     }
+    return () => { isMounted = false }
   }, [activeSection])
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (isMounted = true) => {
     if (profileData) return // Already fetched
     setLoading(prev => ({ ...prev, profile: true }))
     try {
       // Get all team members and find current user
       const res = await api.get('/api/databases/TEAM_MEMBERS')
+      if (!isMounted) return
       const members = Array.isArray(res.data) ? res.data : []
       const myProfile = members.find(m =>
         m.Email?.toLowerCase() === user?.email?.toLowerCase() ||
@@ -70,19 +75,23 @@ function EmployeeDashboard({ user, setUser }) {
       setProfileData(myProfile || null)
 
       // Also fetch personal stats
-      fetchPersonalStats(myProfile)
+      fetchPersonalStats(myProfile, isMounted)
     } catch (err) {
+      if (!isMounted) return
       console.error('Profile fetch error:', err)
       setError('Failed to load profile')
     } finally {
-      setLoading(prev => ({ ...prev, profile: false }))
+      if (isMounted) setLoading(prev => ({ ...prev, profile: false }))
     }
   }
 
-  const fetchPersonalStats = async (profile) => {
+  const fetchPersonalStats = async (profile, isMounted = true) => {
     try {
       const res = await api.get('/api/databases/team-kpis')
-      const allStats = res.data?.stats || []
+      if (!isMounted) return
+      // Handle paginated response format { data: [...], pagination: {...} }
+      const teamData = res.data?.data || res.data || []
+      const allStats = Array.isArray(teamData) ? teamData : []
       // Find stats for current user
       const myStats = allStats.find(s =>
         s.name?.toLowerCase() === profile?.Name?.toLowerCase() ||
@@ -107,19 +116,21 @@ function EmployeeDashboard({ user, setUser }) {
       }
 
       // Also fetch pipeline stats for Profile
-      fetchPipelineStats(profile)
+      fetchPipelineStats(profile, isMounted)
     } catch (err) {
+      if (!isMounted) return
       console.error('Stats fetch error:', err)
     }
   }
 
   // Fetch personal stats from Pipeline (for Profile section)
-  const fetchPipelineStats = async (profile) => {
+  const fetchPipelineStats = async (profile, isMounted = true) => {
     try {
       const [pipelineRes, closedRes] = await Promise.all([
         api.get('/api/databases/PIPELINE'),
         api.get('/api/databases/CLOSED_DEALS')
       ])
+      if (!isMounted) return
       const pipelineDeals = Array.isArray(pipelineRes.data) ? pipelineRes.data : []
       const closedDeals = Array.isArray(closedRes.data) ? closedRes.data : []
 
@@ -152,20 +163,23 @@ function EmployeeDashboard({ user, setUser }) {
       }
       setPipelineStats(stats)
     } catch (err) {
+      if (!isMounted) return
       console.error('Pipeline stats fetch error:', err)
     }
   }
 
-  const fetchProperties = async () => {
+  const fetchProperties = async (isMounted = true) => {
     if (propertiesData.length > 0) return
     setLoading(prev => ({ ...prev, properties: true }))
     try {
       const res = await api.get('/api/databases/PROPERTIES')
+      if (!isMounted) return
       setPropertiesData(Array.isArray(res.data) ? res.data : [])
     } catch (err) {
+      if (!isMounted) return
       console.error('Properties fetch error:', err)
     } finally {
-      setLoading(prev => ({ ...prev, properties: false }))
+      if (isMounted) setLoading(prev => ({ ...prev, properties: false }))
     }
   }
 

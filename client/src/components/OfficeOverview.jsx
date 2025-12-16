@@ -14,7 +14,6 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
   }, [])
 
   const fetchOfficeStats = async () => {
-    console.log('[OfficeOverview] Starting fetch...')
     try {
       setLoading(true)
       setError(null)
@@ -22,22 +21,23 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
       const response = await api.get('/api/databases/stats?type=by-office', {
         timeout: 20000
       })
-      console.log('[OfficeOverview] Response received:', response.status)
       // Validate response has expected structure before setting
       const data = response.data
       if (data && data.offices && data.totals && data.officeList) {
-        console.log('[OfficeOverview] Data valid, setting state')
         setOfficeData(data)
       } else {
-        console.error('[OfficeOverview] Invalid data format:', data)
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[OfficeOverview] Invalid data format:', data)
+        }
         setError('Invalid data format received')
       }
     } catch (err) {
-      console.error('[OfficeOverview] Error:', err.message, err.response?.status)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[OfficeOverview] Error:', err.message, err.response?.status)
+      }
       setError(err.response?.data?.error || 'Failed to load office data')
     } finally {
       setLoading(false)
-      console.log('[OfficeOverview] Fetch complete')
     }
   }
 
@@ -176,9 +176,6 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
   }
 
   const { offices, totals, officeList } = officeData
-
-  // Debug: log what we're about to render
-  console.log('[OfficeOverview] Rendering with:', { officeList, totalsActive: totals.active })
 
   return (
     <div className="space-y-6">
