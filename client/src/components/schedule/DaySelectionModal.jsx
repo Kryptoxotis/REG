@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { MONTH_NAMES, getISODate } from './scheduleConstants'
+import PropTypes from 'prop-types'
+import { MONTH_NAMES, getISODate, MIN_DAYS_PER_WEEK, MAX_DAYS_PER_WEEK } from './scheduleConstants'
 
 function DaySelectionModal({
   selectedDay,
@@ -20,8 +21,8 @@ function DaySelectionModal({
   const dateStr = getISODate(year, month, selectedDay)
   const weekRequests = getUserWeekRequests(dateStr)
   const count = weekRequests.length
-  const isAtMax = count >= 5
-  const isUnderMin = count < 3
+  const isAtMax = count >= MAX_DAYS_PER_WEEK
+  const isUnderMin = count < MIN_DAYS_PER_WEEK
 
   return (
     <AnimatePresence>
@@ -58,7 +59,7 @@ function DaySelectionModal({
                   isAtMax ? 'text-red-400' :
                   isUnderMin ? 'text-amber-400' :
                   'text-emerald-400'
-                }`}>{count}/5 days</span>
+                }`}>{count}/{MAX_DAYS_PER_WEEK} days</span>
               </div>
 
               {/* Progress bar */}
@@ -66,14 +67,14 @@ function DaySelectionModal({
                 <div
                   className={`h-full transition-all ${
                     isAtMax ? 'bg-red-500' :
-                    count >= 3 ? 'bg-emerald-500' :
+                    count >= MIN_DAYS_PER_WEEK ? 'bg-emerald-500' :
                     'bg-amber-500'
                   }`}
-                  style={{ width: `${(count / 5) * 100}%` }}
+                  style={{ width: `${(count / MAX_DAYS_PER_WEEK) * 100}%` }}
                 />
-                {/* Minimum marker at 3/5 = 60% */}
+                {/* Minimum marker */}
                 <div className="relative -mt-2 h-2">
-                  <div className="absolute left-[60%] w-0.5 h-2 bg-white/50" title="Minimum: 3 days" />
+                  <div className="absolute w-0.5 h-2 bg-white/50" style={{ left: `${(MIN_DAYS_PER_WEEK / MAX_DAYS_PER_WEEK) * 100}%` }} title={`Minimum: ${MIN_DAYS_PER_WEEK} days`} />
                 </div>
               </div>
 
@@ -84,11 +85,11 @@ function DaySelectionModal({
                 </p>
               ) : isUnderMin ? (
                 <p className="text-xs text-amber-400">
-                  Warning: Need {3 - count} more day(s) to meet minimum (3 required)
+                  Warning: Need {MIN_DAYS_PER_WEEK - count} more day(s) to meet minimum ({MIN_DAYS_PER_WEEK} required)
                 </p>
               ) : (
                 <p className="text-xs text-emerald-400">
-                  Minimum met - Can add {5 - count} more day(s)
+                  Minimum met - Can add {MAX_DAYS_PER_WEEK - count} more day(s)
                 </p>
               )}
             </div>
@@ -158,7 +159,7 @@ function DaySelectionModal({
                     : 'bg-amber-600 hover:bg-amber-500 disabled:bg-gray-700 disabled:text-gray-500 text-white'
                 }`}
               >
-                {submitting ? 'Submitting...' : isAtMax ? 'Max 5 Days Reached' : 'Submit Request'}
+                {submitting ? 'Submitting...' : isAtMax ? `Max ${MAX_DAYS_PER_WEEK} Days Reached` : 'Submit Request'}
               </button>
               <button
                 onClick={() => { setSelectedDay(null); setSelectedModelHome(null) }}
@@ -172,6 +173,21 @@ function DaySelectionModal({
       </motion.div>
     </AnimatePresence>
   )
+}
+
+DaySelectionModal.propTypes = {
+  selectedDay: PropTypes.number,
+  setSelectedDay: PropTypes.func.isRequired,
+  selectedModelHome: PropTypes.object,
+  setSelectedModelHome: PropTypes.func.isRequired,
+  modelHomes: PropTypes.array.isRequired,
+  month: PropTypes.number.isRequired,
+  year: PropTypes.number.isRequired,
+  getUserWeekRequests: PropTypes.func.isRequired,
+  isSlotTaken: PropTypes.func.isRequired,
+  getUserPendingForSlot: PropTypes.func.isRequired,
+  handleSubmitRequest: PropTypes.func.isRequired,
+  submitting: PropTypes.bool.isRequired
 }
 
 export default DaySelectionModal

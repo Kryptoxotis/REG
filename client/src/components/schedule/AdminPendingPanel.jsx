@@ -1,6 +1,8 @@
+import { memo } from 'react'
 import { motion } from 'framer-motion'
+import PropTypes from 'prop-types'
 
-function AdminPendingPanel({
+const AdminPendingPanel = memo(function AdminPendingPanel({
   pendingCount,
   scheduleData,
   setSelectedEvent
@@ -31,6 +33,12 @@ function AdminPendingPanel({
       </div>
     </motion.div>
   )
+})
+
+AdminPendingPanel.propTypes = {
+  pendingCount: PropTypes.number.isRequired,
+  scheduleData: PropTypes.array.isRequired,
+  setSelectedEvent: PropTypes.func.isRequired
 }
 
 export default AdminPendingPanel

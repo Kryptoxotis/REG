@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import axios from 'axios'
+import api from '../lib/api'
 
 function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
   const [officeData, setOfficeData] = useState(null)
@@ -20,7 +20,7 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
       setError(null)
       const token = localStorage.getItem('authToken')
       console.log('[OfficeOverview] Token exists:', !!token)
-      const response = await axios.get('/api/databases/stats?type=by-office', {
+      const response = await api.get('/api/databases/stats?type=by-office', {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         timeout: 20000
       })
@@ -47,7 +47,7 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
   const fetchDealsForOffice = async (officeName) => {
     try {
       const token = localStorage.getItem('authToken')
-      const response = await axios.get('/api/databases/PIPELINE', {
+      const response = await api.get('/api/databases/PIPELINE', {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         timeout: 15000
       })

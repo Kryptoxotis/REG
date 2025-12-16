@@ -4,7 +4,7 @@ import { Settings as SettingsIcon, Activity, ChevronDown, ChevronUp, RefreshCw, 
 import CSVSync from './CSVSync'
 import FieldSettings from './FieldSettings'
 import { useDatabase } from '../hooks/useApi'
-import axios from 'axios'
+import api from '../lib/api'
 
 function Settings() {
   const [fieldSettingsOpen, setFieldSettingsOpen] = useState(false)
@@ -22,7 +22,7 @@ function Settings() {
   useEffect(() => {
     const fetchScheduleSettings = async () => {
       try {
-        const res = await axios.get('/api/databases/schedule?settings=true', { headers })
+        const res = await api.get('/api/databases/schedule?settings=true', { headers })
         if (res.data?.scheduleOpenDay) {
           setScheduleOpenDay(res.data.scheduleOpenDay)
         }
@@ -38,7 +38,7 @@ function Settings() {
     setScheduleLoading(true)
     setScheduleSaved(false)
     try {
-      await axios.patch('/api/databases/schedule', {
+      await api.patch('/api/databases/schedule', {
         action: 'update-settings',
         scheduleOpenDay
       }, { headers })

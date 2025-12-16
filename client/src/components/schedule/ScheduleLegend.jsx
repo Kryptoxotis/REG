@@ -1,3 +1,5 @@
+import PropTypes from 'prop-types'
+
 function ScheduleLegend({ isAdmin }) {
   return (
     <div className="flex flex-wrap gap-4 text-xs text-gray-400">
@@ -21,6 +23,10 @@ function ScheduleLegend({ isAdmin }) {
       )}
     </div>
   )
+}
+
+ScheduleLegend.propTypes = {
+  isAdmin: PropTypes.bool
 }
 
 export default ScheduleLegend

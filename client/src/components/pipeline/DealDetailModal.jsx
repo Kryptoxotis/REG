@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
+import PropTypes from 'prop-types'
 import DetailRow from './DetailRow'
 import { LOAN_STATUS_COLUMNS, colorMap, getAddress, formatCurrency, formatDate } from './pipelineConstants'
 
@@ -37,9 +38,16 @@ function DealDetailModal({
           onClick={e => e.stopPropagation()}
           className="bg-gray-900 rounded-t-3xl sm:rounded-2xl border-t sm:border border-gray-700 w-full sm:max-w-lg max-h-[85vh] overflow-hidden"
         >
-          {/* Drag handle for mobile */}
-          <div className="sm:hidden flex justify-center py-2">
-            <div className="w-12 h-1 bg-gray-600 rounded-full" />
+          {/* Drag handle for mobile - tap to close */}
+          <div
+            className="sm:hidden flex justify-center py-3 cursor-pointer active:bg-gray-800/50"
+            onClick={onClose}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && onClose()}
+            aria-label="Close modal"
+          >
+            <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
           </div>
 
           <div className="h-2 bg-gradient-to-r from-blue-500 to-cyan-400" />
@@ -273,8 +281,11 @@ function DealDetailModal({
                   <button
                     onClick={moveToPipeline}
                     disabled={!moveForm.agent || !moveForm.buyerName || !moveForm.buyerEmail || !moveForm.buyerPhone || isMoving}
-                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg transition-colors font-medium text-sm"
+                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg transition-colors font-medium text-sm flex items-center justify-center gap-2"
                   >
+                    {isMoving && (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    )}
                     {isMoving ? 'Moving...' : 'Move to Loan Status'}
                   </button>
                 </div>
@@ -338,6 +349,29 @@ function DealDetailModal({
       </motion.div>
     </AnimatePresence>
   )
+}
+
+DealDetailModal.propTypes = {
+  selectedDeal: PropTypes.object,
+  onClose: PropTypes.func.isRequired,
+  pipelineTab: PropTypes.string.isRequired,
+  moveForm: PropTypes.shape({
+    agent: PropTypes.string,
+    loanType: PropTypes.string,
+    loName: PropTypes.string,
+    mortgageCompany: PropTypes.string,
+    realtorPartner: PropTypes.string,
+    loanStatus: PropTypes.string,
+    assistingAgent: PropTypes.string
+  }),
+  setMoveForm: PropTypes.func,
+  teamMembers: PropTypes.array,
+  moveToPipeline: PropTypes.func,
+  isMoving: PropTypes.bool,
+  changeStatus: PropTypes.func,
+  isChangingStatus: PropTypes.bool,
+  sendBackToProperties: PropTypes.func,
+  isSendingBack: PropTypes.bool
 }
 
 export default DealDetailModal

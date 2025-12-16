@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
-import axios from 'axios'
+import api from '../lib/api'
 import {
   LOAN_STATUS_COLUMNS,
   colorMap,
@@ -51,7 +51,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     const fetchTeamMembers = async () => {
       try {
         const token = localStorage.getItem('authToken')
-        const response = await axios.get('/api/databases/TEAM_MEMBERS', {
+        const response = await api.get('/api/databases/TEAM_MEMBERS', {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         })
         const members = Array.isArray(response.data) ? response.data : []
@@ -80,7 +80,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       const dbMap = { 'presale': 'PROPERTIES', 'loan-status': 'PIPELINE', 'closed': 'CLOSED_DEALS' }
       const database = dbMap[pipelineTab] || 'PIPELINE'
       const token = localStorage.getItem('authToken')
-      const response = await axios.get(`/api/databases/${database}`, {
+      const response = await api.get(`/api/databases/${database}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       })
       setDeals(Array.isArray(response.data) ? response.data : [])
@@ -98,7 +98,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
     setIsMoving(true)
     try {
-      await axios.post('/api/databases/actions', {
+      await api.post('/api/databases/actions', {
         action: 'move-to-pipeline',
         propertyId: selectedDeal.id,
         address: selectedDeal.Address || selectedDeal.address || '',
@@ -114,7 +114,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         notes: moveForm.notes || null, closedDate: moveForm.closedDate || null, executeDate: moveForm.executeDate || null
       }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
 
-      await axios.post('/api/databases/actions', {
+      await api.post('/api/databases/actions', {
         action: 'log-activity',
         logAction: `Property moved to Pipeline: ${selectedDeal.Address || 'Unknown'}`,
         dealAddress: selectedDeal.Address || 'Unknown',
@@ -147,18 +147,18 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     const oldLoanStatus = deal['Loan Status'] || source.droppableId
 
     try {
-      await axios.post('/api/databases/actions', {
+      await api.post('/api/databases/actions', {
         action: 'update-status', dealId: draggableId, loanStatus: newLoanStatus
       }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
 
-      await axios.post('/api/databases/actions', {
+      await api.post('/api/databases/actions', {
         action: 'log-activity', logAction: `Deal moved: ${oldLoanStatus} → ${newLoanStatus}`,
         dealAddress: deal.Address || 'Unknown Address', oldStatus: oldLoanStatus, newStatus: newLoanStatus,
         entityType: 'Deal', actionType: 'Moved Stage'
       }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
 
       if (newLoanStatus === 'Closed' || newLoanStatus === 'Funded' || newLoanStatus === 'Loan Complete / Transfer') {
-        await axios.post('/api/databases/actions', {
+        await api.post('/api/databases/actions', {
           action: 'move-to-closed', dealId: draggableId, address: deal.Address || '',
           closeDate: deal['Scheduled Closing']?.start || new Date().toISOString().split('T')[0],
           finalSalePrice: deal['Sales Price'] || 0, agent: deal.Agent || '',
@@ -182,18 +182,18 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     setSelectedDeal(prev => ({ ...prev, 'Loan Status': newLoanStatus }))
 
     try {
-      await axios.post('/api/databases/actions', {
+      await api.post('/api/databases/actions', {
         action: 'update-status', dealId: selectedDeal.id, loanStatus: newLoanStatus
       }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
 
-      await axios.post('/api/databases/actions', {
+      await api.post('/api/databases/actions', {
         action: 'log-activity', logAction: `Deal moved: ${oldLoanStatus} → ${newLoanStatus}`,
         dealAddress: selectedDeal.Address || 'Unknown Address', oldStatus: oldLoanStatus, newStatus: newLoanStatus,
         entityType: 'Deal', actionType: 'Moved Stage'
       }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
 
       if (newLoanStatus === 'Closed' || newLoanStatus === 'Funded' || newLoanStatus === 'Loan Complete / Transfer') {
-        await axios.post('/api/databases/actions', {
+        await api.post('/api/databases/actions', {
           action: 'move-to-closed', dealId: selectedDeal.id, address: selectedDeal.Address || '',
           closeDate: selectedDeal['Scheduled Closing']?.start || new Date().toISOString().split('T')[0],
           finalSalePrice: selectedDeal['Sales Price'] || 0, agent: selectedDeal.Agent || '',
@@ -215,12 +215,12 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     setIsSendingBack(true)
     try {
       const token = localStorage.getItem('authToken')
-      await axios.post('/api/databases/actions', {
+      await api.post('/api/databases/actions', {
         action: 'send-back-to-properties', dealId: selectedDeal.id,
         address: selectedDeal.Address || '', salesPrice: selectedDeal['Sales Price'] || 0, status: 'Inventory'
       }, { headers: { Authorization: `Bearer ${token}` } })
 
-      await axios.post('/api/databases/actions', {
+      await api.post('/api/databases/actions', {
         action: 'log-activity', logAction: `Deal sent back to Properties: ${selectedDeal.Address || 'Unknown'}`,
         dealAddress: selectedDeal.Address || 'Unknown Address', entityType: 'Deal', actionType: 'Sent Back to Properties'
       }, { headers: { Authorization: `Bearer ${token}` } })

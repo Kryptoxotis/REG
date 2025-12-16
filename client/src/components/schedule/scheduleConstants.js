@@ -1,5 +1,9 @@
 // Schedule calendar constants and helpers
 
+// Scheduling rules
+export const MIN_DAYS_PER_WEEK = 3
+export const MAX_DAYS_PER_WEEK = 5
+
 export const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'

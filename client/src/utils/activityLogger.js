@@ -1,6 +1,4 @@
-import axios from 'axios'
-
-const API_BASE = import.meta.env.VITE_API_URL || ''
+import api from '../lib/api'
 
 /**
  * Log an activity to the Activity Log database
@@ -14,10 +12,7 @@ const API_BASE = import.meta.env.VITE_API_URL || ''
  */
 export async function logActivity({ action, entityType, actionType, entityTitle, fromValue, toValue }) {
   try {
-    const token = localStorage.getItem('auth_token')
-    if (!token) return // Don't log if not authenticated
-
-    await axios.post(`${API_BASE}/api/databases/actions`, {
+    await api.post('/api/databases/actions', {
       action: 'log-activity',
       logAction: action,
       entityType,
@@ -25,8 +20,6 @@ export async function logActivity({ action, entityType, actionType, entityTitle,
       dealAddress: entityTitle, // API uses dealAddress for Entity Title
       oldStatus: fromValue,
       newStatus: toValue
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     })
   } catch (err) {
     // Silently fail - don't break the app if logging fails

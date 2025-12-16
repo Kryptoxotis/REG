@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import axios from 'axios'
+import api from '../lib/api'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ActivityLogger } from '../utils/activityLogger'
 import ScheduleCalendar from '../components/ScheduleCalendar'
@@ -62,7 +62,7 @@ function EmployeeDashboard({ user, setUser }) {
     setLoading(prev => ({ ...prev, profile: true }))
     try {
       // Get all team members and find current user
-      const res = await axios.get('/api/databases/TEAM_MEMBERS', { headers })
+      const res = await api.get('/api/databases/TEAM_MEMBERS', { headers })
       const members = Array.isArray(res.data) ? res.data : []
       const myProfile = members.find(m =>
         m.Email?.toLowerCase() === user?.email?.toLowerCase() ||
@@ -82,7 +82,7 @@ function EmployeeDashboard({ user, setUser }) {
 
   const fetchPersonalStats = async (profile) => {
     try {
-      const res = await axios.get('/api/databases/team-kpis', { headers })
+      const res = await api.get('/api/databases/team-kpis', { headers })
       const allStats = res.data?.stats || []
       // Find stats for current user
       const myStats = allStats.find(s =>
@@ -118,8 +118,8 @@ function EmployeeDashboard({ user, setUser }) {
   const fetchPipelineStats = async (profile) => {
     try {
       const [pipelineRes, closedRes] = await Promise.all([
-        axios.get('/api/databases/PIPELINE', { headers }),
-        axios.get('/api/databases/CLOSED_DEALS', { headers })
+        api.get('/api/databases/PIPELINE', { headers }),
+        api.get('/api/databases/CLOSED_DEALS', { headers })
       ])
       const pipelineDeals = Array.isArray(pipelineRes.data) ? pipelineRes.data : []
       const closedDeals = Array.isArray(closedRes.data) ? closedRes.data : []
@@ -161,7 +161,7 @@ function EmployeeDashboard({ user, setUser }) {
     if (propertiesData.length > 0) return
     setLoading(prev => ({ ...prev, properties: true }))
     try {
-      const res = await axios.get('/api/databases/PROPERTIES', { headers })
+      const res = await api.get('/api/databases/PROPERTIES', { headers })
       setPropertiesData(Array.isArray(res.data) ? res.data : [])
     } catch (err) {
       console.error('Properties fetch error:', err)
@@ -179,7 +179,7 @@ function EmployeeDashboard({ user, setUser }) {
     if (!profileData?.id) return
     setSaving(true)
     try {
-      await axios.patch(`/api/databases/TEAM_MEMBERS/${profileData.id}`, profileUpdates, { headers })
+      await api.patch(`/api/databases/TEAM_MEMBERS/${profileData.id}`, profileUpdates, { headers })
       setProfileData(prev => ({ ...prev, ...profileUpdates }))
       setProfileUpdates({})
       setEditingProfile(false)
@@ -211,7 +211,7 @@ function EmployeeDashboard({ user, setUser }) {
 
   const handleLogout = async () => {
     try {
-      await axios.post('/api/auth/logout', {}, { headers })
+      await api.post('/api/auth/logout', {}, { headers })
     } catch (error) {
       console.error('Logout error:', error)
     } finally {

@@ -1,6 +1,8 @@
+import { memo } from 'react'
+import PropTypes from 'prop-types'
 import { getStatusColor } from './scheduleConstants'
 
-function AdminListView({
+const AdminListView = memo(function AdminListView({
   filteredSchedule,
   handleApprove,
   setSelectedEvent,
@@ -56,6 +58,13 @@ function AdminListView({
       </div>
     </div>
   )
+})
+
+AdminListView.propTypes = {
+  filteredSchedule: PropTypes.array.isRequired,
+  handleApprove: PropTypes.func.isRequired,
+  setSelectedEvent: PropTypes.func.isRequired,
+  actionLoading: PropTypes.string
 }
 
 export default AdminListView

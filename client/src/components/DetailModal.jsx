@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import axios from 'axios'
+import api from '../lib/api'
 
 // Shimmer animation keyframes (add to your CSS or use inline)
 const shimmerKeyframes = `
@@ -149,7 +149,7 @@ function DetailModal({ item, onClose, onUpdate, databaseKey }) {
     setError(null)
     try {
       const token = localStorage.getItem('authToken')
-      await axios.patch(`/api/databases/${databaseKey}/${item.id}`, formData, {
+      await api.patch(`/api/databases/${databaseKey}/${item.id}`, formData, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       })
       onUpdate()

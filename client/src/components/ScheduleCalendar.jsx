@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import axios from 'axios'
+import api from '../lib/api'
 import {
   ScheduleEventModal,
   WeekSubmissionPanel,
@@ -61,9 +61,9 @@ function ScheduleCalendar({ user, onNavigate }) {
     setError(null)
     try {
       const [scheduleRes, propertiesRes, settingsRes] = await Promise.all([
-        axios.get('/api/databases/schedule', { headers }),
-        axios.get('/api/databases/PROPERTIES', { headers }),
-        axios.get('/api/databases/schedule?settings=true', { headers }).catch(() => ({ data: { scheduleOpenDay: 15 } }))
+        api.get('/api/databases/schedule', { headers }),
+        api.get('/api/databases/PROPERTIES', { headers }),
+        api.get('/api/databases/schedule?settings=true', { headers }).catch(() => ({ data: { scheduleOpenDay: 15 } }))
       ])
       setScheduleData(Array.isArray(scheduleRes.data) ? scheduleRes.data : [])
       // Filter properties to only show Model Homes (Status = "Model Home")
@@ -244,7 +244,7 @@ function ScheduleCalendar({ user, onNavigate }) {
 
     setSubmitting(true)
     try {
-      await axios.post('/api/databases/schedule', {
+      await api.post('/api/databases/schedule', {
         date: dateStr,
         modelHome: selectedModelHome.Address || selectedModelHome.address || selectedModelHome.Name,
         modelHomeId: selectedModelHome.id,
@@ -307,7 +307,7 @@ function ScheduleCalendar({ user, onNavigate }) {
 
       // Submit all selected days
       for (const dateStr of selectedDays) {
-        await axios.post('/api/databases/schedule', {
+        await api.post('/api/databases/schedule', {
           date: dateStr,
           modelHome: modelHomeAddress,
           modelHomeId: selectedModelHome.id,
@@ -331,7 +331,7 @@ function ScheduleCalendar({ user, onNavigate }) {
   const handleApprove = async (scheduleId) => {
     setActionLoading(scheduleId)
     try {
-      const result = await axios.patch('/api/databases/schedule', {
+      const result = await api.patch('/api/databases/schedule', {
         action: 'approve',
         scheduleId
       }, { headers })
@@ -353,7 +353,7 @@ function ScheduleCalendar({ user, onNavigate }) {
   const handleDeny = async (scheduleId) => {
     setActionLoading(scheduleId)
     try {
-      await axios.patch('/api/databases/schedule', {
+      await api.patch('/api/databases/schedule', {
         action: 'deny',
         scheduleId,
         notes: denyNotes || undefined
@@ -377,7 +377,7 @@ function ScheduleCalendar({ user, onNavigate }) {
     }
     setSavingSettings(true)
     try {
-      await axios.patch('/api/databases/schedule', {
+      await api.patch('/api/databases/schedule', {
         action: 'update-settings',
         scheduleOpenDay: newDay
       }, { headers })
@@ -391,19 +391,24 @@ function ScheduleCalendar({ user, onNavigate }) {
     }
   }
 
-  // Filter schedule data based on status
+  // Filter schedule data based on status (memoized for performance)
   const filteredSchedule = useMemo(() => {
     if (statusFilter === 'all') return scheduleData
     return scheduleData.filter(item => item.status?.toLowerCase() === statusFilter)
   }, [scheduleData, statusFilter])
 
-  // Build calendar grid
-  const calendarDays = []
-  for (let i = 0; i < startingDay; i++) calendarDays.push(null)
-  for (let day = 1; day <= daysInMonth; day++) calendarDays.push(day)
+  // Build calendar grid (memoized to prevent recalculation)
+  const calendarDays = useMemo(() => {
+    const days = []
+    for (let i = 0; i < startingDay; i++) days.push(null)
+    for (let day = 1; day <= daysInMonth; day++) days.push(day)
+    return days
+  }, [startingDay, daysInMonth])
 
-  // Pending requests count (for admin)
-  const pendingCount = scheduleData.filter(s => s.status === 'Pending').length
+  // Pending requests count (memoized for admin)
+  const pendingCount = useMemo(() =>
+    scheduleData.filter(s => s.status === 'Pending').length
+  , [scheduleData])
 
   if (loading) {
     return (

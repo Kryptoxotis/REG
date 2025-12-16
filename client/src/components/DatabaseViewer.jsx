@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, ChevronUp, Users, Building2, TrendingUp, UserCheck, Calendar, X, Filter, ChevronRight, Eye, EyeOff, RefreshCw, AlertCircle, Maximize2, Minimize2, Edit3, Save, XCircle } from 'lucide-react'
-import axios from 'axios'
+import api from '../lib/api'
 import { useDatabase } from '../hooks/useApi'
 import { useToast } from './Toast'
 import { getFieldPreferences } from './FieldSettings'
@@ -259,7 +259,7 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
           updates[key] = value
         }
       })
-      await axios.patch(`/api/databases/${apiPath}/${selectedItem.id}`, updates, {
+      await api.patch(`/api/databases/${apiPath}/${selectedItem.id}`, updates, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       })
 

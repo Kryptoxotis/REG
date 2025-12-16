@@ -1,8 +1,10 @@
+import { memo } from 'react'
 import { motion } from 'framer-motion'
+import PropTypes from 'prop-types'
 import { getCloseDateUrgency } from './pipelineConstants'
 
 // Mobile-optimized deal card
-function MobileDealCard({ deal, onSelect, formatCurrency, formatDate }) {
+const MobileDealCard = memo(function MobileDealCard({ deal, onSelect, formatCurrency, formatDate }) {
   const address = deal.Address || 'No Address'
   const buyer = deal['Buyer Name'] || ''
   const price = deal['Sales Price']
@@ -45,6 +47,13 @@ function MobileDealCard({ deal, onSelect, formatCurrency, formatDate }) {
       )}
     </motion.div>
   )
+})
+
+MobileDealCard.propTypes = {
+  deal: PropTypes.object.isRequired,
+  onSelect: PropTypes.func.isRequired,
+  formatCurrency: PropTypes.func.isRequired,
+  formatDate: PropTypes.func.isRequired
 }
 
 export default MobileDealCard

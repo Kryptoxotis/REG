@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import axios from 'axios'
+import api from '../lib/api'
 import { useStats } from '../hooks/useApi'
 import { useToast } from '../components/Toast'
 import DatabaseViewer from '../components/DatabaseViewer'
@@ -44,7 +44,7 @@ function AdminDashboard({ user, setUser }) {
   const handleLogout = async () => {
     const token = localStorage.getItem('authToken')
     try {
-      await axios.post('/api/auth/logout', {}, {
+      await api.post('/api/auth/logout', {}, {
         headers: { Authorization: `Bearer ${token}` }
       })
     } catch (error) {

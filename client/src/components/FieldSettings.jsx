@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Settings, Check, Eye, List, Maximize2 } from 'lucide-react'
-import axios from 'axios'
+import api from '../lib/api'
 
 const DATABASES = ['TEAM_MEMBERS', 'PROPERTIES', 'PIPELINE', 'CLIENTS', 'SCHEDULE', 'ACTIVITY_LOG', 'CLOSED_DEALS']
 const DISPLAY_LEVELS = [
@@ -76,7 +76,7 @@ export default function FieldSettings({ isOpen, onClose }) {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await axios.get(`/api/databases/schema?key=${dbKey}`, {
+      const response = await api.get(`/api/databases/schema?key=${dbKey}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       })
       setFields(response.data.fields || [])

@@ -1,31 +1,22 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import axios from 'axios'
+import apiClient from '../lib/api'
 
-// Configure axios to send cookies automatically (for HttpOnly auth)
-// Also include Authorization header as fallback during migration
-const getRequestConfig = () => ({
-  withCredentials: true,
-  headers: localStorage.getItem('authToken')
-    ? { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
-    : {}
-})
-
-// Base API call function
+// Base API call function using CSRF-protected client
 const api = {
   get: async (url) => {
-    const { data } = await axios.get(url, getRequestConfig())
+    const { data } = await apiClient.get(url)
     return data
   },
   post: async (url, body) => {
-    const { data } = await axios.post(url, body, getRequestConfig())
+    const { data } = await apiClient.post(url, body)
     return data
   },
   patch: async (url, body) => {
-    const { data } = await axios.patch(url, body, getRequestConfig())
+    const { data } = await apiClient.patch(url, body)
     return data
   },
   delete: async (url) => {
-    const { data } = await axios.delete(url, getRequestConfig())
+    const { data } = await apiClient.delete(url)
     return data
   }
 }

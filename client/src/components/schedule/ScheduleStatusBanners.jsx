@@ -1,4 +1,5 @@
-import { MONTH_NAMES } from './scheduleConstants'
+import PropTypes from 'prop-types'
+import { MONTH_NAMES, MIN_DAYS_PER_WEEK, MAX_DAYS_PER_WEEK } from './scheduleConstants'
 
 function ScheduleStatusBanners({
   scheduleIsOpen,
@@ -55,11 +56,21 @@ function ScheduleStatusBanners({
       {/* Rules */}
       <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
         <p className="text-sm text-gray-300">
-          <span className="text-amber-400 font-medium">Rules:</span> You must schedule at least 3 days per week (minimum) and no more than 5 days per week (maximum).
+          <span className="text-amber-400 font-medium">Rules:</span> You must schedule at least {MIN_DAYS_PER_WEEK} days per week (minimum) and no more than {MAX_DAYS_PER_WEEK} days per week (maximum).
         </p>
       </div>
     </div>
   )
+}
+
+ScheduleStatusBanners.propTypes = {
+  scheduleIsOpen: PropTypes.bool.isRequired,
+  scheduleOpenDay: PropTypes.number.isRequired,
+  isCurrentMonth: PropTypes.bool.isRequired,
+  isNextMonth: PropTypes.bool.isRequired,
+  isFutureMonth: PropTypes.bool.isRequired,
+  nextMonthIndex: PropTypes.number.isRequired,
+  nextMonthYear: PropTypes.number.isRequired
 }
 
 export default ScheduleStatusBanners

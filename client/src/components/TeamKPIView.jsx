@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import axios from 'axios'
+import api from '../lib/api'
 import { Eye, EyeOff, Search, X, Maximize2, Minimize2, Edit3, Save, XCircle } from 'lucide-react'
 import { getFieldPreferences } from './FieldSettings'
 
@@ -35,7 +35,7 @@ function TeamKPIView({ onNavigate }) {
     setError(null)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await axios.get('/api/databases/team-kpis', {
+      const response = await api.get('/api/databases/team-kpis', {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       })
       // Validate response is an array before setting state
@@ -61,7 +61,7 @@ function TeamKPIView({ onNavigate }) {
     setSaving(true)
     try {
       const token = localStorage.getItem('authToken')
-      await axios.patch(`/api/databases/team-members/${selectedMember.id}`, editedFields, {
+      await api.patch(`/api/databases/team-members/${selectedMember.id}`, editedFields, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       })
       // Update local data

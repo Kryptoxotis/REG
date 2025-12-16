@@ -1,4 +1,6 @@
 import { motion } from 'framer-motion'
+import PropTypes from 'prop-types'
+import { MIN_DAYS_PER_WEEK, MAX_DAYS_PER_WEEK } from './scheduleConstants'
 
 function WeekSubmissionPanel({
   selectedDays,
@@ -22,10 +24,10 @@ function WeekSubmissionPanel({
         <p className="text-sm text-gray-400 mb-2">
           Selected Days: <span className={`font-bold ${
             selectedDays.length === 0 ? 'text-gray-500' :
-            selectedDays.length < 3 ? 'text-amber-400' :
-            selectedDays.length <= 5 ? 'text-emerald-400' :
+            selectedDays.length < MIN_DAYS_PER_WEEK ? 'text-amber-400' :
+            selectedDays.length <= MAX_DAYS_PER_WEEK ? 'text-emerald-400' :
             'text-red-400'
-          }`}>{selectedDays.length}/5</span>
+          }`}>{selectedDays.length}/{MAX_DAYS_PER_WEEK}</span>
         </p>
         {selectedDays.length > 0 && (
           <div className="flex flex-wrap gap-2">
@@ -43,8 +45,8 @@ function WeekSubmissionPanel({
         {selectedDays.length === 0 && (
           <p className="text-xs text-gray-500">Click days on the calendar to select them</p>
         )}
-        {selectedDays.length > 0 && selectedDays.length < 3 && (
-          <p className="text-xs text-amber-400 mt-2">Warning: Need {3 - selectedDays.length} more day(s) to meet minimum (3 required)</p>
+        {selectedDays.length > 0 && selectedDays.length < MIN_DAYS_PER_WEEK && (
+          <p className="text-xs text-amber-400 mt-2">Warning: Need {MIN_DAYS_PER_WEEK - selectedDays.length} more day(s) to meet minimum ({MIN_DAYS_PER_WEEK} required)</p>
         )}
       </div>
 
@@ -88,6 +90,21 @@ function WeekSubmissionPanel({
       )}
     </motion.div>
   )
+}
+
+WeekSubmissionPanel.propTypes = {
+  selectedDays: PropTypes.arrayOf(PropTypes.string).isRequired,
+  setSelectedDays: PropTypes.func.isRequired,
+  selectedModelHome: PropTypes.shape({
+    id: PropTypes.string,
+    Address: PropTypes.string,
+    address: PropTypes.string,
+    Name: PropTypes.string
+  }),
+  setSelectedModelHome: PropTypes.func.isRequired,
+  modelHomes: PropTypes.array.isRequired,
+  submitting: PropTypes.bool.isRequired,
+  handleSubmitWeek: PropTypes.func.isRequired
 }
 
 export default WeekSubmissionPanel

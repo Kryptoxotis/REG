@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import axios from 'axios'
+import api from '../lib/api'
 import { ActivityLogger } from '../utils/activityLogger'
 
 function Login({ setUser }) {
@@ -21,7 +21,7 @@ function Login({ setUser }) {
     setLoading(true)
 
     try {
-      const response = await axios.post('/api/auth/login', { email, action: 'check-email' }, { withCredentials: true })
+      const response = await api.post('/api/auth/login', { email, action: 'check-email' }, { withCredentials: true })
       const { status, message } = response.data
 
       setUserStatus(status)
@@ -50,7 +50,7 @@ function Login({ setUser }) {
     setLoading(true)
 
     try {
-      const response = await axios.post('/api/auth/login', { email, password }, { withCredentials: true })
+      const response = await api.post('/api/auth/login', { email, password }, { withCredentials: true })
       setUser(response.data.user, response.data.token)
       // Log successful login
       ActivityLogger.login(response.data.user?.fullName || response.data.user?.email || email)
@@ -80,7 +80,7 @@ function Login({ setUser }) {
     }
 
     try {
-      const response = await axios.post('/api/auth/create-password', {
+      const response = await api.post('/api/auth/create-password', {
         email,
         password,
         confirmPassword

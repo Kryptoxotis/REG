@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
+import PropTypes from 'prop-types'
 import { getStatusColor } from './scheduleConstants'
 
 function ScheduleEventModal({
@@ -129,6 +130,26 @@ function ScheduleEventModal({
       </motion.div>
     </AnimatePresence>
   )
+}
+
+ScheduleEventModal.propTypes = {
+  selectedEvent: PropTypes.shape({
+    id: PropTypes.string,
+    employeeName: PropTypes.string,
+    date: PropTypes.string,
+    modelHome: PropTypes.string,
+    status: PropTypes.string,
+    submittedAt: PropTypes.string,
+    reviewedAt: PropTypes.string,
+    notes: PropTypes.string
+  }),
+  onClose: PropTypes.func.isRequired,
+  isAdmin: PropTypes.bool,
+  denyNotes: PropTypes.string,
+  setDenyNotes: PropTypes.func,
+  handleApprove: PropTypes.func,
+  handleDeny: PropTypes.func,
+  actionLoading: PropTypes.string
 }
 
 export default ScheduleEventModal

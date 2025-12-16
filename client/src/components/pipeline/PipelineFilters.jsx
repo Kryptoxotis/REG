@@ -1,7 +1,9 @@
+import { memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import PropTypes from 'prop-types'
 import { LOAN_STATUS_COLUMNS } from './pipelineConstants'
 
-function PipelineFilters({
+const PipelineFilters = memo(function PipelineFilters({
   showFilters,
   searchTerm,
   setSearchTerm,
@@ -147,6 +149,31 @@ function PipelineFilters({
       )}
     </AnimatePresence>
   )
+})
+
+PipelineFilters.propTypes = {
+  showFilters: PropTypes.bool.isRequired,
+  searchTerm: PropTypes.string.isRequired,
+  setSearchTerm: PropTypes.func.isRequired,
+  filters: PropTypes.shape({
+    agent: PropTypes.string,
+    loanStatus: PropTypes.string,
+    loanType: PropTypes.string,
+    executed: PropTypes.string,
+    assistingAgent: PropTypes.string,
+    loName: PropTypes.string,
+    mortgageCompany: PropTypes.string,
+    realtorPartner: PropTypes.string
+  }).isRequired,
+  setFilters: PropTypes.func.isRequired,
+  hasActiveFilters: PropTypes.bool.isRequired,
+  clearFilters: PropTypes.func.isRequired,
+  uniqueAgents: PropTypes.arrayOf(PropTypes.string).isRequired,
+  uniqueLoanTypes: PropTypes.arrayOf(PropTypes.string).isRequired,
+  uniqueAssistingAgents: PropTypes.arrayOf(PropTypes.string).isRequired,
+  uniqueLONames: PropTypes.arrayOf(PropTypes.string).isRequired,
+  uniqueMortgageCompanies: PropTypes.arrayOf(PropTypes.string).isRequired,
+  uniqueRealtorPartners: PropTypes.arrayOf(PropTypes.string).isRequired
 }
 
 export default PipelineFilters
