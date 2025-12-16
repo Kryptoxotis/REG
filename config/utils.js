@@ -125,6 +125,26 @@ export function verifyToken(token) {
   }
 }
 
+// Extract token from request (Authorization header or HttpOnly cookie)
+export function getTokenFromRequest(req) {
+  // Check Authorization header first
+  const authHeader = req.headers?.authorization
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.slice(7)
+  }
+
+  // Fall back to HttpOnly cookie
+  const cookies = req.headers?.cookie || ''
+  const match = cookies.match(/authToken=([^;]+)/)
+  return match ? match[1] : null
+}
+
+// Verify token from request (combines extraction and verification)
+export function verifyRequestToken(req) {
+  const token = getTokenFromRequest(req)
+  return verifyToken(token)
+}
+
 // Notion data extraction helpers
 export function extractPlainText(richText) {
   if (!richText || !Array.isArray(richText)) return ''

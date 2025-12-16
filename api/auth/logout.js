@@ -1,4 +1,4 @@
-import { handleCors, verifyToken, invalidateUserTokens } from '../../config/utils.js'
+import { handleCors, verifyRequestToken, invalidateUserTokens } from '../../config/utils.js'
 
 export default async function handler(req, res) {
   if (handleCors(req, res)) return
@@ -7,9 +7,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const authHeader = req.headers.authorization
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
-  const user = verifyToken(token)
+  const user = verifyRequestToken(req)
+
+  // Clear HttpOnly cookie
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL
+  res.setHeader('Set-Cookie', [
+    `authToken=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax${isProduction ? '; Secure' : ''}`
+  ])
 
   if (!user) {
     // Even without valid token, return success (idempotent)

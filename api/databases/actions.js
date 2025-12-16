@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { DATABASE_IDS, NOTION_VERSION } from '../../config/databases.js'
-import { handleCors, verifyToken, verifyTokenVersion } from '../../config/utils.js'
+import { handleCors, verifyRequestToken, verifyTokenVersion } from '../../config/utils.js'
 
 // Actions that require admin role
 const ADMIN_ONLY_ACTIONS = ['move-to-pipeline', 'move-to-closed', 'send-back-to-properties']
@@ -253,10 +253,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  // Auth check - all actions require authentication
-  const authHeader = req.headers.authorization
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
-  const user = verifyToken(token)
+  // Auth check - all actions require authentication (supports header or cookie)
+  const user = verifyRequestToken(req)
 
   if (!user) {
     return res.status(401).json({ error: 'Authentication required' })

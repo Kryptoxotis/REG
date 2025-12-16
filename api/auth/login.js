@@ -111,9 +111,15 @@ export default async function handler(req, res) {
 
     const token = generateToken({ ...user, role: userData.role })
 
+    // Set HttpOnly cookie for security (prevents XSS token theft)
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL
+    res.setHeader('Set-Cookie', [
+      `authToken=${token}; HttpOnly; Path=/; Max-Age=${24 * 60 * 60}; SameSite=Lax${isProduction ? '; Secure' : ''}`
+    ])
+
     return res.json({
       user: userData,
-      token
+      token // Keep for backward compatibility during migration
     })
     
   } catch (error) {

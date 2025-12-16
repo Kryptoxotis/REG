@@ -17,25 +17,17 @@ function App() {
   }, [])
 
   const checkAuth = async () => {
-    const token = localStorage.getItem('authToken')
-
-    if (!token) {
-      setLoading(false)
-      return
-    }
-
     try {
+      // Use credentials to send HttpOnly cookie automatically
       const response = await fetch('/api/auth/check', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include'
       })
       if (response.ok) {
         const data = await response.json()
         setUser(data.user)
       } else {
-        // Token invalid or expired, clear it
-        localStorage.removeItem('authToken')
+        // Token invalid or expired
+        localStorage.removeItem('authToken') // Clean up legacy storage
       }
     } catch (error) {
       console.error('Auth check failed:', error)
@@ -47,6 +39,8 @@ function App() {
 
   const handleSetUser = (userData, token) => {
     if (userData && token) {
+      // Token is now set via HttpOnly cookie by server
+      // Keep localStorage for backward compatibility during migration
       localStorage.setItem('authToken', token)
       setUser(userData)
     } else if (userData === null) {

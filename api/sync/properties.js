@@ -2,7 +2,7 @@
 // Parses xlsx/csv file and sends CSV data to n8n
 
 import ExcelJS from 'exceljs'
-import { verifyToken, handleCors } from '../../config/utils.js'
+import { verifyRequestToken, handleCors } from '../../config/utils.js'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB limit
 
@@ -136,10 +136,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  // Auth check - require admin role for file uploads
-  const authHeader = req.headers.authorization
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
-  const user = verifyToken(token)
+  // Auth check - require admin role for file uploads (supports header or cookie)
+  const user = verifyRequestToken(req)
 
   if (!user) {
     return res.status(401).json({ error: 'Authentication required' })

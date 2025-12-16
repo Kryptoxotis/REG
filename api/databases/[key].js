@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { DATABASE_IDS as BASE_DB_IDS, NOTION_VERSION } from '../../config/databases.js'
-import { handleCors, verifyToken } from '../../config/utils.js'
+import { handleCors, verifyRequestToken, extractPlainText } from '../../config/utils.js'
 
 const NOTION_API_KEY = process.env.NOTION_API_KEY
 
@@ -17,11 +17,6 @@ const VIEW_FILTERS = {
     property: 'Status',
     select: { equals: 'Model Home' }
   }
-}
-
-function extractPlainText(richText) {
-  if (!richText || !Array.isArray(richText)) return ''
-  return richText.map(text => text.plain_text).join('')
 }
 
 function formatPage(page) {
@@ -63,10 +58,8 @@ function formatPage(page) {
 export default async function handler(req, res) {
   if (handleCors(req, res)) return
 
-  // Auth check - all database reads require authentication
-  const authHeader = req.headers.authorization
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
-  const user = verifyToken(token)
+  // Auth check - all database reads require authentication (supports header or cookie)
+  const user = verifyRequestToken(req)
 
   if (!user) {
     return res.status(401).json({ error: 'Authentication required' })

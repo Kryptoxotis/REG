@@ -1,28 +1,31 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 
-// Get auth token for requests
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('authToken')
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
+// Configure axios to send cookies automatically (for HttpOnly auth)
+// Also include Authorization header as fallback during migration
+const getRequestConfig = () => ({
+  withCredentials: true,
+  headers: localStorage.getItem('authToken')
+    ? { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+    : {}
+})
 
 // Base API call function
 const api = {
   get: async (url) => {
-    const { data } = await axios.get(url, { headers: getAuthHeaders() })
+    const { data } = await axios.get(url, getRequestConfig())
     return data
   },
   post: async (url, body) => {
-    const { data } = await axios.post(url, body, { headers: getAuthHeaders() })
+    const { data } = await axios.post(url, body, getRequestConfig())
     return data
   },
   patch: async (url, body) => {
-    const { data } = await axios.patch(url, body, { headers: getAuthHeaders() })
+    const { data } = await axios.patch(url, body, getRequestConfig())
     return data
   },
   delete: async (url) => {
-    const { data } = await axios.delete(url, { headers: getAuthHeaders() })
+    const { data } = await axios.delete(url, getRequestConfig())
     return data
   }
 }
