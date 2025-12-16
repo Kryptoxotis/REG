@@ -1,6 +1,16 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
+import {
+  ScheduleEventModal,
+  WeekSubmissionPanel,
+  DaySelectionModal,
+  AdminListView,
+  ScheduleStatusBanners,
+  AdminPendingPanel,
+  ScheduleLegend,
+  getStatusColor
+} from './schedule'
 
 function ScheduleCalendar({ user, onNavigate }) {
   const [scheduleData, setScheduleData] = useState([])
@@ -519,133 +529,34 @@ function ScheduleCalendar({ user, onNavigate }) {
 
       {/* Employee: Schedule status and rules */}
       {!isAdmin && (
-        <div className="space-y-3">
-          {/* Schedule Open/Closed Banner */}
-          {!scheduleIsOpen ? (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
-              <p className="text-sm text-red-400 flex items-center gap-2">
-                <span className="text-lg">🔒</span>
-                <span>
-                  <strong>Schedule Locked</strong> - Opens on the {scheduleOpenDay}th of each month.
-                  You can view the calendar but cannot submit requests until then.
-                </span>
-              </p>
-            </div>
-          ) : isCurrentMonth ? (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
-              <p className="text-sm text-amber-400 flex items-center gap-2">
-                <span className="text-lg">📅</span>
-                <span><strong>Current Month (View Only)</strong> - Navigate to next month to submit your schedule requests.</span>
-              </p>
-            </div>
-          ) : isNextMonth ? (
-            <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
-              <p className="text-sm text-green-400 flex items-center gap-2">
-                <span className="text-lg">🔓</span>
-                <span><strong>Schedule Open</strong> - Click days to select them, then submit your week below.</span>
-              </p>
-            </div>
-          ) : isFutureMonth ? (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
-              <p className="text-sm text-amber-400 flex items-center gap-2">
-                <span className="text-lg">🔒</span>
-                <span><strong>Future Month</strong> - You can only submit schedules for next month. Navigate back to {monthNames[nextMonthIndex]} {nextMonthYear}.</span>
-              </p>
-            </div>
-          ) : (
-            <div className="bg-gray-500/10 border border-gray-500/30 rounded-xl p-4">
-              <p className="text-sm text-gray-400 flex items-center gap-2">
-                <span className="text-lg">📋</span>
-                <span><strong>Past Month</strong> - View only.</span>
-              </p>
-            </div>
-          )}
-
-          {/* Rules */}
-          <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
-            <p className="text-sm text-gray-300">
-              <span className="text-amber-400 font-medium">📌 Rules:</span> You must schedule at least 3 days per week (minimum) and no more than 5 days per week (maximum).
-            </p>
-          </div>
-        </div>
+        <ScheduleStatusBanners
+          scheduleIsOpen={scheduleIsOpen}
+          scheduleOpenDay={scheduleOpenDay}
+          isCurrentMonth={isCurrentMonth}
+          isNextMonth={isNextMonth}
+          isFutureMonth={isFutureMonth}
+          nextMonthIndex={nextMonthIndex}
+          nextMonthYear={nextMonthYear}
+        />
       )}
 
       {/* Admin: Pending Requests Panel */}
-      {isAdmin && pendingCount > 0 && viewMode === 'calendar' && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4"
-        >
-          <h3 className="text-amber-400 font-semibold mb-3">⏳ Pending Requests ({pendingCount})</h3>
-          <div className="grid gap-2 max-h-40 overflow-y-auto">
-            {scheduleData.filter(s => s.status === 'Pending').slice(0, 5).map(item => (
-              <div
-                key={item.id}
-                onClick={() => setSelectedEvent(item)}
-                className="flex items-center justify-between bg-gray-800/50 rounded-lg p-3 cursor-pointer hover:bg-gray-700/50"
-              >
-                <div>
-                  <p className="text-white text-sm font-medium">{item.employeeName || 'Unknown'}</p>
-                  <p className="text-gray-400 text-xs">{item.modelHome} • {new Date(item.date).toLocaleDateString()}</p>
-                </div>
-                <span className="text-amber-400 text-xs">Review →</span>
-              </div>
-            ))}
-          </div>
-        </motion.div>
+      {isAdmin && viewMode === 'calendar' && (
+        <AdminPendingPanel
+          pendingCount={pendingCount}
+          scheduleData={scheduleData}
+          setSelectedEvent={setSelectedEvent}
+        />
       )}
 
       {/* List View (Admin) */}
       {isAdmin && viewMode === 'list' ? (
-        <div className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-900">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Employee</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Model Home</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-700">
-                {filteredSchedule.map(item => (
-                  <tr key={item.id} className="hover:bg-gray-700/30">
-                    <td className="px-4 py-3 text-white">{item.employeeName || 'Unknown'}</td>
-                    <td className="px-4 py-3 text-gray-300">{new Date(item.date).toLocaleDateString()}</td>
-                    <td className="px-4 py-3 text-gray-300">{item.modelHome}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(item.status)}`}>
-                        {item.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {item.status === 'Pending' && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleApprove(item.id)}
-                            disabled={actionLoading === item.id}
-                            className="px-2 py-1 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-500 disabled:opacity-50"
-                          >
-                            ✓
-                          </button>
-                          <button
-                            onClick={() => setSelectedEvent(item)}
-                            className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-500"
-                          >
-                            ✗
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <AdminListView
+          filteredSchedule={filteredSchedule}
+          handleApprove={handleApprove}
+          setSelectedEvent={setSelectedEvent}
+          actionLoading={actionLoading}
+        />
       ) : (
         /* Calendar View */
         <div className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden">
@@ -761,393 +672,50 @@ function ScheduleCalendar({ user, onNavigate }) {
       )}
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 text-xs text-gray-400">
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded bg-emerald-500/50"></span>
-          <span>Approved (Taken)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded bg-amber-500/50"></span>
-          <span>Pending</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded bg-red-500/50"></span>
-          <span>Denied</span>
-        </div>
-        {!isAdmin && (
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded bg-gray-700"></span>
-            <span>Click to Request</span>
-          </div>
-        )}
-      </div>
+      <ScheduleLegend isAdmin={isAdmin} />
 
       {/* Employee: Week Submission Section - Only show for NEXT month */}
       {!isAdmin && scheduleIsOpen && isNextMonth && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-6 p-4 bg-gray-800 rounded-xl border border-gray-700"
-        >
-          <h3 className="text-lg font-semibold text-white mb-4">Submit Your Week</h3>
-
-          {/* Selected Days Summary */}
-          <div className="mb-4">
-            <p className="text-sm text-gray-400 mb-2">
-              Selected Days: <span className={`font-bold ${
-                selectedDays.length === 0 ? 'text-gray-500' :
-                selectedDays.length < 3 ? 'text-amber-400' :
-                selectedDays.length <= 5 ? 'text-emerald-400' :
-                'text-red-400'
-              }`}>{selectedDays.length}/5</span>
-            </p>
-            {selectedDays.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {selectedDays.sort().map(dateStr => (
-                  <span
-                    key={dateStr}
-                    onClick={() => setSelectedDays(prev => prev.filter(d => d !== dateStr))}
-                    className="px-2 py-1 bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs rounded cursor-pointer hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-400"
-                  >
-                    {new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} ×
-                  </span>
-                ))}
-              </div>
-            )}
-            {selectedDays.length === 0 && (
-              <p className="text-xs text-gray-500">Click days on the calendar to select them</p>
-            )}
-            {selectedDays.length > 0 && selectedDays.length < 3 && (
-              <p className="text-xs text-amber-400 mt-2">⚠️ Need {3 - selectedDays.length} more day(s) to meet minimum (3 required)</p>
-            )}
-          </div>
-
-          {/* Model Home Selection */}
-          <div className="mb-4">
-            <label className="block text-sm text-gray-400 mb-2">Select Model Home</label>
-            <select
-              value={selectedModelHome?.id || ''}
-              onChange={(e) => {
-                const home = modelHomes.find(h => h.id === e.target.value)
-                setSelectedModelHome(home || null)
-              }}
-              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white focus:border-amber-500 focus:outline-none"
-            >
-              <option value="">Choose a Model Home...</option>
-              {modelHomes.map(home => (
-                <option key={home.id} value={home.id}>
-                  {home.Address || home.address || home.Name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Submit Button */}
-          <button
-            onClick={handleSubmitWeek}
-            disabled={submitting || selectedDays.length === 0 || !selectedModelHome}
-            className="w-full py-3 bg-amber-600 hover:bg-amber-500 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg font-medium transition-colors"
-          >
-            {submitting ? 'Submitting...' : `Submit Week (${selectedDays.length} days)`}
-          </button>
-
-          {/* Clear Selection */}
-          {selectedDays.length > 0 && (
-            <button
-              onClick={() => { setSelectedDays([]); setSelectedModelHome(null) }}
-              className="w-full mt-2 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm transition-colors"
-            >
-              Clear Selection
-            </button>
-          )}
-        </motion.div>
+        <WeekSubmissionPanel
+          selectedDays={selectedDays}
+          setSelectedDays={setSelectedDays}
+          selectedModelHome={selectedModelHome}
+          setSelectedModelHome={setSelectedModelHome}
+          modelHomes={modelHomes}
+          submitting={submitting}
+          handleSubmitWeek={handleSubmitWeek}
+        />
       )}
 
       {/* Employee: Day Selection Modal */}
-      <AnimatePresence>
-        {selectedDay && !isAdmin && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => { setSelectedDay(null); setSelectedModelHome(null) }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={e => e.stopPropagation()}
-              className="bg-gray-900 rounded-2xl border border-gray-700 max-w-lg w-full max-h-[80vh] overflow-hidden"
-            >
-              <div className="h-2 bg-gradient-to-r from-amber-500 to-orange-400" />
-              <div className="p-6">
-                <h2 className="text-xl font-bold text-white mb-1">
-                  {monthNames[month]} {selectedDay}, {year}
-                </h2>
-                <p className="text-gray-400 text-sm mb-6">Select a Model Home to request this shift</p>
-
-                {/* Week status - prominent display */}
-                {(() => {
-                  const weekRequests = getUserWeekRequests(getISODate(selectedDay))
-                  const count = weekRequests.length
-                  const isAtMax = count >= 5
-                  const isUnderMin = count < 3
-                  const willBeUnderMin = count + 1 < 3
-
-                  return (
-                    <div className={`mb-4 p-4 rounded-xl border ${
-                      isAtMax ? 'bg-red-500/10 border-red-500/30' :
-                      isUnderMin ? 'bg-amber-500/10 border-amber-500/30' :
-                      'bg-emerald-500/10 border-emerald-500/30'
-                    }`}>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-gray-300">This Week's Schedule</span>
-                        <span className={`text-lg font-bold ${
-                          isAtMax ? 'text-red-400' :
-                          isUnderMin ? 'text-amber-400' :
-                          'text-emerald-400'
-                        }`}>{count}/5 days</span>
-                      </div>
-
-                      {/* Progress bar */}
-                      <div className="h-2 bg-gray-700 rounded-full overflow-hidden mb-2">
-                        <div
-                          className={`h-full transition-all ${
-                            isAtMax ? 'bg-red-500' :
-                            count >= 3 ? 'bg-emerald-500' :
-                            'bg-amber-500'
-                          }`}
-                          style={{ width: `${(count / 5) * 100}%` }}
-                        />
-                        {/* Minimum marker at 3/5 = 60% */}
-                        <div className="relative -mt-2 h-2">
-                          <div className="absolute left-[60%] w-0.5 h-2 bg-white/50" title="Minimum: 3 days" />
-                        </div>
-                      </div>
-
-                      {/* Status message */}
-                      {isAtMax ? (
-                        <p className="text-xs text-red-400 font-medium">
-                          ❌ Maximum reached - Cannot add more shifts this week
-                        </p>
-                      ) : isUnderMin ? (
-                        <p className="text-xs text-amber-400">
-                          ⚠️ Need {3 - count} more day(s) to meet minimum (3 required)
-                        </p>
-                      ) : (
-                        <p className="text-xs text-emerald-400">
-                          ✓ Minimum met - Can add {5 - count} more day(s)
-                        </p>
-                      )}
-                    </div>
-                  )
-                })()}
-
-                {/* Model Homes List */}
-                <div className="space-y-2 max-h-[40vh] overflow-y-auto">
-                  {modelHomes.length === 0 ? (
-                    <p className="text-gray-500 text-center py-4">No model homes available</p>
-                  ) : (
-                    modelHomes.map(home => {
-                      const dateStr = getISODate(selectedDay)
-                      const address = home.Address || home.address || home.Name || 'Unknown'
-                      const taken = isSlotTaken(dateStr, address)
-                      const userPending = getUserPendingForSlot(dateStr, address)
-                      const isSelected = selectedModelHome?.id === home.id
-
-                      return (
-                        <div
-                          key={home.id}
-                          onClick={() => {
-                            if (!taken && !userPending) setSelectedModelHome(home)
-                          }}
-                          className={`p-4 rounded-xl border transition-all ${
-                            taken
-                              ? 'bg-gray-800/30 border-gray-700 opacity-50 cursor-not-allowed'
-                              : userPending
-                                ? 'bg-amber-500/10 border-amber-500/30 cursor-not-allowed'
-                                : isSelected
-                                  ? 'bg-amber-500/20 border-amber-500 cursor-pointer'
-                                  : 'bg-gray-800 border-gray-700 hover:border-gray-600 cursor-pointer'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-white font-medium">{address}</p>
-                              <p className="text-gray-400 text-xs mt-1">
-                                {home.Subdivision || home.City || ''}
-                              </p>
-                            </div>
-                            {taken && (
-                              <span className="text-xs text-emerald-400 bg-emerald-500/20 px-2 py-1 rounded">
-                                Taken by {taken.employeeName?.split(' ')[0] || 'Someone'}
-                              </span>
-                            )}
-                            {userPending && (
-                              <span className="text-xs text-amber-400 bg-amber-500/20 px-2 py-1 rounded">
-                                You: Pending
-                              </span>
-                            )}
-                            {isSelected && !taken && !userPending && (
-                              <span className="text-amber-400">✓ Selected</span>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-3 mt-6">
-                  {(() => {
-                    const weekRequests = getUserWeekRequests(getISODate(selectedDay))
-                    const isAtMax = weekRequests.length >= 5
-                    return (
-                      <button
-                        onClick={handleSubmitRequest}
-                        disabled={!selectedModelHome || submitting || isAtMax}
-                        className={`flex-1 py-3 font-medium rounded-xl transition-colors ${
-                          isAtMax
-                            ? 'bg-red-900/50 text-red-400 cursor-not-allowed'
-                            : 'bg-amber-600 hover:bg-amber-500 disabled:bg-gray-700 disabled:text-gray-500 text-white'
-                        }`}
-                      >
-                        {submitting ? 'Submitting...' : isAtMax ? 'Max 5 Days Reached' : 'Submit Request'}
-                      </button>
-                    )
-                  })()}
-                  <button
-                    onClick={() => { setSelectedDay(null); setSelectedModelHome(null) }}
-                    className="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {!isAdmin && (
+        <DaySelectionModal
+          selectedDay={selectedDay}
+          setSelectedDay={setSelectedDay}
+          selectedModelHome={selectedModelHome}
+          setSelectedModelHome={setSelectedModelHome}
+          modelHomes={modelHomes}
+          month={month}
+          year={year}
+          getUserWeekRequests={getUserWeekRequests}
+          isSlotTaken={isSlotTaken}
+          getUserPendingForSlot={getUserPendingForSlot}
+          handleSubmitRequest={handleSubmitRequest}
+          submitting={submitting}
+        />
+      )}
 
       {/* Event Detail Modal (Both Admin & Employee) */}
-      <AnimatePresence>
-        {selectedEvent && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => { setSelectedEvent(null); setDenyNotes('') }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={e => e.stopPropagation()}
-              className="bg-gray-900 rounded-2xl border border-gray-700 max-w-md w-full overflow-hidden"
-            >
-              <div className={`h-2 ${
-                selectedEvent.status === 'Approved' ? 'bg-gradient-to-r from-emerald-500 to-teal-400' :
-                selectedEvent.status === 'Denied' ? 'bg-gradient-to-r from-red-500 to-rose-400' :
-                'bg-gradient-to-r from-amber-500 to-orange-400'
-              }`} />
-              <div className="p-6">
-                {/* Header */}
-                <div className="flex items-start justify-between mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
-                      selectedEvent.status === 'Approved' ? 'bg-emerald-500/20' :
-                      selectedEvent.status === 'Denied' ? 'bg-red-500/20' :
-                      'bg-amber-500/20'
-                    }`}>
-                      {selectedEvent.status === 'Approved' ? '✓' : selectedEvent.status === 'Denied' ? '✗' : '⏳'}
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-white">{selectedEvent.employeeName || 'Unknown'}</h2>
-                      <p className="text-gray-400 text-sm">
-                        {new Date(selectedEvent.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-                      </p>
-                    </div>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedEvent.status)}`}>
-                    {selectedEvent.status}
-                  </span>
-                </div>
-
-                {/* Details */}
-                <div className="space-y-3">
-                  <div className="bg-gray-800 rounded-xl p-4">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Model Home</p>
-                    <p className="text-white font-medium">{selectedEvent.modelHome || 'Not specified'}</p>
-                  </div>
-
-                  {selectedEvent.submittedAt && (
-                    <div className="bg-gray-800 rounded-xl p-4">
-                      <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Submitted</p>
-                      <p className="text-gray-300">{new Date(selectedEvent.submittedAt).toLocaleString()}</p>
-                    </div>
-                  )}
-
-                  {selectedEvent.reviewedAt && (
-                    <div className="bg-gray-800 rounded-xl p-4">
-                      <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Reviewed</p>
-                      <p className="text-gray-300">{new Date(selectedEvent.reviewedAt).toLocaleString()}</p>
-                    </div>
-                  )}
-
-                  {selectedEvent.notes && (
-                    <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
-                      <p className="text-xs text-red-400 uppercase tracking-wider mb-1">Notes</p>
-                      <p className="text-red-300">{selectedEvent.notes}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Admin Actions */}
-                {isAdmin && selectedEvent.status === 'Pending' && (
-                  <div className="mt-6 space-y-3">
-                    <div>
-                      <label className="text-xs text-gray-400 mb-1 block">Denial Notes (optional)</label>
-                      <input
-                        type="text"
-                        value={denyNotes}
-                        onChange={(e) => setDenyNotes(e.target.value)}
-                        placeholder="Reason for denial..."
-                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
-                      />
-                    </div>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => handleApprove(selectedEvent.id)}
-                        disabled={actionLoading === selectedEvent.id}
-                        className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium rounded-xl transition-colors"
-                      >
-                        {actionLoading === selectedEvent.id ? '...' : '✓ Approve'}
-                      </button>
-                      <button
-                        onClick={() => handleDeny(selectedEvent.id)}
-                        disabled={actionLoading === selectedEvent.id}
-                        className="flex-1 py-3 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-medium rounded-xl transition-colors"
-                      >
-                        {actionLoading === selectedEvent.id ? '...' : '✗ Deny'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <button
-                  onClick={() => { setSelectedEvent(null); setDenyNotes('') }}
-                  className="mt-6 w-full py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <ScheduleEventModal
+        selectedEvent={selectedEvent}
+        onClose={() => { setSelectedEvent(null); setDenyNotes('') }}
+        isAdmin={isAdmin}
+        denyNotes={denyNotes}
+        setDenyNotes={setDenyNotes}
+        handleApprove={handleApprove}
+        handleDeny={handleDeny}
+        actionLoading={actionLoading}
+      />
     </div>
   )
 }
