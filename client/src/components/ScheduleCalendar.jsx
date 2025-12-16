@@ -9,7 +9,8 @@ import {
   ScheduleStatusBanners,
   AdminPendingPanel,
   ScheduleLegend,
-  getStatusColor
+  getStatusColor,
+  getStatusBadgeColor
 } from './schedule'
 
 function ScheduleCalendar({ user, onNavigate }) {
@@ -396,25 +397,6 @@ function ScheduleCalendar({ user, onNavigate }) {
     return scheduleData.filter(item => item.status?.toLowerCase() === statusFilter)
   }, [scheduleData, statusFilter])
 
-  // Get status color
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'approved': return 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
-      case 'pending': return 'bg-amber-500/20 border-amber-500/30 text-amber-400'
-      case 'denied': return 'bg-red-500/20 border-red-500/30 text-red-400'
-      default: return 'bg-gray-500/20 border-gray-500/30 text-gray-400'
-    }
-  }
-
-  const getStatusBadgeColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'approved': return 'bg-emerald-500'
-      case 'pending': return 'bg-amber-500'
-      case 'denied': return 'bg-red-500'
-      default: return 'bg-gray-500'
-    }
-  }
-
   // Build calendar grid
   const calendarDays = []
   for (let i = 0; i < startingDay; i++) calendarDays.push(null)
@@ -599,6 +581,8 @@ function ScheduleCalendar({ user, onNavigate }) {
               // Employee can only select days in NEXT month (not current, not 2+ months ahead)
               const canEmployeeEdit = !past && !isAdmin && scheduleIsOpen && isNextMonth
 
+              const isClickable = (day && canEmployeeEdit) || (day && isAdmin && pendingEvents.length > 0)
+
               return (
                 <div
                   key={idx}
@@ -609,7 +593,21 @@ function ScheduleCalendar({ user, onNavigate }) {
                       setSelectedEvent(pendingEvents[0])
                     }
                   }}
-                  className={`min-h-[80px] sm:min-h-[100px] p-1 sm:p-2 border-b border-r border-gray-700/50
+                  onKeyDown={(e) => {
+                    if ((e.key === 'Enter' || e.key === ' ') && isClickable) {
+                      e.preventDefault()
+                      if (canEmployeeEdit) {
+                        toggleDaySelection(day)
+                      } else if (isAdmin && pendingEvents.length > 0) {
+                        setSelectedEvent(pendingEvents[0])
+                      }
+                    }
+                  }}
+                  tabIndex={isClickable ? 0 : -1}
+                  role={isClickable ? 'button' : undefined}
+                  aria-label={day ? `${monthNames[month]} ${day}${isSelected ? ', selected' : ''}${pendingEvents.length > 0 ? `, ${pendingEvents.length} pending request${pendingEvents.length > 1 ? 's' : ''}` : ''}` : undefined}
+                  aria-pressed={isSelected}
+                  className={`min-h-[80px] sm:min-h-[100px] p-1 sm:p-2 border-b border-r border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset
                     ${!day ? 'bg-gray-900/30' : ''}
                     ${past ? 'opacity-50' : ''}
                     ${isSelected ? 'bg-amber-500/20 ring-2 ring-amber-500/50 ring-inset' : ''}

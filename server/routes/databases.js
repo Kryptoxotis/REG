@@ -470,6 +470,189 @@ router.post('/activity-log', requireAuth, async (req, res) => {
   }
 })
 
+// ============================================================
+// CONSOLIDATED ACTIONS ENDPOINT
+// Handles: move-to-pipeline, update-status, log-activity,
+//          move-to-closed, send-back-to-properties
+// ============================================================
+router.post('/actions', requireAuth, async (req, res) => {
+  try {
+    const { action } = req.body
+
+    switch (action) {
+      case 'move-to-pipeline': {
+        const {
+          propertyId, address, salesPrice, edwardsCo, agent, buyerName,
+          buyerEmail, buyerPhone, assistingAgent, brokerName, loName,
+          loEmail, loPhone, loanAmount, loanType, realtorPartner,
+          realtorEmail, realtorPhone, notes, closedDate, executeDate
+        } = req.body
+
+        // Validate required fields
+        if (!propertyId || !address || !agent || !buyerName || !buyerEmail || !buyerPhone) {
+          return res.status(400).json({
+            error: 'Missing required fields',
+            details: 'propertyId, address, agent, buyerName, buyerEmail, and buyerPhone are required'
+          })
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(buyerEmail)) {
+          return res.status(400).json({ error: 'Invalid buyer email format' })
+        }
+        if (loEmail && !emailRegex.test(loEmail)) {
+          return res.status(400).json({ error: 'Invalid LO email format' })
+        }
+        if (realtorEmail && !emailRegex.test(realtorEmail)) {
+          return res.status(400).json({ error: 'Invalid realtor email format' })
+        }
+
+        // Validate phone format
+        const phoneRegex = /^[\d\s\-\(\)\+]+$/
+        if (!phoneRegex.test(buyerPhone)) {
+          return res.status(400).json({ error: 'Invalid buyer phone format' })
+        }
+
+        // Create pipeline entry
+        const pipelineProps = {
+          'Address': { title: [{ text: { content: address } }] },
+          'Sales Price': { number: parseFloat(salesPrice) || 0 },
+          'Edwards Co.': edwardsCo ? { select: { name: edwardsCo } } : undefined,
+          'Agent': { rich_text: [{ text: { content: agent } }] },
+          'Buyer Name': { rich_text: [{ text: { content: buyerName } }] },
+          'Buyer Email': { email: buyerEmail },
+          'Buyer Phone': { phone_number: buyerPhone },
+          'Assisting Agent': assistingAgent ? { rich_text: [{ text: { content: assistingAgent } }] } : undefined,
+          'Broker Name': brokerName ? { rich_text: [{ text: { content: brokerName } }] } : undefined,
+          'LO Name': loName ? { rich_text: [{ text: { content: loName } }] } : undefined,
+          'LO Email': loEmail ? { email: loEmail } : undefined,
+          'LO Phone': loPhone ? { phone_number: loPhone } : undefined,
+          'Loan Amount': loanAmount ? { number: parseFloat(loanAmount) } : undefined,
+          'Loan Type': loanType ? { select: { name: loanType } } : undefined,
+          'Realtor Partner': realtorPartner ? { rich_text: [{ text: { content: realtorPartner } }] } : undefined,
+          'Realtor Email': realtorEmail ? { email: realtorEmail } : undefined,
+          'Realtor Phone': realtorPhone ? { phone_number: realtorPhone } : undefined,
+          'Notes': notes ? { rich_text: [{ text: { content: notes } }] } : undefined,
+          'Scheduled Closing': closedDate ? { date: { start: closedDate } } : undefined,
+          'Execute Date': executeDate ? { date: { start: executeDate } } : undefined,
+          'Loan Status': { select: { name: 'Loan Application Received' } },
+          'Executed': { checkbox: true }
+        }
+
+        Object.keys(pipelineProps).forEach(key =>
+          pipelineProps[key] === undefined && delete pipelineProps[key]
+        )
+
+        const result = await createPage(DATABASE_IDS.PIPELINE, pipelineProps)
+        await deletePage(propertyId) // Archive from Properties
+
+        return res.json({ success: true, data: formatPage(result) })
+      }
+
+      case 'update-status': {
+        const { dealId, loanStatus } = req.body
+        if (!dealId || !loanStatus) {
+          return res.status(400).json({ error: 'dealId and loanStatus required' })
+        }
+
+        const properties = {
+          'Loan Status': { select: { name: loanStatus } }
+        }
+        const result = await updatePage(dealId, properties)
+        return res.json({ success: true, data: formatPage(result) })
+      }
+
+      case 'log-activity': {
+        const { logAction, dealAddress, oldStatus, newStatus, entityType, actionType } = req.body
+        const user = req.session.user?.fullName || req.session.user?.email || 'Unknown'
+
+        if (!logAction) {
+          return res.status(400).json({ error: 'logAction required' })
+        }
+
+        const properties = {
+          'Action': { title: [{ text: { content: logAction } }] },
+          'User': { rich_text: [{ text: { content: user } }] },
+          'Deal Address': dealAddress ? { rich_text: [{ text: { content: dealAddress } }] } : undefined,
+          'Old Status': oldStatus ? { rich_text: [{ text: { content: oldStatus } }] } : undefined,
+          'New Status': newStatus ? { rich_text: [{ text: { content: newStatus } }] } : undefined,
+          'Entity Type': entityType ? { rich_text: [{ text: { content: entityType } }] } : undefined,
+          'Action Type': actionType ? { rich_text: [{ text: { content: actionType } }] } : undefined,
+          'Date': { date: { start: new Date().toISOString() } }
+        }
+
+        Object.keys(properties).forEach(key =>
+          properties[key] === undefined && delete properties[key]
+        )
+
+        const result = await createPage(DATABASE_IDS.ACTIVITY_LOG, properties)
+        return res.json({ success: true, data: formatPage(result) })
+      }
+
+      case 'move-to-closed': {
+        const { dealId, address, closeDate, finalSalePrice, agent, buyerName, commission, edwardsCo } = req.body
+
+        if (!dealId || !address) {
+          return res.status(400).json({ error: 'dealId and address required' })
+        }
+
+        const closedDealProps = {
+          'Property Address': { title: [{ text: { content: address } }] },
+          'Edwards Co.': edwardsCo ? { select: { name: edwardsCo } } : undefined,
+          'Close Date': closeDate ? { date: { start: closeDate } } : undefined,
+          'Final Sale Price': finalSalePrice ? { number: parseFloat(finalSalePrice) } : undefined,
+          'Agent': agent ? { rich_text: [{ text: { content: agent } }] } : undefined,
+          'Buyer Name': buyerName ? { rich_text: [{ text: { content: buyerName } }] } : undefined,
+          'Commission': commission ? { number: parseFloat(commission) } : undefined
+        }
+
+        Object.keys(closedDealProps).forEach(key =>
+          closedDealProps[key] === undefined && delete closedDealProps[key]
+        )
+
+        const result = await createPage(DATABASE_IDS.CLOSED_DEALS, closedDealProps)
+        await deletePage(dealId) // Archive from Pipeline
+
+        return res.json({ success: true, data: formatPage(result) })
+      }
+
+      case 'send-back-to-properties': {
+        const { dealId, address, salesPrice, status, edwardsCo } = req.body
+
+        if (!dealId || !address) {
+          return res.status(400).json({ error: 'dealId and address required' })
+        }
+
+        const propertyProps = {
+          'Address': { title: [{ text: { content: address } }] },
+          'Edwards Co.': edwardsCo ? { select: { name: edwardsCo } } : undefined,
+          'Price': salesPrice ? { number: parseFloat(salesPrice) } : undefined,
+          'Status': status ? { select: { name: status } } : { select: { name: 'Available' } }
+        }
+
+        Object.keys(propertyProps).forEach(key =>
+          propertyProps[key] === undefined && delete propertyProps[key]
+        )
+
+        const result = await createPage(DATABASE_IDS.PROPERTIES, propertyProps)
+        await deletePage(dealId) // Archive from Pipeline
+
+        return res.json({ success: true, data: formatPage(result) })
+      }
+
+      default:
+        return res.status(400).json({ error: `Unknown action: ${action}` })
+    }
+  } catch (error) {
+    console.error(`Action ${req.body.action} failed:`, error)
+    res.status(500).json({
+      error: 'Action failed',
+      details: error.message
+    })
+  }
+})
+
 // Move property from Properties to Pipeline (when closed date is set)
 router.post('/properties/:pageId/move-to-pipeline', requireAuth, async (req, res) => {
   try {

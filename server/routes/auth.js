@@ -1,5 +1,8 @@
 import express from 'express'
+import bcrypt from 'bcrypt'
 import { queryDatabase, formatPage, updatePage, DATABASE_IDS } from '../utils/notion.js'
+
+const SALT_ROUNDS = 10
 
 const router = express.Router()
 
@@ -112,8 +115,25 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Account not active' })
     }
 
-    // Verify password
-    if (user.password !== password) {
+    // Verify password with bcrypt
+    // Handle legacy plain text passwords by checking both formats
+    let isValidPassword = false
+    if (user.password.startsWith('$2b$') || user.password.startsWith('$2a$')) {
+      // Hashed password - use bcrypt compare
+      isValidPassword = await bcrypt.compare(password, user.password)
+    } else {
+      // Legacy plain text - compare directly (will be migrated on next login)
+      isValidPassword = user.password === password
+      if (isValidPassword) {
+        // Migrate to hashed password
+        const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
+        await updatePage(user.id, {
+          'Password': { rich_text: [{ text: { content: hashedPassword } }] }
+        })
+      }
+    }
+
+    if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid password' })
     }
 
@@ -169,10 +189,13 @@ router.post('/create-password', async (req, res) => {
       return res.status(400).json({ error: 'Cannot create password for this account' })
     }
 
+    // Hash password before storing
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
+
     // Update password and status in Notion
     await updatePage(user.id, {
       'Password': {
-        rich_text: [{ text: { content: password } }]
+        rich_text: [{ text: { content: hashedPassword } }]
       },
       'Stauts': {
         status: { name: 'Active' }

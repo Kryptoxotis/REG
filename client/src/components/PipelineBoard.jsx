@@ -363,8 +363,8 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
             <button onClick={() => setViewMode('monthly')} className={`px-3 py-1.5 text-sm rounded-lg transition-all ${viewMode === 'monthly' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>Monthly</button>
             <button onClick={() => setViewMode('all')} className={`px-3 py-1.5 text-sm rounded-lg transition-all ${viewMode === 'all' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>All Time</button>
           </div>
-          <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowFilters(!showFilters)} className={`p-3.5 border rounded-xl transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center ${showFilters || hasActiveFilters ? 'bg-blue-600 border-blue-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'}`}>🔍</motion.button>
-          <motion.button whileTap={{ scale: 0.95 }} onClick={fetchDeals} className="p-3.5 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white min-w-[48px] min-h-[48px] flex items-center justify-center">🔄</motion.button>
+          <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowFilters(!showFilters)} aria-label={showFilters ? 'Hide filters' : 'Show filters'} aria-expanded={showFilters} className={`p-3.5 border rounded-xl transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center ${showFilters || hasActiveFilters ? 'bg-blue-600 border-blue-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'}`}>🔍</motion.button>
+          <motion.button whileTap={{ scale: 0.95 }} onClick={fetchDeals} aria-label="Refresh pipeline data" className="p-3.5 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white min-w-[48px] min-h-[48px] flex items-center justify-center">🔄</motion.button>
         </div>
       </div>
 
