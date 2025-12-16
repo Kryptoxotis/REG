@@ -10,8 +10,6 @@ function DatabaseViewer({ databaseKey, databaseName }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedItem, setSelectedItem] = useState(null)
 
-  useEffect(() => { fetchData() }, [databaseKey])
-
   const fetchData = async () => {
     setLoading(true)
     setError(null)
@@ -22,6 +20,8 @@ function DatabaseViewer({ databaseKey, databaseName }) {
       setError(err.response?.data?.error || 'Failed to fetch data')
     } finally { setLoading(false) }
   }
+
+  useEffect(() => { fetchData() }, [databaseKey])
 
   if (loading) {
     return (

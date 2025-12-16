@@ -9,8 +9,6 @@ function ScheduleCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedEvent, setSelectedEvent] = useState(null)
 
-  useEffect(() => { fetchData() }, [])
-
   const fetchData = async () => {
     setLoading(true)
     setError(null)
@@ -21,6 +19,8 @@ function ScheduleCalendar() {
       setError(err.response?.data?.error || 'Failed to fetch schedule')
     } finally { setLoading(false) }
   }
+
+  useEffect(() => { fetchData() }, [])
 
   const getDaysInMonth = (date) => {
     const year = date.getFullYear()
