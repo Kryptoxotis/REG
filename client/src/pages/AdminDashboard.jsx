@@ -42,11 +42,9 @@ function AdminDashboard({ user, setUser }) {
   }, [])
 
   const handleLogout = async () => {
-    const token = localStorage.getItem('authToken')
     try {
-      await api.post('/api/auth/logout', {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      // HttpOnly cookies handle auth automatically via withCredentials
+      await api.post('/api/auth/logout')
     } catch (error) {
       console.error('Logout API failed:', error)
       // Still proceed with logout even if API fails

@@ -148,10 +148,8 @@ function DetailModal({ item, onClose, onUpdate, databaseKey }) {
     setSaving(true)
     setError(null)
     try {
-      const token = localStorage.getItem('authToken')
-      await api.patch(`/api/databases/${databaseKey}/${item.id}`, formData, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      })
+      // HttpOnly cookies handle auth automatically via withCredentials
+      await api.patch(`/api/databases/${databaseKey}/${item.id}`, formData)
       onUpdate()
       setIsEditing(false)
     } catch (err) {

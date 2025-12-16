@@ -15,14 +15,13 @@ function Settings() {
   const [scheduleLoading, setScheduleLoading] = useState(false)
   const [scheduleSaved, setScheduleSaved] = useState(false)
 
-  const token = localStorage.getItem('authToken')
-  const headers = token ? { Authorization: `Bearer ${token}` } : {}
+  // HttpOnly cookies handle auth automatically via withCredentials in api.js
 
   // Fetch schedule settings on mount
   useEffect(() => {
     const fetchScheduleSettings = async () => {
       try {
-        const res = await api.get('/api/databases/schedule?settings=true', { headers })
+        const res = await api.get('/api/databases/schedule?settings=true')
         if (res.data?.scheduleOpenDay) {
           setScheduleOpenDay(res.data.scheduleOpenDay)
         }

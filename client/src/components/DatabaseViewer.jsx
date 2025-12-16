@@ -250,7 +250,6 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
   const handleSave = async () => {
     setSaving(true)
     try {
-      const token = localStorage.getItem('authToken')
       const apiPath = DB_KEY_TO_API[databaseKey] || databaseKey.toLowerCase()
       // Only send changed fields (exclude id, created_time, last_edited_time)
       const updates = {}
@@ -259,9 +258,8 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
           updates[key] = value
         }
       })
-      await api.patch(`/api/databases/${apiPath}/${selectedItem.id}`, updates, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      })
+      // HttpOnly cookies handle auth automatically via withCredentials
+      await api.patch(`/api/databases/${apiPath}/${selectedItem.id}`, updates)
 
       // Log each field edit
       const entityType = baseConfig.title.replace(/s$/, '') // "Properties" -> "Property"

@@ -34,10 +34,8 @@ function TeamKPIView({ onNavigate }) {
     setLoading(true)
     setError(null)
     try {
-      const token = localStorage.getItem('authToken')
-      const response = await api.get('/api/databases/team-kpis', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      })
+      // HttpOnly cookies handle auth automatically via withCredentials
+      const response = await api.get('/api/databases/team-kpis')
       // Validate response is an array before setting state
       setData(Array.isArray(response.data) ? response.data : [])
     } catch (err) {
@@ -56,21 +54,30 @@ function TeamKPIView({ onNavigate }) {
     setEditedFields(prev => ({ ...prev, [key]: value }))
   }
 
-  // Handle save
+  // Handle save with field whitelist validation
+  const EDITABLE_FIELDS = ['Phone', 'Email', 'Address', 'Notes', 'Name', 'Role', 'Status']
+
   const handleSave = async () => {
     setSaving(true)
     try {
-      const token = localStorage.getItem('authToken')
-      await api.patch(`/api/databases/team-members/${selectedMember.id}`, editedFields, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      })
+      // Whitelist validation - only allow specific fields to be edited
+      const sanitizedFields = {}
+      for (const [key, value] of Object.entries(editedFields)) {
+        if (EDITABLE_FIELDS.includes(key)) {
+          sanitizedFields[key] = value
+        }
+      }
+
+      // HttpOnly cookies handle auth automatically via withCredentials
+      await api.patch(`/api/databases/team-members/${selectedMember.id}`, sanitizedFields)
+
       // Update local data
       setData(prev => prev.map(m =>
         m.id === selectedMember.id
-          ? { ...m, allFields: editedFields }
+          ? { ...m, allFields: { ...m.allFields, ...sanitizedFields } }
           : m
       ))
-      setSelectedMember(prev => ({ ...prev, allFields: editedFields }))
+      setSelectedMember(prev => ({ ...prev, allFields: { ...prev.allFields, ...sanitizedFields } }))
       setIsEditing(false)
     } catch (err) {
       alert('Failed to save: ' + (err.response?.data?.error || err.message))

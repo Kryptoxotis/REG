@@ -75,10 +75,8 @@ export default function FieldSettings({ isOpen, onClose }) {
   const fetchSchema = async (dbKey) => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('authToken')
-      const response = await api.get(`/api/databases/schema?key=${dbKey}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      })
+      // HttpOnly cookies handle auth automatically via withCredentials
+      const response = await api.get(`/api/databases/schema?key=${dbKey}`)
       setFields(response.data.fields || [])
     } catch (err) {
       console.error('Failed to fetch schema:', err)

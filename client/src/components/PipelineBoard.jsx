@@ -50,10 +50,8 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
   useEffect(() => {
     const fetchTeamMembers = async () => {
       try {
-        const token = localStorage.getItem('authToken')
-        const response = await api.get('/api/databases/TEAM_MEMBERS', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
-        })
+        // HttpOnly cookies handle auth automatically via withCredentials
+        const response = await api.get('/api/databases/TEAM_MEMBERS')
         const members = Array.isArray(response.data) ? response.data : []
         setTeamMembers(members.filter(m => m.Status === 'Active' || m.status === 'Active'))
       } catch (err) {
@@ -79,10 +77,8 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     try {
       const dbMap = { 'presale': 'PROPERTIES', 'loan-status': 'PIPELINE', 'closed': 'CLOSED_DEALS' }
       const database = dbMap[pipelineTab] || 'PIPELINE'
-      const token = localStorage.getItem('authToken')
-      const response = await api.get(`/api/databases/${database}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      })
+      // HttpOnly cookies handle auth automatically via withCredentials
+      const response = await api.get(`/api/databases/${database}`)
       setDeals(Array.isArray(response.data) ? response.data : [])
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch data')
@@ -112,14 +108,14 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         loanType: moveForm.loanType || null, realtorPartner: moveForm.realtorPartner || null,
         realtorEmail: moveForm.realtorEmail || null, realtorPhone: moveForm.realtorPhone || null,
         notes: moveForm.notes || null, closedDate: moveForm.closedDate || null, executeDate: moveForm.executeDate || null
-      }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
+      })
 
       await api.post('/api/databases/actions', {
         action: 'log-activity',
         logAction: `Property moved to Pipeline: ${selectedDeal.Address || 'Unknown'}`,
         dealAddress: selectedDeal.Address || 'Unknown',
         newStatus: 'Loan Application Received', entityType: 'Deal', actionType: 'Moved Stage'
-      }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
+      })
 
       setSelectedDeal(null)
       setMoveForm({
@@ -149,13 +145,13 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     try {
       await api.post('/api/databases/actions', {
         action: 'update-status', dealId: draggableId, loanStatus: newLoanStatus
-      }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
+      })
 
       await api.post('/api/databases/actions', {
         action: 'log-activity', logAction: `Deal moved: ${oldLoanStatus} → ${newLoanStatus}`,
         dealAddress: deal.Address || 'Unknown Address', oldStatus: oldLoanStatus, newStatus: newLoanStatus,
         entityType: 'Deal', actionType: 'Moved Stage'
-      }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
+      })
 
       if (newLoanStatus === 'Closed' || newLoanStatus === 'Funded' || newLoanStatus === 'Loan Complete / Transfer') {
         await api.post('/api/databases/actions', {
@@ -163,7 +159,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
           closeDate: deal['Scheduled Closing']?.start || new Date().toISOString().split('T')[0],
           finalSalePrice: deal['Sales Price'] || 0, agent: deal.Agent || '',
           buyerName: deal['Buyer Name'] || '', commission: deal.Commission || 0
-        }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
+        })
         setDeals(prev => prev.filter(d => d.id !== draggableId))
       }
     } catch (err) {
@@ -184,13 +180,13 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     try {
       await api.post('/api/databases/actions', {
         action: 'update-status', dealId: selectedDeal.id, loanStatus: newLoanStatus
-      }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
+      })
 
       await api.post('/api/databases/actions', {
         action: 'log-activity', logAction: `Deal moved: ${oldLoanStatus} → ${newLoanStatus}`,
         dealAddress: selectedDeal.Address || 'Unknown Address', oldStatus: oldLoanStatus, newStatus: newLoanStatus,
         entityType: 'Deal', actionType: 'Moved Stage'
-      }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
+      })
 
       if (newLoanStatus === 'Closed' || newLoanStatus === 'Funded' || newLoanStatus === 'Loan Complete / Transfer') {
         await api.post('/api/databases/actions', {
@@ -198,7 +194,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
           closeDate: selectedDeal['Scheduled Closing']?.start || new Date().toISOString().split('T')[0],
           finalSalePrice: selectedDeal['Sales Price'] || 0, agent: selectedDeal.Agent || '',
           buyerName: selectedDeal['Buyer Name'] || '', commission: selectedDeal.Commission || 0
-        }, { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } })
+        })
         setDeals(prev => prev.filter(d => d.id !== selectedDeal.id))
         setSelectedDeal(null)
       }
@@ -214,16 +210,16 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
     setIsSendingBack(true)
     try {
-      const token = localStorage.getItem('authToken')
+      // HttpOnly cookies handle auth automatically via withCredentials
       await api.post('/api/databases/actions', {
         action: 'send-back-to-properties', dealId: selectedDeal.id,
         address: selectedDeal.Address || '', salesPrice: selectedDeal['Sales Price'] || 0, status: 'Inventory'
-      }, { headers: { Authorization: `Bearer ${token}` } })
+      })
 
       await api.post('/api/databases/actions', {
         action: 'log-activity', logAction: `Deal sent back to Properties: ${selectedDeal.Address || 'Unknown'}`,
         dealAddress: selectedDeal.Address || 'Unknown Address', entityType: 'Deal', actionType: 'Sent Back to Properties'
-      }, { headers: { Authorization: `Bearer ${token}` } })
+      })
 
       setDeals(prev => prev.filter(d => d.id !== selectedDeal.id))
       setSelectedDeal(null)

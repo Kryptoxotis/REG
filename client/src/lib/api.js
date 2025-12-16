@@ -48,21 +48,43 @@ api.interceptors.request.use(async (config) => {
   return config
 })
 
-// Handle CSRF token errors (refresh token and retry)
+// Handle CSRF token errors (refresh token and retry with max attempts)
+const MAX_CSRF_RETRIES = 3
+let csrfRetryCount = 0
+
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Reset retry count on successful response
+    csrfRetryCount = 0
+    return response
+  },
   async (error) => {
     if (error.response?.status === 403 && error.response?.data?.error === 'Invalid CSRF token') {
+      // Prevent infinite retry loop
+      if (csrfRetryCount >= MAX_CSRF_RETRIES) {
+        console.error('Max CSRF retry attempts exceeded')
+        csrfRetryCount = 0
+        // Redirect to login
+        window.location.href = '/login'
+        return Promise.reject(error)
+      }
+
+      csrfRetryCount++
+
       // Refresh CSRF token
       await fetchCsrfToken()
 
       // Retry original request with new token
       const originalRequest = error.config
-      if (csrfToken) {
+      if (csrfToken && !originalRequest._csrfRetry) {
+        originalRequest._csrfRetry = true // Prevent nested retries
         originalRequest.headers['X-CSRF-Token'] = csrfToken
         return api(originalRequest)
       }
     }
+
+    // Reset retry count on other errors
+    csrfRetryCount = 0
     return Promise.reject(error)
   }
 )

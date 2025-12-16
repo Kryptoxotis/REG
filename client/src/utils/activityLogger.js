@@ -1,6 +1,21 @@
 import api from '../lib/api'
 
 /**
+ * Sanitize user input before sending to API
+ * - Removes null bytes
+ * - Limits string length to prevent DoS
+ * - Trims whitespace
+ */
+const MAX_STRING_LENGTH = 500
+
+function sanitize(str) {
+  if (str === null || str === undefined) return ''
+  if (typeof str !== 'string') return String(str).substring(0, MAX_STRING_LENGTH)
+  // Remove null bytes and other control characters, limit length, trim
+  return str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '').substring(0, MAX_STRING_LENGTH).trim()
+}
+
+/**
  * Log an activity to the Activity Log database
  * @param {Object} params
  * @param {string} params.action - Description of the action (e.g., "Viewed Property")
@@ -14,16 +29,18 @@ export async function logActivity({ action, entityType, actionType, entityTitle,
   try {
     await api.post('/api/databases/actions', {
       action: 'log-activity',
-      logAction: action,
-      entityType,
-      actionType,
-      dealAddress: entityTitle, // API uses dealAddress for Entity Title
-      oldStatus: fromValue,
-      newStatus: toValue
+      logAction: sanitize(action),
+      entityType: sanitize(entityType),
+      actionType: sanitize(actionType),
+      dealAddress: sanitize(entityTitle), // API uses dealAddress for Entity Title
+      oldStatus: sanitize(fromValue),
+      newStatus: sanitize(toValue)
     })
   } catch (err) {
     // Silently fail - don't break the app if logging fails
-    console.warn('Activity logging failed:', err.message)
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Activity logging failed:', err.message)
+    }
   }
 }
 

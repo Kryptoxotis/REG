@@ -18,10 +18,8 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
     try {
       setLoading(true)
       setError(null)
-      const token = localStorage.getItem('authToken')
-      console.log('[OfficeOverview] Token exists:', !!token)
+      // HttpOnly cookies handle auth automatically via withCredentials
       const response = await api.get('/api/databases/stats?type=by-office', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
         timeout: 20000
       })
       console.log('[OfficeOverview] Response received:', response.status)
@@ -46,9 +44,8 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
   // Fetch deals for expanded office (admin only)
   const fetchDealsForOffice = async (officeName) => {
     try {
-      const token = localStorage.getItem('authToken')
+      // HttpOnly cookies handle auth automatically via withCredentials
       const response = await api.get('/api/databases/PIPELINE', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
         timeout: 15000
       })
       const deals = Array.isArray(response.data) ? response.data : []

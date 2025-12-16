@@ -24,8 +24,7 @@ function EmployeeDashboard({ user, setUser }) {
   const [propertyStatusFilter, setPropertyStatusFilter] = useState('')
   const [expandedProperty, setExpandedProperty] = useState(null)
 
-  const token = localStorage.getItem('authToken')
-  const headers = token ? { Authorization: `Bearer ${token}` } : {}
+  // HttpOnly cookies handle auth automatically via withCredentials in api.js
 
   // Navigation items - order matters
   const navItems = [
@@ -62,7 +61,7 @@ function EmployeeDashboard({ user, setUser }) {
     setLoading(prev => ({ ...prev, profile: true }))
     try {
       // Get all team members and find current user
-      const res = await api.get('/api/databases/TEAM_MEMBERS', { headers })
+      const res = await api.get('/api/databases/TEAM_MEMBERS')
       const members = Array.isArray(res.data) ? res.data : []
       const myProfile = members.find(m =>
         m.Email?.toLowerCase() === user?.email?.toLowerCase() ||
@@ -82,7 +81,7 @@ function EmployeeDashboard({ user, setUser }) {
 
   const fetchPersonalStats = async (profile) => {
     try {
-      const res = await api.get('/api/databases/team-kpis', { headers })
+      const res = await api.get('/api/databases/team-kpis')
       const allStats = res.data?.stats || []
       // Find stats for current user
       const myStats = allStats.find(s =>
@@ -118,8 +117,8 @@ function EmployeeDashboard({ user, setUser }) {
   const fetchPipelineStats = async (profile) => {
     try {
       const [pipelineRes, closedRes] = await Promise.all([
-        api.get('/api/databases/PIPELINE', { headers }),
-        api.get('/api/databases/CLOSED_DEALS', { headers })
+        api.get('/api/databases/PIPELINE'),
+        api.get('/api/databases/CLOSED_DEALS')
       ])
       const pipelineDeals = Array.isArray(pipelineRes.data) ? pipelineRes.data : []
       const closedDeals = Array.isArray(closedRes.data) ? closedRes.data : []
@@ -161,7 +160,7 @@ function EmployeeDashboard({ user, setUser }) {
     if (propertiesData.length > 0) return
     setLoading(prev => ({ ...prev, properties: true }))
     try {
-      const res = await api.get('/api/databases/PROPERTIES', { headers })
+      const res = await api.get('/api/databases/PROPERTIES')
       setPropertiesData(Array.isArray(res.data) ? res.data : [])
     } catch (err) {
       console.error('Properties fetch error:', err)
@@ -179,7 +178,7 @@ function EmployeeDashboard({ user, setUser }) {
     if (!profileData?.id) return
     setSaving(true)
     try {
-      await api.patch(`/api/databases/TEAM_MEMBERS/${profileData.id}`, profileUpdates, { headers })
+      await api.patch(`/api/databases/TEAM_MEMBERS/${profileData.id}`, profileUpdates)
       setProfileData(prev => ({ ...prev, ...profileUpdates }))
       setProfileUpdates({})
       setEditingProfile(false)
@@ -211,7 +210,8 @@ function EmployeeDashboard({ user, setUser }) {
 
   const handleLogout = async () => {
     try {
-      await api.post('/api/auth/logout', {}, { headers })
+      // HttpOnly cookies handle auth automatically via withCredentials
+      await api.post('/api/auth/logout')
     } catch (error) {
       console.error('Logout error:', error)
     } finally {

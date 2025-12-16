@@ -43,8 +43,7 @@ function ScheduleCalendar({ user, onNavigate }) {
   const [savingSettings, setSavingSettings] = useState(false)
 
   const isAdmin = user?.role === 'admin'
-  const token = localStorage.getItem('authToken')
-  const headers = token ? { Authorization: `Bearer ${token}` } : {}
+  // HttpOnly cookies handle auth automatically via withCredentials in api.js
 
   // Check if schedule is currently open
   useEffect(() => {
@@ -61,9 +60,9 @@ function ScheduleCalendar({ user, onNavigate }) {
     setError(null)
     try {
       const [scheduleRes, propertiesRes, settingsRes] = await Promise.all([
-        api.get('/api/databases/schedule', { headers }),
-        api.get('/api/databases/PROPERTIES', { headers }),
-        api.get('/api/databases/schedule?settings=true', { headers }).catch(() => ({ data: { scheduleOpenDay: 15 } }))
+        api.get('/api/databases/schedule'),
+        api.get('/api/databases/PROPERTIES'),
+        api.get('/api/databases/schedule?settings=true').catch(() => ({ data: { scheduleOpenDay: 15 } }))
       ])
       setScheduleData(Array.isArray(scheduleRes.data) ? scheduleRes.data : [])
       // Filter properties to only show Model Homes (Status = "Model Home")
@@ -250,7 +249,7 @@ function ScheduleCalendar({ user, onNavigate }) {
         modelHomeId: selectedModelHome.id,
         employeeId: user?.teamMemberId || user?.id,
         employeeName: user?.fullName || user?.name || user?.email
-      }, { headers })
+      })
 
       await fetchData()
       setSelectedDay(null)
@@ -313,7 +312,7 @@ function ScheduleCalendar({ user, onNavigate }) {
           modelHomeId: selectedModelHome.id,
           employeeId: user?.teamMemberId || user?.id,
           employeeName: user?.fullName || user?.name || user?.email
-        }, { headers })
+        })
       }
 
       await fetchData()
@@ -334,7 +333,7 @@ function ScheduleCalendar({ user, onNavigate }) {
       const result = await api.patch('/api/databases/schedule', {
         action: 'approve',
         scheduleId
-      }, { headers })
+      })
 
       await fetchData()
       setSelectedEvent(null)
@@ -357,7 +356,7 @@ function ScheduleCalendar({ user, onNavigate }) {
         action: 'deny',
         scheduleId,
         notes: denyNotes || undefined
-      }, { headers })
+      })
 
       await fetchData()
       setSelectedEvent(null)
@@ -380,7 +379,7 @@ function ScheduleCalendar({ user, onNavigate }) {
       await api.patch('/api/databases/schedule', {
         action: 'update-settings',
         scheduleOpenDay: newDay
-      }, { headers })
+      })
       setScheduleOpenDay(newDay)
       setEditingOpenDay(false)
       alert(`Schedule open day updated to the ${newDay}${newDay === 1 ? 'st' : newDay === 2 ? 'nd' : newDay === 3 ? 'rd' : 'th'} of each month`)
