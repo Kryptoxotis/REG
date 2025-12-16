@@ -235,6 +235,20 @@ export function isValidUUID(id) {
   return typeof id === 'string' && UUID_REGEX.test(id)
 }
 
+// Email validation
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+export function isValidEmail(email) {
+  return typeof email === 'string' && EMAIL_REGEX.test(email.trim())
+}
+
+// Phone validation (US format - allows various common formats)
+const PHONE_REGEX = /^[\d\s\-\(\)\+\.]{7,20}$/
+export function isValidPhone(phone) {
+  if (typeof phone !== 'string') return false
+  const digits = phone.replace(/\D/g, '')
+  return digits.length >= 7 && digits.length <= 15 && PHONE_REGEX.test(phone)
+}
+
 // Find user by email in Team Members database
 export async function findUserByEmail(email) {
   const NOTION_API_KEY = process.env.NOTION_API_KEY

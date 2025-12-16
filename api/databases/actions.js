@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { DATABASE_IDS, NOTION_VERSION } from '../../config/databases.js'
-import { handleCors, verifyRequestToken, verifyTokenVersion } from '../../config/utils.js'
+import { handleCors, verifyRequestToken, verifyTokenVersion, isValidEmail, isValidPhone, isValidUUID } from '../../config/utils.js'
 
 // Actions that require admin role
 const ADMIN_ONLY_ACTIONS = ['move-to-pipeline', 'move-to-closed', 'send-back-to-properties']
@@ -23,10 +23,13 @@ async function moveToPipeline(data) {
   } = data
 
   if (!propertyId) throw new Error('Property ID is required')
+  if (!isValidUUID(propertyId)) throw new Error('Invalid property ID format')
   if (!agent) throw new Error('Agent is required')
   if (!buyerName) throw new Error('Buyer name is required')
   if (!buyerEmail) throw new Error('Buyer email is required')
+  if (!isValidEmail(buyerEmail)) throw new Error('Invalid buyer email format')
   if (!buyerPhone) throw new Error('Buyer phone is required')
+  if (!isValidPhone(buyerPhone)) throw new Error('Invalid buyer phone format')
 
   const properties = {
     Address: {
@@ -53,12 +56,24 @@ async function moveToPipeline(data) {
   if (assistingAgent) properties['Assisting Agent'] = { rich_text: [{ type: 'text', text: { content: assistingAgent } }] }
   if (brokerName) properties['Broker Name'] = { rich_text: [{ type: 'text', text: { content: brokerName } }] }
   if (loName) properties['LO Name'] = { rich_text: [{ type: 'text', text: { content: loName } }] }
-  if (loEmail) properties['LO Email'] = { email: loEmail }
-  if (loPhone) properties['LO Phone'] = { phone_number: loPhone }
+  if (loEmail) {
+    if (!isValidEmail(loEmail)) throw new Error('Invalid LO email format')
+    properties['LO Email'] = { email: loEmail }
+  }
+  if (loPhone) {
+    if (!isValidPhone(loPhone)) throw new Error('Invalid LO phone format')
+    properties['LO Phone'] = { phone_number: loPhone }
+  }
   if (loanType) properties['Loan Type'] = { select: { name: loanType } }
   if (realtorPartner) properties['Realtor Partner'] = { rich_text: [{ type: 'text', text: { content: realtorPartner } }] }
-  if (realtorEmail) properties['Realtor Email'] = { email: realtorEmail }
-  if (realtorPhone) properties['Realtor Phone'] = { phone_number: realtorPhone }
+  if (realtorEmail) {
+    if (!isValidEmail(realtorEmail)) throw new Error('Invalid realtor email format')
+    properties['Realtor Email'] = { email: realtorEmail }
+  }
+  if (realtorPhone) {
+    if (!isValidPhone(realtorPhone)) throw new Error('Invalid realtor phone format')
+    properties['Realtor Phone'] = { phone_number: realtorPhone }
+  }
   if (notes) properties['Notes'] = { rich_text: [{ type: 'text', text: { content: notes } }] }
 
   // Create new record in Pipeline
@@ -96,6 +111,7 @@ async function sendBackToProperties(data) {
   const { dealId, address, salesPrice, status } = data
 
   if (!dealId) throw new Error('Deal ID is required')
+  if (!isValidUUID(dealId)) throw new Error('Invalid deal ID format')
 
   const properties = {
     Address: {
@@ -142,6 +158,7 @@ async function updateStatus(data) {
   const { dealId, loanStatus } = data
 
   if (!dealId) throw new Error('Deal ID is required')
+  if (!isValidUUID(dealId)) throw new Error('Invalid deal ID format')
   if (!loanStatus) throw new Error('Loan status is required')
 
   const response = await axios.patch(
@@ -168,6 +185,7 @@ async function moveToClosed(data) {
   const { dealId, address, closeDate, finalSalePrice, agent, buyerName, commission } = data
 
   if (!dealId) throw new Error('Deal ID is required')
+  if (!isValidUUID(dealId)) throw new Error('Invalid deal ID format')
 
   const properties = {
     Address: {
