@@ -1,8 +1,16 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 
-function Chat() {
+function Chat({ isAdmin = false }) {
   const [loading, setLoading] = useState(true)
+
+  // Admin sees full server with all channels, non-admin sees only #general
+  const SERVER_ID = '1445647668125892620'
+  const GENERAL_CHANNEL_ID = '1450913251281080613'
+
+  const widgetUrl = isAdmin
+    ? `https://e.widgetbot.io/channels/${SERVER_ID}?theme=dark`
+    : `https://e.widgetbot.io/channels/${SERVER_ID}/${GENERAL_CHANNEL_ID}?theme=dark`
 
   return (
     <div className="h-full flex flex-col">
@@ -10,7 +18,9 @@ function Chat() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-xl font-bold text-white">Team Chat</h2>
-          <p className="text-sm text-gray-400">Discord server for team communication</p>
+          <p className="text-sm text-gray-400">
+            {isAdmin ? 'Discord server for team communication' : 'General team chat channel'}
+          </p>
         </div>
         <a
           href="https://discord.gg/your-invite-link"
@@ -41,7 +51,7 @@ function Chat() {
 
         {/* Widgetbot iframe */}
         <iframe
-          src="https://e.widgetbot.io/channels/1445647668125892620?theme=dark"
+          src={widgetUrl}
           style={{ width: '100%', height: '100%', border: 'none', minHeight: '500px' }}
           allowTransparency={true}
           onLoad={() => setLoading(false)}

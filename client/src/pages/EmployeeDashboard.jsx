@@ -550,7 +550,7 @@ function EmployeeDashboard({ user, setUser }) {
               transition={{ duration: 0.2 }}
               className="h-[calc(100vh-180px)]"
             >
-              <Chat />
+              <Chat isAdmin={false} />
             </motion.div>
           )}
         </AnimatePresence>

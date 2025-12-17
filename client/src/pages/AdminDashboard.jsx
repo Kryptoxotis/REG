@@ -394,7 +394,7 @@ function AdminDashboard({ user, setUser }) {
                 ) : activeView === 'settings' ? (
                   <Settings />
                 ) : activeView === 'chat' ? (
-                  <Chat />
+                  <Chat isAdmin={true} />
                 ) : activeView === 'TEAM_MEMBERS' ? (
                   <TeamKPIView onNavigate={handleDealNavigate} />
                 ) : activeView === 'SCHEDULE' ? (
