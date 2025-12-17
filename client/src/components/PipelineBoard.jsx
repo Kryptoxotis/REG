@@ -71,7 +71,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     }
   }, [highlightedDealId, deals, onClearHighlight])
 
-  const fetchDeals = async () => {
+  async function fetchDeals() {
     setLoading(true)
     setError(null)
     try {

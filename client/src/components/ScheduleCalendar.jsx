@@ -55,7 +55,7 @@ function ScheduleCalendar({ user, onNavigate }) {
 
   useEffect(() => { fetchData() }, [])
 
-  const fetchData = async () => {
+  async function fetchData() {
     setLoading(true)
     setError(null)
     try {

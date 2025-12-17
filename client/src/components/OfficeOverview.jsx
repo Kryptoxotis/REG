@@ -13,7 +13,7 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
     fetchOfficeStats()
   }, [])
 
-  const fetchOfficeStats = async () => {
+  async function fetchOfficeStats() {
     try {
       setLoading(true)
       setError(null)

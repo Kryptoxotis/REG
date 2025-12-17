@@ -60,7 +60,7 @@ function EmployeeDashboard({ user, setUser }) {
     return () => { isMounted = false }
   }, [activeSection])
 
-  const fetchProfile = async (isMounted = true) => {
+  async function fetchProfile(isMounted = true) {
     if (profileData) return // Already fetched
     setLoading(prev => ({ ...prev, profile: true }))
     try {
@@ -85,7 +85,7 @@ function EmployeeDashboard({ user, setUser }) {
     }
   }
 
-  const fetchPersonalStats = async (profile, isMounted = true) => {
+  async function fetchPersonalStats(profile, isMounted = true) {
     try {
       const res = await api.get('/api/databases/team-kpis')
       if (!isMounted) return
@@ -124,7 +124,7 @@ function EmployeeDashboard({ user, setUser }) {
   }
 
   // Fetch personal stats from Pipeline (for Profile section)
-  const fetchPipelineStats = async (profile, isMounted = true) => {
+  async function fetchPipelineStats(profile, isMounted = true) {
     try {
       const [pipelineRes, closedRes] = await Promise.all([
         api.get('/api/databases/PIPELINE'),
@@ -168,7 +168,7 @@ function EmployeeDashboard({ user, setUser }) {
     }
   }
 
-  const fetchProperties = async (isMounted = true) => {
+  async function fetchProperties(isMounted = true) {
     if (propertiesData.length > 0) return
     setLoading(prev => ({ ...prev, properties: true }))
     try {
