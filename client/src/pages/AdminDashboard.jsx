@@ -9,6 +9,7 @@ import Settings from '../components/Settings'
 import TeamKPIView from '../components/TeamKPIView'
 import ScheduleCalendar from '../components/ScheduleCalendar'
 import PipelineBoard from '../components/PipelineBoard'
+import Chat from '../components/Chat'
 import { ActivityLogger } from '../utils/activityLogger'
 import EmployeeDashboard from './EmployeeDashboard'
 
@@ -69,6 +70,7 @@ function AdminDashboard({ user, setUser }) {
       PIPELINE: 'Pipeline',
       CLIENTS: 'Clients',
       SCHEDULE: 'Schedule',
+      chat: 'Chat',
       settings: 'Settings'
     }
     ActivityLogger.navigate(viewNames[view] || view)
@@ -177,6 +179,18 @@ function AdminDashboard({ user, setUser }) {
         {(isMobile || !sidebarCollapsed) && (
           <p className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Admin</p>
         )}
+
+        <motion.button
+          onClick={() => handleNavClick('chat')}
+          whileHover={{ scale: 1.02, x: 4 }}
+          whileTap={{ scale: 0.98 }}
+          className={activeView === 'chat'
+            ? 'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-gray-800 text-white'
+            : 'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 transition-all'}
+        >
+          <span className="text-lg">💬</span>
+          {(isMobile || !sidebarCollapsed) && <span className="text-sm font-medium">Chat</span>}
+        </motion.button>
 
         <motion.button
           onClick={() => handleNavClick('settings')}
@@ -309,7 +323,7 @@ function AdminDashboard({ user, setUser }) {
                   animate={{ opacity: 1, x: 0 }}
                   className="text-lg sm:text-xl font-bold text-white"
                 >
-                  {activeView === 'overview' ? 'Dashboard' : databases.find(db => db.key === activeView)?.name}
+                  {activeView === 'overview' ? 'Dashboard' : activeView === 'settings' ? 'Settings' : activeView === 'chat' ? 'Chat' : databases.find(db => db.key === activeView)?.name}
                 </motion.h1>
                 <p className="text-xs sm:text-sm text-gray-400 hidden sm:block">Welcome back, {user.fullName || user.email}</p>
               </div>
@@ -379,6 +393,8 @@ function AdminDashboard({ user, setUser }) {
                   <OfficeOverview onNavigate={handleNavClick} onCitySelect={handleCitySelect} />
                 ) : activeView === 'settings' ? (
                   <Settings />
+                ) : activeView === 'chat' ? (
+                  <Chat />
                 ) : activeView === 'TEAM_MEMBERS' ? (
                   <TeamKPIView onNavigate={handleDealNavigate} />
                 ) : activeView === 'SCHEDULE' ? (

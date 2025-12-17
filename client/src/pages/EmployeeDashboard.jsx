@@ -5,6 +5,7 @@ import { ActivityLogger } from '../utils/activityLogger'
 import ScheduleCalendar from '../components/ScheduleCalendar'
 import PipelineBoard from '../components/PipelineBoard'
 import OfficeOverview from '../components/OfficeOverview'
+import Chat from '../components/Chat'
 
 function EmployeeDashboard({ user, setUser }) {
   const [activeSection, setActiveSection] = useState('overview')
@@ -33,6 +34,7 @@ function EmployeeDashboard({ user, setUser }) {
     { id: 'pipeline', label: 'Pipeline', icon: '📈' },
     { id: 'schedule', label: 'Schedule', icon: '📅' },
     { id: 'properties', label: 'Properties', icon: '🏠' },
+    { id: 'chat', label: 'Chat', icon: '💬' },
   ]
 
   // Handle section change with logging
@@ -535,6 +537,20 @@ function EmployeeDashboard({ user, setUser }) {
                   ))}
                 </div>
               )}
+            </motion.div>
+          )}
+
+          {/* CHAT SECTION */}
+          {activeSection === 'chat' && (
+            <motion.div
+              key="chat"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="h-[calc(100vh-180px)]"
+            >
+              <Chat />
             </motion.div>
           )}
         </AnimatePresence>
