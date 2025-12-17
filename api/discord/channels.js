@@ -81,7 +81,7 @@ export default async function handler(req, res) {
       if (memberResponse.status === 404) {
         return res.status(400).json({ error: 'You are not a member of the Discord server' })
       }
-      throw new Error(`Discord API error: ${memberResponse.status} - ${errorBody}`)
+      throw new Error(`Discord API error: ${memberResponse.status} - ${errorBody} (token length: ${DISCORD_BOT_TOKEN?.length || 'undefined'})`)
     }
 
     const member = await memberResponse.json()
