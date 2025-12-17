@@ -4,23 +4,27 @@ import { handleCors, verifyRequestToken, extractPlainText, isValidUUID } from '.
 
 const NOTION_API_KEY = process.env.NOTION_API_KEY
 
-// Settings entry identifier (used to store schedule open day in Notion)
-const SETTINGS_ENTRY_NAME = '__SCHEDULE_SETTINGS__'
-
+// Format schedule page to match actual Notion schema
 function formatSchedulePage(page) {
   const props = page.properties
   return {
     id: page.id,
-    date: props.Date?.date?.start || null,
-    modelHome: extractPlainText(props['Model Home']?.rich_text) || props['Model Home']?.title?.[0]?.plain_text || '',
-    modelHomeId: props['Model Home']?.relation?.[0]?.id || null,
-    employeeId: props.Employee?.relation?.[0]?.id || null,
-    employeeName: extractPlainText(props['Employee Name']?.rich_text) || '',
-    status: props.Status?.select?.name || props.Status?.status?.name || 'Pending',
-    submittedAt: props['Submitted At']?.date?.start || page.created_time,
-    reviewedById: props['Reviewed By']?.relation?.[0]?.id || null,
-    reviewedAt: props['Reviewed At']?.date?.start || null,
-    notes: extractPlainText(props.Notes?.rich_text) || '',
+    // Title field contains formatted string "MM/DD/YYYY - Address"
+    dateTitle: props.Date?.title?.[0]?.plain_text || '',
+    // Date 1 - actual date value
+    date: props['Date 1']?.date?.start || null,
+    // Model Home Address - text
+    modelHomeAddress: extractPlainText(props['Model Home Address']?.rich_text) || '',
+    // Assigned Staff 1 - text name
+    assignedStaff1: extractPlainText(props['Assigned Staff 1']?.rich_text) || '',
+    // Assigned Staff 2 - text name
+    assignedStaff2: extractPlainText(props['Assigned Staff 2']?.rich_text) || '',
+    // Staff 1 Relation - relation to Team Members
+    staff1RelationId: props['Staff 1 Relation']?.relation?.[0]?.id || null,
+    // Staff 2 Relation - relation to Team Members
+    staff2RelationId: props['Staff 2 Relation']?.relation?.[0]?.id || null,
+    // Property Relation - relation to Properties
+    propertyRelationId: props['Property Relation']?.relation?.[0]?.id || null,
     created_time: page.created_time
   }
 }
@@ -40,7 +44,7 @@ async function logActivity(action, entityTitle, userName, details = {}) {
           Timestamp: { date: { start: new Date().toISOString() } },
           'Entity Title': { rich_text: [{ type: 'text', text: { content: entityTitle || 'Schedule' } }] },
           'Entity Type': { select: { name: 'Schedule' } },
-          'Action Type': { select: { name: action.includes('approved') ? 'Approve' : action.includes('denied') ? 'Deny' : 'Create' } }
+          'Action Type': { select: { name: 'Create' } }
         }
       },
       {
@@ -81,41 +85,47 @@ async function getSchedule() {
     startCursor = response.data.next_cursor
   }
 
-  // Filter out settings entry
-  const filtered = allResults.filter(page => {
-    const empName = extractPlainText(page.properties['Employee Name']?.rich_text)
-    return empName !== SETTINGS_ENTRY_NAME
-  })
-  return filtered.map(formatSchedulePage)
+  return allResults.map(formatSchedulePage)
 }
 
-// Create a new schedule request
-async function createScheduleRequest(data, user) {
-  const { date, modelHome, modelHomeId, employeeId, employeeName } = data
+// Create a new schedule entry directly (no approval workflow)
+async function createScheduleEntry(data, user) {
+  const { date, modelHomeAddress, assignedStaff1, assignedStaff2, staff1RelationId, staff2RelationId, propertyRelationId } = data
 
   if (!date) throw new Error('Date is required')
-  if (!modelHome) throw new Error('Model Home is required')
+  if (!modelHomeAddress) throw new Error('Model Home Address is required')
+
+  // Format date for title
+  const dateObj = new Date(date)
+  const dateFormatted = `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`
+  const title = `${dateFormatted} - ${modelHomeAddress}`
 
   const properties = {
-    Date: { date: { start: date } },
-    'Model Home': { rich_text: [{ type: 'text', text: { content: modelHome } }] },
-    Status: { select: { name: 'Pending' } },
-    'Submitted At': { date: { start: new Date().toISOString() } }
+    // Date is the title field
+    Date: { title: [{ type: 'text', text: { content: title } }] },
+    // Date 1 is the actual date property
+    'Date 1': { date: { start: date } },
+    // Model Home Address as text
+    'Model Home Address': { rich_text: [{ type: 'text', text: { content: modelHomeAddress } }] }
   }
 
-  // Add employee name for display
-  if (employeeName) {
-    properties['Employee Name'] = { rich_text: [{ type: 'text', text: { content: employeeName } }] }
+  // Add staff assignments if provided
+  if (assignedStaff1) {
+    properties['Assigned Staff 1'] = { rich_text: [{ type: 'text', text: { content: assignedStaff1 } }] }
+  }
+  if (assignedStaff2) {
+    properties['Assigned Staff 2'] = { rich_text: [{ type: 'text', text: { content: assignedStaff2 } }] }
   }
 
-  // Add relation to Employee if we have their Team Member ID
-  if (employeeId) {
-    properties.Employee = { relation: [{ id: employeeId }] }
+  // Add relations if IDs provided
+  if (staff1RelationId && isValidUUID(staff1RelationId)) {
+    properties['Staff 1 Relation'] = { relation: [{ id: staff1RelationId }] }
   }
-
-  // Add relation to Model Home property if provided
-  if (modelHomeId) {
-    properties['Model Home Relation'] = { relation: [{ id: modelHomeId }] }
+  if (staff2RelationId && isValidUUID(staff2RelationId)) {
+    properties['Staff 2 Relation'] = { relation: [{ id: staff2RelationId }] }
+  }
+  if (propertyRelationId && isValidUUID(propertyRelationId)) {
+    properties['Property Relation'] = { relation: [{ id: propertyRelationId }] }
   }
 
   const response = await axios.post(
@@ -133,160 +143,56 @@ async function createScheduleRequest(data, user) {
 
   // Log activity
   const userName = user.name || user.fullName || user.email || 'User'
-  logActivity('requested schedule', `${modelHome} on ${date}`, userName)
+  logActivity('created schedule', `${modelHomeAddress} on ${dateFormatted}`, userName)
 
   return { success: true, id: response.data.id }
 }
 
-// Approve a schedule request and auto-deny conflicts
-async function approveRequest(scheduleId, reviewerId, reviewerName) {
-  // First, get the request details
-  const pageResponse = await axios.get(
-    `https://api.notion.com/v1/pages/${scheduleId}`,
-    {
-      headers: {
-        'Authorization': `Bearer ${NOTION_API_KEY}`,
-        'Notion-Version': NOTION_VERSION
-      },
-      timeout: 15000
-    }
-  )
+// Update an existing schedule entry
+async function updateScheduleEntry(scheduleId, data, user) {
+  const { date, modelHomeAddress, assignedStaff1, assignedStaff2, staff1RelationId, staff2RelationId, propertyRelationId } = data
 
-  const page = pageResponse.data
-  const date = page.properties.Date?.date?.start
-  const modelHome = extractPlainText(page.properties['Model Home']?.rich_text)
+  const properties = {}
 
-  // Update this request to Approved
-  await axios.patch(
-    `https://api.notion.com/v1/pages/${scheduleId}`,
-    {
-      properties: {
-        Status: { select: { name: 'Approved' } },
-        'Reviewed At': { date: { start: new Date().toISOString() } },
-        'Reviewed By Name': { rich_text: [{ type: 'text', text: { content: reviewerName || 'Admin' } }] }
-      }
-    },
-    {
-      headers: {
-        'Authorization': `Bearer ${NOTION_API_KEY}`,
-        'Notion-Version': NOTION_VERSION,
-        'Content-Type': 'application/json'
-      },
-      timeout: 15000
-    }
-  )
-
-  // Add relation to reviewer if we have their ID
-  if (reviewerId) {
-    try {
-      await axios.patch(
-        `https://api.notion.com/v1/pages/${scheduleId}`,
-        {
-          properties: {
-            'Reviewed By': { relation: [{ id: reviewerId }] }
-          }
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${NOTION_API_KEY}`,
-            'Notion-Version': NOTION_VERSION,
-            'Content-Type': 'application/json'
-          },
-          timeout: 15000
-        }
-      )
-    } catch (e) {
-      // Relation field might not exist, ignore
-    }
+  // Update title and date if provided
+  if (date && modelHomeAddress) {
+    const dateObj = new Date(date)
+    const dateFormatted = `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`
+    properties.Date = { title: [{ type: 'text', text: { content: `${dateFormatted} - ${modelHomeAddress}` } }] }
+    properties['Date 1'] = { date: { start: date } }
+  } else if (date) {
+    properties['Date 1'] = { date: { start: date } }
   }
 
-  // Auto-deny other pending requests for same date + model home
-  if (date && modelHome) {
-    const conflictsResponse = await axios.post(
-      `https://api.notion.com/v1/databases/${DATABASE_IDS.SCHEDULE}/query`,
-      {
-        filter: {
-          and: [
-            { property: 'Date', date: { equals: date } },
-            { property: 'Status', select: { equals: 'Pending' } }
-          ]
-        }
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${NOTION_API_KEY}`,
-          'Notion-Version': NOTION_VERSION,
-          'Content-Type': 'application/json'
-        },
-        timeout: 15000
-      }
-    )
-
-    const conflicts = conflictsResponse.data.results.filter(p => {
-      const pModelHome = extractPlainText(p.properties['Model Home']?.rich_text)
-      return pModelHome === modelHome && p.id !== scheduleId
-    })
-
-    // Auto-deny each conflict
-    for (const conflict of conflicts) {
-      await axios.patch(
-        `https://api.notion.com/v1/pages/${conflict.id}`,
-        {
-          properties: {
-            Status: { select: { name: 'Denied' } },
-            Notes: { rich_text: [{ type: 'text', text: { content: 'Auto-denied: Slot taken by another employee' } }] },
-            'Reviewed At': { date: { start: new Date().toISOString() } },
-            'Reviewed By Name': { rich_text: [{ type: 'text', text: { content: reviewerName || 'System' } }] }
-          }
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${NOTION_API_KEY}`,
-            'Notion-Version': NOTION_VERSION,
-            'Content-Type': 'application/json'
-          },
-          timeout: 15000
-        }
-      )
-    }
-
-    // Log activity
-    logActivity('approved schedule', `${modelHome} on ${date}`, reviewerName,
-      conflicts.length > 0 ? { 'auto-denied conflicts': conflicts.length } : {})
-
-    return { success: true, conflictsDenied: conflicts.length }
+  if (modelHomeAddress !== undefined) {
+    properties['Model Home Address'] = { rich_text: [{ type: 'text', text: { content: modelHomeAddress } }] }
   }
 
-  logActivity('approved schedule', `${modelHome} on ${date}`, reviewerName)
-  return { success: true, conflictsDenied: 0 }
-}
-
-// Deny a schedule request
-async function denyRequest(scheduleId, reviewerId, reviewerName, notes) {
-  // Get request details for logging
-  const pageResponse = await axios.get(
-    `https://api.notion.com/v1/pages/${scheduleId}`,
-    {
-      headers: {
-        'Authorization': `Bearer ${NOTION_API_KEY}`,
-        'Notion-Version': NOTION_VERSION
-      },
-      timeout: 15000
-    }
-  )
-
-  const page = pageResponse.data
-  const date = page.properties.Date?.date?.start
-  const modelHome = extractPlainText(page.properties['Model Home']?.rich_text)
-
-  const properties = {
-    Status: { select: { name: 'Denied' } },
-    'Reviewed At': { date: { start: new Date().toISOString() } },
-    'Reviewed By Name': { rich_text: [{ type: 'text', text: { content: reviewerName || 'Admin' } }] }
+  if (assignedStaff1 !== undefined) {
+    properties['Assigned Staff 1'] = { rich_text: [{ type: 'text', text: { content: assignedStaff1 || '' } }] }
+  }
+  if (assignedStaff2 !== undefined) {
+    properties['Assigned Staff 2'] = { rich_text: [{ type: 'text', text: { content: assignedStaff2 || '' } }] }
   }
 
-  if (notes) {
-    properties.Notes = { rich_text: [{ type: 'text', text: { content: notes } }] }
+  if (staff1RelationId !== undefined) {
+    properties['Staff 1 Relation'] = staff1RelationId && isValidUUID(staff1RelationId)
+      ? { relation: [{ id: staff1RelationId }] }
+      : { relation: [] }
+  }
+  if (staff2RelationId !== undefined) {
+    properties['Staff 2 Relation'] = staff2RelationId && isValidUUID(staff2RelationId)
+      ? { relation: [{ id: staff2RelationId }] }
+      : { relation: [] }
+  }
+  if (propertyRelationId !== undefined) {
+    properties['Property Relation'] = propertyRelationId && isValidUUID(propertyRelationId)
+      ? { relation: [{ id: propertyRelationId }] }
+      : { relation: [] }
+  }
+
+  if (Object.keys(properties).length === 0) {
+    throw new Error('No fields to update')
   }
 
   await axios.patch(
@@ -302,134 +208,33 @@ async function denyRequest(scheduleId, reviewerId, reviewerName, notes) {
     }
   )
 
-  // Add relation to reviewer if we have their ID
-  if (reviewerId) {
-    try {
-      await axios.patch(
-        `https://api.notion.com/v1/pages/${scheduleId}`,
-        {
-          properties: {
-            'Reviewed By': { relation: [{ id: reviewerId }] }
-          }
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${NOTION_API_KEY}`,
-            'Notion-Version': NOTION_VERSION,
-            'Content-Type': 'application/json'
-          },
-          timeout: 15000
-        }
-      )
-    } catch (e) {
-      // Relation field might not exist, ignore
-    }
-  }
+  const userName = user.name || user.fullName || user.email || 'User'
+  logActivity('updated schedule', modelHomeAddress || 'entry', userName)
 
-  logActivity('denied schedule', `${modelHome} on ${date}`, reviewerName, notes ? { reason: notes } : {})
   return { success: true }
 }
 
-// Schedule settings stored in Notion (no more in-memory state)
-// Uses a special entry in Schedule database with Type="Settings"
-
-async function getScheduleSettings() {
-  try {
-    // Find settings entry in Schedule database
-    const response = await axios.post(
-      `https://api.notion.com/v1/databases/${DATABASE_IDS.SCHEDULE}/query`,
-      {
-        filter: {
-          property: 'Employee Name',
-          rich_text: { equals: SETTINGS_ENTRY_NAME }
-        }
+// Delete a schedule entry
+async function deleteScheduleEntry(scheduleId) {
+  await axios.patch(
+    `https://api.notion.com/v1/pages/${scheduleId}`,
+    { archived: true },
+    {
+      headers: {
+        'Authorization': `Bearer ${NOTION_API_KEY}`,
+        'Notion-Version': NOTION_VERSION,
+        'Content-Type': 'application/json'
       },
-      {
-        headers: {
-          'Authorization': `Bearer ${NOTION_API_KEY}`,
-          'Notion-Version': NOTION_VERSION,
-          'Content-Type': 'application/json'
-        },
-        timeout: 10000
-      }
-    )
-
-    if (response.data.results.length > 0) {
-      const page = response.data.results[0]
-      const notes = extractPlainText(page.properties.Notes?.rich_text)
-      try {
-        const settings = JSON.parse(notes)
-        return { scheduleOpenDay: parseInt(settings.scheduleOpenDay) || 15, pageId: page.id }
-      } catch {
-        return { scheduleOpenDay: 15, pageId: page.id }
-      }
+      timeout: 15000
     }
-    return { scheduleOpenDay: 15, pageId: null }
-  } catch (err) {
-    console.error('Failed to get schedule settings:', err.message)
-    return { scheduleOpenDay: 15, pageId: null }
-  }
-}
-
-async function saveScheduleSettings(openDay) {
-  try {
-    const current = await getScheduleSettings()
-    const settingsJson = JSON.stringify({ scheduleOpenDay: openDay })
-
-    if (current.pageId) {
-      // Update existing settings entry
-      await axios.patch(
-        `https://api.notion.com/v1/pages/${current.pageId}`,
-        {
-          properties: {
-            Notes: { rich_text: [{ type: 'text', text: { content: settingsJson } }] }
-          }
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${NOTION_API_KEY}`,
-            'Notion-Version': NOTION_VERSION,
-            'Content-Type': 'application/json'
-          },
-          timeout: 10000
-        }
-      )
-    } else {
-      // Create new settings entry
-      await axios.post(
-        'https://api.notion.com/v1/pages',
-        {
-          parent: { database_id: DATABASE_IDS.SCHEDULE },
-          properties: {
-            'Employee Name': { rich_text: [{ type: 'text', text: { content: SETTINGS_ENTRY_NAME } }] },
-            'Model Home': { rich_text: [{ type: 'text', text: { content: 'SETTINGS' } }] },
-            Notes: { rich_text: [{ type: 'text', text: { content: settingsJson } }] },
-            Status: { select: { name: 'Approved' } },
-            Date: { date: { start: '2000-01-01' } }
-          }
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${NOTION_API_KEY}`,
-            'Notion-Version': NOTION_VERSION,
-            'Content-Type': 'application/json'
-          },
-          timeout: 10000
-        }
-      )
-    }
-    return true
-  } catch (err) {
-    console.error('Failed to save schedule settings:', err.message)
-    console.error('Notion error details:', err.response?.data)
-    return false
-  }
+  )
+  return { success: true }
 }
 
 export default async function handler(req, res) {
   if (handleCors(req, res)) return
 
-  // Auth check (supports both Authorization header and HttpOnly cookie)
+  // Auth check
   const user = verifyRequestToken(req)
 
   if (!user) {
@@ -437,46 +242,21 @@ export default async function handler(req, res) {
   }
 
   try {
-    // GET - Fetch all schedule entries or settings
+    // GET - Fetch all schedule entries
     if (req.method === 'GET') {
-      // Check for settings query
-      if (req.query.settings === 'true') {
-        const settings = await getScheduleSettings()
-        return res.status(200).json({ scheduleOpenDay: settings.scheduleOpenDay })
-      }
       const schedule = await getSchedule()
       return res.status(200).json(schedule)
     }
 
-    // POST - Create a new schedule request
+    // POST - Create a new schedule entry
     if (req.method === 'POST') {
-      const result = await createScheduleRequest(req.body, user)
+      const result = await createScheduleEntry(req.body, user)
       return res.status(201).json(result)
     }
 
-    // PATCH - Approve, Deny, or Update settings
+    // PATCH - Update an existing schedule entry
     if (req.method === 'PATCH') {
-      const { action, scheduleId, notes, scheduleOpenDay } = req.body
-
-      // Handle settings update
-      if (action === 'update-settings') {
-        if (user.role !== 'admin') {
-          return res.status(403).json({ error: 'Admin access required' })
-        }
-        if (scheduleOpenDay !== undefined) {
-          const day = parseInt(scheduleOpenDay)
-          if (day >= 1 && day <= 28) {
-            const saved = await saveScheduleSettings(day)
-            if (saved) {
-              logActivity('updated schedule settings', `Open day set to ${day}`, user.name || user.email)
-              return res.status(200).json({ success: true, scheduleOpenDay: day })
-            }
-            return res.status(500).json({ error: 'Failed to save settings to database' })
-          }
-          return res.status(400).json({ error: 'Schedule open day must be between 1-28' })
-        }
-        return res.status(400).json({ error: 'No settings to update' })
-      }
+      const { scheduleId } = req.body
 
       if (!scheduleId) {
         return res.status(400).json({ error: 'Schedule ID is required' })
@@ -486,25 +266,29 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Invalid schedule ID format' })
       }
 
-      // Admin check for approve/deny
+      const result = await updateScheduleEntry(scheduleId, req.body, user)
+      return res.status(200).json(result)
+    }
+
+    // DELETE - Remove a schedule entry
+    if (req.method === 'DELETE') {
+      const { scheduleId } = req.body
+
+      if (!scheduleId) {
+        return res.status(400).json({ error: 'Schedule ID is required' })
+      }
+
+      if (!isValidUUID(scheduleId)) {
+        return res.status(400).json({ error: 'Invalid schedule ID format' })
+      }
+
+      // Admin check for delete
       if (user.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin access required' })
+        return res.status(403).json({ error: 'Admin access required to delete entries' })
       }
 
-      const reviewerName = user.name || user.fullName || user.email || 'Admin'
-      const reviewerId = user.teamMemberId || null
-
-      if (action === 'approve') {
-        const result = await approveRequest(scheduleId, reviewerId, reviewerName)
-        return res.status(200).json(result)
-      }
-
-      if (action === 'deny') {
-        const result = await denyRequest(scheduleId, reviewerId, reviewerName, notes)
-        return res.status(200).json(result)
-      }
-
-      return res.status(400).json({ error: 'Invalid action. Use "approve" or "deny"' })
+      const result = await deleteScheduleEntry(scheduleId)
+      return res.status(200).json(result)
     }
 
     return res.status(405).json({ error: 'Method not allowed' })

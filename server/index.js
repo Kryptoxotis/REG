@@ -7,6 +7,7 @@ import crypto from 'crypto'
 import rateLimit from 'express-rate-limit'
 import authRoutes from './routes/auth.js'
 import databaseRoutes from './routes/databases.js'
+import discordRoutes from './routes/discord.js'
 import logger from './utils/logger.js'
 
 dotenv.config()
@@ -120,7 +121,8 @@ function csrfProtection(req, res, next) {
 
   // Only skip CSRF token check for initial email check (truly no session needed)
   // Login and create-password still validate origin above
-  const skipCsrfToken = ['/api/auth/check-email']
+  // Discord OAuth callback is handled specially (state parameter provides CSRF protection)
+  const skipCsrfToken = ['/api/auth/check-email', '/api/discord/auth/callback']
   if (skipCsrfToken.includes(req.path)) {
     return next()
   }
@@ -152,6 +154,7 @@ app.use(csrfProtection)
 // Routes with rate limiting
 app.use('/api/auth', authLimiter, authRoutes)
 app.use('/api/databases', apiLimiter, databaseRoutes)
+app.use('/api/discord', apiLimiter, discordRoutes)
 
 app.listen(PORT, () => {
   logger.info('Server started', { port: PORT, url: `http://localhost:${PORT}` })

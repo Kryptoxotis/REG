@@ -7,10 +7,7 @@ import {
   DaySelectionModal,
   AdminListView,
   ScheduleStatusBanners,
-  AdminPendingPanel,
-  ScheduleLegend,
-  getStatusColor,
-  getStatusBadgeColor
+  ScheduleLegend
 } from './schedule'
 
 function ScheduleCalendar({ user, onNavigate }) {
@@ -20,8 +17,11 @@ function ScheduleCalendar({ user, onNavigate }) {
   const [error, setError] = useState(null)
   const [currentDate, setCurrentDate] = useState(new Date())
 
-  // Schedule open date setting
-  const [scheduleOpenDay, setScheduleOpenDay] = useState(15) // Default: 15th of month
+  // Schedule open date setting (stored in localStorage)
+  const [scheduleOpenDay, setScheduleOpenDay] = useState(() => {
+    const saved = localStorage.getItem('scheduleOpenDay')
+    return saved ? parseInt(saved, 10) : 15
+  })
   const [scheduleIsOpen, setScheduleIsOpen] = useState(false)
 
   // Modal states
@@ -33,11 +33,8 @@ function ScheduleCalendar({ user, onNavigate }) {
   // Form states
   const [selectedModelHome, setSelectedModelHome] = useState(null)
   const [submitting, setSubmitting] = useState(false)
-  const [denyNotes, setDenyNotes] = useState('')
-  const [actionLoading, setActionLoading] = useState(null) // Track which action is loading
 
-  // Admin filter and settings
-  const [statusFilter, setStatusFilter] = useState('all')
+  // Admin settings
   const [viewMode, setViewMode] = useState('calendar') // calendar or list
   const [editingOpenDay, setEditingOpenDay] = useState(false)
   const [savingSettings, setSavingSettings] = useState(false)
@@ -59,10 +56,9 @@ function ScheduleCalendar({ user, onNavigate }) {
     setLoading(true)
     setError(null)
     try {
-      const [scheduleRes, propertiesRes, settingsRes] = await Promise.all([
+      const [scheduleRes, propertiesRes] = await Promise.all([
         api.get('/api/databases/schedule'),
-        api.get('/api/databases/PROPERTIES'),
-        api.get('/api/databases/schedule?settings=true').catch(() => ({ data: { scheduleOpenDay: 15 } }))
+        api.get('/api/databases/PROPERTIES')
       ])
       setScheduleData(Array.isArray(scheduleRes.data) ? scheduleRes.data : [])
       // Filter properties to only show Model Homes (Status = "Model Home")
@@ -72,9 +68,6 @@ function ScheduleCalendar({ user, onNavigate }) {
         p.status === 'Model Home' || p.status === 'Model'
       )
       setModelHomes(modelHomesList)
-      if (settingsRes.data?.scheduleOpenDay) {
-        setScheduleOpenDay(settingsRes.data.scheduleOpenDay)
-      }
     } catch (err) {
       console.error('Schedule fetch error:', err)
       setError(err.response?.data?.error || 'Failed to fetch schedule')
@@ -145,7 +138,7 @@ function ScheduleCalendar({ user, onNavigate }) {
     return { sunday: sundayStr, saturday: saturdayStr }
   }
 
-  // Count user's requests for a week (approved + pending only)
+  // Count user's scheduled entries for a week
   const getUserWeekRequests = (dateStr) => {
     const { sunday, saturday } = getWeekBounds(dateStr)
     const userId = user?.teamMemberId || user?.id
@@ -159,40 +152,32 @@ function ScheduleCalendar({ user, onNavigate }) {
       // Check if date is within week bounds
       if (itemDate < sunday || itemDate > saturday) return false
 
-      // Skip denied requests - they don't count
-      if (item.status === 'Denied') return false
+      // Match by staff relation ID
+      if (userId && item.staff1RelationId === userId) return true
 
-      // Match by employee ID
-      if (userId && item.employeeId === userId) return true
-
-      // Match by email (most reliable)
-      if (userEmail && item.employeeName?.toLowerCase() === userEmail) return true
-
-      // Match by name
-      if (userName && item.employeeName?.toLowerCase() === userName) return true
-      if (userName && item.employeeName?.toLowerCase()?.includes(userName)) return true
+      // Match by assigned staff name (case insensitive)
+      if (userName && item.assignedStaff1?.toLowerCase() === userName) return true
+      if (userName && item.assignedStaff1?.toLowerCase()?.includes(userName)) return true
 
       return false
     })
   }
 
-  // Check if slot is already taken (Approved by someone else)
-  const isSlotTaken = (dateStr, modelHomeAddress) => {
+  // Check if slot is already taken
+  const isSlotTaken = (dateStr, modelHomeAddr) => {
     return scheduleData.find(item =>
       item.date?.startsWith(dateStr) &&
-      item.modelHome === modelHomeAddress &&
-      item.status === 'Approved'
+      item.modelHomeAddress === modelHomeAddr
     )
   }
 
-  // Check if user has pending request for this slot
-  const getUserPendingForSlot = (dateStr, modelHomeAddress) => {
+  // Check if user is already scheduled for this slot
+  const getUserScheduledForSlot = (dateStr, modelHomeAddr) => {
     const userName = user?.fullName || user?.name || user?.email
     return scheduleData.find(item =>
       item.date?.startsWith(dateStr) &&
-      item.modelHome === modelHomeAddress &&
-      item.status === 'Pending' &&
-      item.employeeName?.toLowerCase().includes(userName?.toLowerCase())
+      item.modelHomeAddress === modelHomeAddr &&
+      item.assignedStaff1?.toLowerCase().includes(userName?.toLowerCase())
     )
   }
 
@@ -245,16 +230,16 @@ function ScheduleCalendar({ user, onNavigate }) {
     try {
       await api.post('/api/databases/schedule', {
         date: dateStr,
-        modelHome: selectedModelHome.Address || selectedModelHome.address || selectedModelHome.Name,
-        modelHomeId: selectedModelHome.id,
-        employeeId: user?.teamMemberId || user?.id,
-        employeeName: user?.fullName || user?.name || user?.email
+        modelHomeAddress: selectedModelHome.Address || selectedModelHome.address || selectedModelHome.Name,
+        propertyRelationId: selectedModelHome.id,
+        staff1RelationId: user?.teamMemberId || user?.id,
+        assignedStaff1: user?.fullName || user?.name || user?.email
       })
 
       await fetchData()
       setSelectedDay(null)
       setSelectedModelHome(null)
-      alert('Schedule request submitted! Awaiting admin approval.')
+      alert('✓ Schedule created successfully!')
     } catch (err) {
       alert('Failed to submit request: ' + (err.response?.data?.error || err.message))
     } finally {
@@ -302,23 +287,23 @@ function ScheduleCalendar({ user, onNavigate }) {
 
     setSubmitting(true)
     try {
-      const modelHomeAddress = selectedModelHome.Address || selectedModelHome.address || selectedModelHome.Name
+      const modelHomeAddr = selectedModelHome.Address || selectedModelHome.address || selectedModelHome.Name
 
       // Submit all selected days
       for (const dateStr of selectedDays) {
         await api.post('/api/databases/schedule', {
           date: dateStr,
-          modelHome: modelHomeAddress,
-          modelHomeId: selectedModelHome.id,
-          employeeId: user?.teamMemberId || user?.id,
-          employeeName: user?.fullName || user?.name || user?.email
+          modelHomeAddress: modelHomeAddr,
+          propertyRelationId: selectedModelHome.id,
+          staff1RelationId: user?.teamMemberId || user?.id,
+          assignedStaff1: user?.fullName || user?.name || user?.email
         })
       }
 
       await fetchData()
       setSelectedDays([])
       setSelectedModelHome(null)
-      alert(`✓ Schedule request submitted for ${selectedDays.length} days! Awaiting admin approval.`)
+      alert(`✓ Schedule created for ${selectedDays.length} days!`)
     } catch (err) {
       alert('Failed to submit request: ' + (err.response?.data?.error || err.message))
     } finally {
@@ -326,75 +311,20 @@ function ScheduleCalendar({ user, onNavigate }) {
     }
   }
 
-  // Admin: Approve request
-  const handleApprove = async (scheduleId) => {
-    setActionLoading(scheduleId)
-    try {
-      const result = await api.patch('/api/databases/schedule', {
-        action: 'approve',
-        scheduleId
-      })
-
-      await fetchData()
-      setSelectedEvent(null)
-
-      if (result.data.conflictsDenied > 0) {
-        alert(`Approved! ${result.data.conflictsDenied} conflicting request(s) were auto-denied.`)
-      }
-    } catch (err) {
-      alert('Failed to approve: ' + (err.response?.data?.error || err.message))
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  // Admin: Deny request
-  const handleDeny = async (scheduleId) => {
-    setActionLoading(scheduleId)
-    try {
-      await api.patch('/api/databases/schedule', {
-        action: 'deny',
-        scheduleId,
-        notes: denyNotes || undefined
-      })
-
-      await fetchData()
-      setSelectedEvent(null)
-      setDenyNotes('')
-    } catch (err) {
-      alert('Failed to deny: ' + (err.response?.data?.error || err.message))
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  // Admin: Save schedule open day setting
-  const saveScheduleOpenDay = async (newDay) => {
+  // Admin: Save schedule open day setting (localStorage)
+  const saveScheduleOpenDay = (newDay) => {
     if (newDay < 1 || newDay > 28) {
       alert('Open day must be between 1-28')
       return
     }
-    setSavingSettings(true)
-    try {
-      await api.patch('/api/databases/schedule', {
-        action: 'update-settings',
-        scheduleOpenDay: newDay
-      })
-      setScheduleOpenDay(newDay)
-      setEditingOpenDay(false)
-      alert(`Schedule open day updated to the ${newDay}${newDay === 1 ? 'st' : newDay === 2 ? 'nd' : newDay === 3 ? 'rd' : 'th'} of each month`)
-    } catch (err) {
-      alert('Failed to save setting: ' + (err.response?.data?.error || err.message))
-    } finally {
-      setSavingSettings(false)
-    }
+    localStorage.setItem('scheduleOpenDay', newDay.toString())
+    setScheduleOpenDay(newDay)
+    setEditingOpenDay(false)
+    alert(`Schedule open day updated to the ${newDay}${newDay === 1 ? 'st' : newDay === 2 ? 'nd' : newDay === 3 ? 'rd' : 'th'} of each month`)
   }
 
-  // Filter schedule data based on status (memoized for performance)
-  const filteredSchedule = useMemo(() => {
-    if (statusFilter === 'all') return scheduleData
-    return scheduleData.filter(item => item.status?.toLowerCase() === statusFilter)
-  }, [scheduleData, statusFilter])
+  // All schedule entries (no more status filtering)
+  const filteredSchedule = scheduleData
 
   // Build calendar grid (memoized to prevent recalculation)
   const calendarDays = useMemo(() => {
@@ -403,11 +333,6 @@ function ScheduleCalendar({ user, onNavigate }) {
     for (let day = 1; day <= daysInMonth; day++) days.push(day)
     return days
   }, [startingDay, daysInMonth])
-
-  // Pending requests count (memoized for admin)
-  const pendingCount = useMemo(() =>
-    scheduleData.filter(s => s.status === 'Pending').length
-  , [scheduleData])
 
   if (loading) {
     return (
@@ -435,28 +360,18 @@ function ScheduleCalendar({ user, onNavigate }) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white">
-            {isAdmin ? 'Schedule Management' : 'Request Schedule'}
+            {isAdmin ? 'Schedule Management' : 'Schedule'}
           </h2>
           <p className="text-sm text-gray-400">
             {isAdmin
-              ? `${pendingCount} pending request${pendingCount !== 1 ? 's' : ''} • ${scheduleData.length} total`
-              : 'Select dates and model homes to request shifts'
+              ? `${scheduleData.length} scheduled entries`
+              : 'Select dates and model homes for shifts'
             }
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {isAdmin && (
             <>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white"
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="denied">Denied</option>
-              </select>
               <button
                 onClick={() => setViewMode(viewMode === 'calendar' ? 'list' : 'calendar')}
                 className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-400 hover:text-white"
@@ -526,22 +441,12 @@ function ScheduleCalendar({ user, onNavigate }) {
         />
       )}
 
-      {/* Admin: Pending Requests Panel */}
-      {isAdmin && viewMode === 'calendar' && (
-        <AdminPendingPanel
-          pendingCount={pendingCount}
-          scheduleData={scheduleData}
-          setSelectedEvent={setSelectedEvent}
-        />
-      )}
 
       {/* List View (Admin) */}
       {isAdmin && viewMode === 'list' ? (
         <AdminListView
           filteredSchedule={filteredSchedule}
-          handleApprove={handleApprove}
           setSelectedEvent={setSelectedEvent}
-          actionLoading={actionLoading}
         />
       ) : (
         /* Calendar View */
@@ -576,16 +481,13 @@ function ScheduleCalendar({ user, onNavigate }) {
               const events = day ? getEventsForDay(day) : []
               const today = isToday(day)
               const past = isPastDay(day)
-              const approvedEvents = events.filter(e => e.status === 'Approved')
-              const pendingEvents = events.filter(e => e.status === 'Pending')
-              const deniedEvents = events.filter(e => e.status === 'Denied')
 
               const isSelected = day && selectedDays.includes(getISODate(day))
 
               // Employee can only select days in NEXT month (not current, not 2+ months ahead)
               const canEmployeeEdit = !past && !isAdmin && scheduleIsOpen && isNextMonth
 
-              const isClickable = (day && canEmployeeEdit) || (day && isAdmin && pendingEvents.length > 0)
+              const isClickable = (day && canEmployeeEdit) || (day && isAdmin && events.length > 0)
 
               return (
                 <div
@@ -593,8 +495,8 @@ function ScheduleCalendar({ user, onNavigate }) {
                   onClick={() => {
                     if (day && canEmployeeEdit) {
                       toggleDaySelection(day)
-                    } else if (day && isAdmin && pendingEvents.length > 0) {
-                      setSelectedEvent(pendingEvents[0])
+                    } else if (day && isAdmin && events.length > 0) {
+                      setSelectedEvent(events[0])
                     }
                   }}
                   onKeyDown={(e) => {
@@ -602,21 +504,21 @@ function ScheduleCalendar({ user, onNavigate }) {
                       e.preventDefault()
                       if (canEmployeeEdit) {
                         toggleDaySelection(day)
-                      } else if (isAdmin && pendingEvents.length > 0) {
-                        setSelectedEvent(pendingEvents[0])
+                      } else if (isAdmin && events.length > 0) {
+                        setSelectedEvent(events[0])
                       }
                     }
                   }}
                   tabIndex={isClickable ? 0 : -1}
                   role={isClickable ? 'button' : undefined}
-                  aria-label={day ? `${monthNames[month]} ${day}${isSelected ? ', selected' : ''}${pendingEvents.length > 0 ? `, ${pendingEvents.length} pending request${pendingEvents.length > 1 ? 's' : ''}` : ''}` : undefined}
+                  aria-label={day ? `${monthNames[month]} ${day}${isSelected ? ', selected' : ''}${events.length > 0 ? `, ${events.length} scheduled` : ''}` : undefined}
                   aria-pressed={isSelected}
                   className={`min-h-[80px] sm:min-h-[100px] p-1 sm:p-2 border-b border-r border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset
                     ${!day ? 'bg-gray-900/30' : ''}
                     ${past ? 'opacity-50' : ''}
                     ${isSelected ? 'bg-amber-500/20 ring-2 ring-amber-500/50 ring-inset' : ''}
                     ${day && canEmployeeEdit ? 'cursor-pointer hover:bg-gray-700/30' : ''}
-                    ${day && isAdmin && pendingEvents.length > 0 ? 'cursor-pointer hover:bg-amber-500/10' : ''}
+                    ${day && isAdmin && events.length > 0 ? 'cursor-pointer hover:bg-blue-500/10' : ''}
                   `}
                 >
                   {day && (
@@ -629,39 +531,19 @@ function ScheduleCalendar({ user, onNavigate }) {
                         </span>
                       </div>
                       <div className="space-y-1">
-                        {/* Approved events - greyed out */}
-                        {approvedEvents.slice(0, 1).map((event, i) => (
+                        {/* Scheduled events */}
+                        {events.slice(0, 2).map((event) => (
                           <div
                             key={event.id}
                             onClick={(e) => { e.stopPropagation(); setSelectedEvent(event) }}
-                            className="px-1.5 py-0.5 bg-emerald-500/20 border border-emerald-500/30 rounded text-[9px] sm:text-[10px] text-emerald-400 truncate cursor-pointer"
+                            className="px-1.5 py-0.5 bg-blue-500/20 border border-blue-500/30 rounded text-[9px] sm:text-[10px] text-blue-400 truncate cursor-pointer"
                           >
-                            ✓ {event.employeeName?.split(' ')[0] || 'Taken'}
-                          </div>
-                        ))}
-                        {/* Pending events - yellow */}
-                        {pendingEvents.slice(0, 1).map((event, i) => (
-                          <div
-                            key={event.id}
-                            onClick={(e) => { e.stopPropagation(); setSelectedEvent(event) }}
-                            className="px-1.5 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded text-[9px] sm:text-[10px] text-amber-400 truncate cursor-pointer"
-                          >
-                            ⏳ {event.employeeName?.split(' ')[0] || 'Pending'}
-                          </div>
-                        ))}
-                        {/* Denied events - red */}
-                        {deniedEvents.slice(0, 1).map((event, i) => (
-                          <div
-                            key={event.id}
-                            onClick={(e) => { e.stopPropagation(); setSelectedEvent(event) }}
-                            className="px-1.5 py-0.5 bg-red-500/20 border border-red-500/30 rounded text-[9px] sm:text-[10px] text-red-400 truncate cursor-pointer"
-                          >
-                            ✗ {event.employeeName?.split(' ')[0] || 'Denied'}
+                            {event.assignedStaff1?.split(' ')[0] || 'Scheduled'}
                           </div>
                         ))}
                         {/* More indicator */}
-                        {events.length > 3 && (
-                          <div className="text-[9px] text-gray-500 pl-1">+{events.length - 3} more</div>
+                        {events.length > 2 && (
+                          <div className="text-[9px] text-gray-500 pl-1">+{events.length - 2} more</div>
                         )}
                       </div>
                     </>
@@ -701,22 +583,17 @@ function ScheduleCalendar({ user, onNavigate }) {
           year={year}
           getUserWeekRequests={getUserWeekRequests}
           isSlotTaken={isSlotTaken}
-          getUserPendingForSlot={getUserPendingForSlot}
+          getUserScheduledForSlot={getUserScheduledForSlot}
           handleSubmitRequest={handleSubmitRequest}
           submitting={submitting}
         />
       )}
 
-      {/* Event Detail Modal (Both Admin & Employee) */}
+      {/* Event Detail Modal */}
       <ScheduleEventModal
         selectedEvent={selectedEvent}
-        onClose={() => { setSelectedEvent(null); setDenyNotes('') }}
+        onClose={() => setSelectedEvent(null)}
         isAdmin={isAdmin}
-        denyNotes={denyNotes}
-        setDenyNotes={setDenyNotes}
-        handleApprove={handleApprove}
-        handleDeny={handleDeny}
-        actionLoading={actionLoading}
       />
     </div>
   )

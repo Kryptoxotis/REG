@@ -12,7 +12,7 @@ function DaySelectionModal({
   year,
   getUserWeekRequests,
   isSlotTaken,
-  getUserPendingForSlot,
+  getUserScheduledForSlot,
   handleSubmitRequest,
   submitting
 }) {
@@ -102,20 +102,20 @@ function DaySelectionModal({
                 modelHomes.map(home => {
                   const address = home.Address || home.address || home.Name || 'Unknown'
                   const taken = isSlotTaken(dateStr, address)
-                  const userPending = getUserPendingForSlot(dateStr, address)
+                  const userScheduled = getUserScheduledForSlot(dateStr, address)
                   const isSelected = selectedModelHome?.id === home.id
 
                   return (
                     <div
                       key={home.id}
                       onClick={() => {
-                        if (!taken && !userPending) setSelectedModelHome(home)
+                        if (!taken && !userScheduled) setSelectedModelHome(home)
                       }}
                       className={`p-4 rounded-xl border transition-all ${
                         taken
                           ? 'bg-gray-800/30 border-gray-700 opacity-50 cursor-not-allowed'
-                          : userPending
-                            ? 'bg-amber-500/10 border-amber-500/30 cursor-not-allowed'
+                          : userScheduled
+                            ? 'bg-blue-500/10 border-blue-500/30 cursor-not-allowed'
                             : isSelected
                               ? 'bg-amber-500/20 border-amber-500 cursor-pointer'
                               : 'bg-gray-800 border-gray-700 hover:border-gray-600 cursor-pointer'
@@ -129,16 +129,16 @@ function DaySelectionModal({
                           </p>
                         </div>
                         {taken && (
-                          <span className="text-xs text-emerald-400 bg-emerald-500/20 px-2 py-1 rounded">
-                            Taken by {taken.employeeName?.split(' ')[0] || 'Someone'}
+                          <span className="text-xs text-blue-400 bg-blue-500/20 px-2 py-1 rounded">
+                            {taken.assignedStaff1?.split(' ')[0] || 'Scheduled'}
                           </span>
                         )}
-                        {userPending && (
-                          <span className="text-xs text-amber-400 bg-amber-500/20 px-2 py-1 rounded">
-                            You: Pending
+                        {userScheduled && (
+                          <span className="text-xs text-blue-400 bg-blue-500/20 px-2 py-1 rounded">
+                            You're Scheduled
                           </span>
                         )}
-                        {isSelected && !taken && !userPending && (
+                        {isSelected && !taken && !userScheduled && (
                           <span className="text-amber-400">Selected</span>
                         )}
                       </div>
@@ -159,7 +159,7 @@ function DaySelectionModal({
                     : 'bg-amber-600 hover:bg-amber-500 disabled:bg-gray-700 disabled:text-gray-500 text-white'
                 }`}
               >
-                {submitting ? 'Submitting...' : isAtMax ? `Max ${MAX_DAYS_PER_WEEK} Days Reached` : 'Submit Request'}
+                {submitting ? 'Adding...' : isAtMax ? `Max ${MAX_DAYS_PER_WEEK} Days Reached` : 'Add to Schedule'}
               </button>
               <button
                 onClick={() => { setSelectedDay(null); setSelectedModelHome(null) }}
@@ -185,7 +185,7 @@ DaySelectionModal.propTypes = {
   year: PropTypes.number.isRequired,
   getUserWeekRequests: PropTypes.func.isRequired,
   isSlotTaken: PropTypes.func.isRequired,
-  getUserPendingForSlot: PropTypes.func.isRequired,
+  getUserScheduledForSlot: PropTypes.func.isRequired,
   handleSubmitRequest: PropTypes.func.isRequired,
   submitting: PropTypes.bool.isRequired
 }

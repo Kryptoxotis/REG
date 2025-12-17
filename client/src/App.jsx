@@ -6,6 +6,7 @@ import { ToastProvider } from './components/Toast'
 import Login from './pages/Login'
 import AdminDashboard from './pages/AdminDashboard'
 import EmployeeDashboard from './pages/EmployeeDashboard'
+import DiscordCallback from './pages/DiscordCallback'
 import ErrorBoundary from './components/ErrorBoundary'
 
 function App() {
@@ -68,6 +69,10 @@ function App() {
               <Route
                 path="/login"
                 element={!user ? <Login setUser={handleSetUser} /> : <Navigate to="/" />}
+              />
+              <Route
+                path="/auth/discord/callback"
+                element={user ? <DiscordCallback /> : <Navigate to="/login" />}
               />
               <Route
                 path="/"
