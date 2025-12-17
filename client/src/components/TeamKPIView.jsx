@@ -34,40 +34,30 @@ function TeamKPIView({ onNavigate }) {
     return () => window.removeEventListener('fieldPreferencesChanged', handlePrefsChanged)
   }, [])
 
-  // #7 - Use AbortController for proper request cancellation on unmount
-  useEffect(() => {
-    const controller = new AbortController()
-
-    const fetchData = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        // HttpOnly cookies handle auth automatically via withCredentials
-        const response = await api.get('/api/databases/team-kpis', {
-          signal: controller.signal
-        })
-        // Handle paginated response format { data: [...], pagination: {...} }
-        const teamData = response.data?.data || response.data
-        setData(Array.isArray(teamData) ? teamData : [])
-      } catch (err) {
-        // Ignore aborted requests (component unmounted)
-        if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
-          return
-        }
-        setError(err.response?.data?.error || 'Failed to fetch team KPIs')
-      } finally {
-        // Only update loading if not aborted
-        if (!controller.signal.aborted) {
-          setLoading(false)
-        }
+  // Fetch data function - accessible for retry buttons
+  async function fetchData() {
+    setLoading(true)
+    setError(null)
+    try {
+      // HttpOnly cookies handle auth automatically via withCredentials
+      const response = await api.get('/api/databases/team-kpis')
+      // Handle paginated response format { data: [...], pagination: {...} }
+      const teamData = response.data?.data || response.data
+      setData(Array.isArray(teamData) ? teamData : [])
+    } catch (err) {
+      // Ignore aborted requests (component unmounted)
+      if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
+        return
       }
+      setError(err.response?.data?.error || 'Failed to fetch team KPIs')
+    } finally {
+      setLoading(false)
     }
+  }
 
+  // Initial fetch on mount
+  useEffect(() => {
     fetchData()
-
-    return () => {
-      controller.abort()
-    }
   }, [])
 
   // Handle starting edit mode
