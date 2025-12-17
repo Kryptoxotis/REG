@@ -9,7 +9,7 @@ function ScheduleCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedEvent, setSelectedEvent] = useState(null)
 
-  const fetchData = async () => {
+  async function fetchData() {
     setLoading(true)
     setError(null)
     try {

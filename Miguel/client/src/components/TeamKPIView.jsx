@@ -8,7 +8,7 @@ function TeamKPIView() {
   const [error, setError] = useState(null)
   const [selectedMember, setSelectedMember] = useState(null)
 
-  const fetchData = async () => {
+  async function fetchData() {
     setLoading(true)
     setError(null)
     try {

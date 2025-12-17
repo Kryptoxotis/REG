@@ -10,7 +10,7 @@ function DatabaseViewer({ databaseKey, databaseName }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedItem, setSelectedItem] = useState(null)
 
-  const fetchData = async () => {
+  async function fetchData() {
     setLoading(true)
     setError(null)
     try {
