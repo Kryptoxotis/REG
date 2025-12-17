@@ -71,7 +71,7 @@ function Chat({ isAdmin = false }) {
 
     try {
       setLoading(messages.length === 0)
-      const response = await api.get(`/api/discord/channels/${activeChannel.id}/messages`, { withCredentials: true })
+      const response = await api.get(`/api/discord/messages?channelId=${activeChannel.id}`, { withCredentials: true })
       setMessages(response.data.messages)
       setError(null)
     } catch (err) {
@@ -118,7 +118,7 @@ function Chat({ isAdmin = false }) {
 
     try {
       setSending(true)
-      await api.post(`/api/discord/channels/${activeChannel.id}/messages`, {
+      await api.post(`/api/discord/messages?channelId=${activeChannel.id}`, {
         content: newMessage
       }, { withCredentials: true })
 
