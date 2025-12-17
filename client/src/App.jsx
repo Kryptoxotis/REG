@@ -16,7 +16,7 @@ function App() {
     checkAuth()
   }, [])
 
-  const checkAuth = async () => {
+  async function checkAuth() {
     try {
       // Use credentials to send HttpOnly cookie automatically
       const response = await fetch('/api/auth/check', {
