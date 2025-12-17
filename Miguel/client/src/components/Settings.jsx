@@ -8,11 +8,7 @@ function Settings() {
   const [newIP, setNewIP] = useState('')
   const [message, setMessage] = useState(null)
 
-  useEffect(() => {
-    fetchIPData()
-  }, [])
-
-  const fetchIPData = async () => {
+  async function fetchIPData() {
     try {
       const response = await axios.get('/api/auth/ip-whitelist', { withCredentials: true })
       setIpData(response.data)
@@ -22,6 +18,10 @@ function Settings() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    fetchIPData()
+  }, [])
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text)

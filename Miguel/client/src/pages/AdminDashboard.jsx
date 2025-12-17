@@ -14,6 +14,14 @@ function AdminDashboard({ user, setUser }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
+  async function fetchStats() {
+    try {
+      const response = await axios.get('/api/databases/stats', { withCredentials: true })
+      setStats(response.data)
+    } catch (error) { console.error('Failed to fetch stats:', error) }
+    finally { setLoading(false) }
+  }
+
   useEffect(() => { fetchStats() }, [])
 
   // Close mobile menu on resize to desktop
@@ -24,14 +32,6 @@ function AdminDashboard({ user, setUser }) {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
-
-  const fetchStats = async () => {
-    try {
-      const response = await axios.get('/api/databases/stats', { withCredentials: true })
-      setStats(response.data)
-    } catch (error) { console.error('Failed to fetch stats:', error) }
-    finally { setLoading(false) }
-  }
 
   const handleLogout = async () => {
     try { await axios.post('/api/auth/logout', {}, { withCredentials: true }); setUser(null) }

@@ -8,11 +8,7 @@ function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    checkAuth()
-  }, [])
-
-  const checkAuth = async () => {
+  async function checkAuth() {
     try {
       const response = await fetch('/api/auth/check', {
         credentials: 'include'
@@ -27,6 +23,10 @@ function App() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    checkAuth()
+  }, [])
 
   if (loading) {
     return (

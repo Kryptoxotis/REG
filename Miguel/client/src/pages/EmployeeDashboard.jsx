@@ -6,15 +6,15 @@ function EmployeeDashboard({ user, setUser }) {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { fetchStats() }, [])
-
-  const fetchStats = async () => {
+  async function fetchStats() {
     try {
       const response = await axios.get('/api/databases/stats/overview', { withCredentials: true })
       setStats(response.data)
     } catch (error) { console.error('Failed to fetch stats:', error) }
     finally { setLoading(false) }
   }
+
+  useEffect(() => { fetchStats() }, [])
 
   const handleLogout = async () => {
     try { await axios.post('/api/auth/logout', {}, { withCredentials: true }); setUser(null) }

@@ -9,11 +9,7 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
   const [expandedOffice, setExpandedOffice] = useState(null)
   const [expandedDeals, setExpandedDeals] = useState([]) // Deals for expanded office
 
-  useEffect(() => {
-    fetchOfficeStats()
-  }, [])
-
-  const fetchOfficeStats = async () => {
+  async function fetchOfficeStats() {
     console.log('[OfficeOverview] Starting fetch...')
     try {
       setLoading(true)
@@ -42,6 +38,10 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
       console.log('[OfficeOverview] Fetch complete')
     }
   }
+
+  useEffect(() => {
+    fetchOfficeStats()
+  }, [])
 
   // Fetch deals for expanded office (admin only)
   const fetchDealsForOffice = async (officeName) => {
