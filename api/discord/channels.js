@@ -59,6 +59,11 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Discord not connected' })
   }
 
+  // Debug log
+  console.log('Discord user from cookie:', discordUser.id, discordUser.username)
+  console.log('Bot token present:', !!DISCORD_BOT_TOKEN)
+  console.log('Guild ID:', DISCORD_GUILD_ID)
+
   try {
     // Get member from Discord to check roles (using bot token)
     const memberResponse = await fetch(
@@ -113,7 +118,7 @@ export default async function handler(req, res) {
     res.json({ channels: grouped })
 
   } catch (error) {
-    console.error('Get channels error:', error.message)
-    res.status(500).json({ error: 'Failed to get channels' })
+    console.error('Get channels error:', error.message, error.stack)
+    res.status(500).json({ error: 'Failed to get channels', details: error.message })
   }
 }
