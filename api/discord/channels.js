@@ -61,23 +61,27 @@ export default async function handler(req, res) {
 
   // Debug log
   console.log('Discord user from cookie:', discordUser.id, discordUser.username)
-  console.log('Bot token present:', !!DISCORD_BOT_TOKEN)
+  console.log('Bot token length:', DISCORD_BOT_TOKEN?.length)
+  console.log('Bot token first 10 chars:', DISCORD_BOT_TOKEN?.substring(0, 10))
   console.log('Guild ID:', DISCORD_GUILD_ID)
 
   try {
     // Get member from Discord to check roles (using bot token)
-    const memberResponse = await fetch(
-      `https://discord.com/api/v10/guilds/${DISCORD_GUILD_ID}/members/${discordUser.id}`,
-      {
-        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` }
-      }
-    )
+    const url = `https://discord.com/api/v10/guilds/${DISCORD_GUILD_ID}/members/${discordUser.id}`
+    console.log('Fetching:', url)
+
+    const memberResponse = await fetch(url, {
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` }
+    })
 
     if (!memberResponse.ok) {
+      const errorBody = await memberResponse.text()
+      console.log('Discord error response:', memberResponse.status, errorBody)
+
       if (memberResponse.status === 404) {
         return res.status(400).json({ error: 'You are not a member of the Discord server' })
       }
-      throw new Error(`Discord API error: ${memberResponse.status}`)
+      throw new Error(`Discord API error: ${memberResponse.status} - ${errorBody}`)
     }
 
     const member = await memberResponse.json()
