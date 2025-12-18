@@ -235,7 +235,7 @@ function Chat({ isAdmin = false }) {
             Disconnect
           </button>
           <a
-            href="https://discord.gg/your-invite-link"
+            href="https://discord.gg/pB7UPGvm"
             target="_blank"
             rel="noopener noreferrer"
             className="px-3 py-1.5 text-sm bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg transition-colors flex items-center gap-2"
