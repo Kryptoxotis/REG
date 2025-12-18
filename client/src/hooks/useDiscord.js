@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { io } from 'socket.io-client'
+import Pusher from 'pusher-js'
 import api from '../lib/api'
 
-// WebSocket server URL - set this to your Discord server URL when running
-const WS_URL = import.meta.env.VITE_DISCORD_WS_URL || null
+// Pusher config
+const PUSHER_KEY = import.meta.env.VITE_PUSHER_KEY
+const PUSHER_CLUSTER = import.meta.env.VITE_PUSHER_CLUSTER || 'us2'
 
 export function useDiscord() {
-  const [connectionMode, setConnectionMode] = useState('connecting') // 'websocket' | 'polling' | 'connecting' | 'disconnected'
+  const [connectionMode, setConnectionMode] = useState('connecting') // 'realtime' | 'polling' | 'connecting' | 'disconnected'
   const [discordStatus, setDiscordStatus] = useState({ connected: false, loading: true })
   const [channels, setChannels] = useState({})
   const [messages, setMessages] = useState([])
@@ -15,7 +16,8 @@ export function useDiscord() {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  const socketRef = useRef(null)
+  const pusherRef = useRef(null)
+  const pusherChannelRef = useRef(null)
   const pollIntervalRef = useRef(null)
   const discordUserRef = useRef(null)
 
@@ -42,85 +44,43 @@ export function useDiscord() {
         return
       }
 
-      // Try WebSocket connection first
-      if (WS_URL) {
+      // Initialize Pusher if configured
+      if (PUSHER_KEY) {
         try {
-          const socket = io(WS_URL, {
-            transports: ['websocket'],
-            timeout: 5000
+          const pusher = new Pusher(PUSHER_KEY, {
+            cluster: PUSHER_CLUSTER,
+            forceTLS: true
           })
 
-          socket.on('connect', () => {
-            console.log('WebSocket connected')
-            // Authenticate with Discord ID
-            socket.emit('auth', { discordId: status.discordId })
+          pusher.connection.bind('connected', () => {
+            console.log('Pusher connected')
+            setConnectionMode('realtime')
           })
 
-          socket.on('authenticated', () => {
-            console.log('WebSocket authenticated')
-            setConnectionMode('websocket')
-            socket.emit('getChannels')
-          })
-
-          socket.on('channels', (data) => {
-            setChannels(data.channels)
-          })
-
-          socket.on('messages', (data) => {
-            if (data.channelId === activeChannel?.id) {
-              setMessages(data.messages)
-              setMessageCache(prev => ({ ...prev, [data.channelId]: data.messages }))
-            }
-          })
-
-          socket.on('message', (data) => {
-            // New message received
-            if (data.channelId === activeChannel?.id) {
-              setMessages(prev => [...prev, data.message])
-              setMessageCache(prev => ({
-                ...prev,
-                [data.channelId]: [...(prev[data.channelId] || []), data.message]
-              }))
-            }
-          })
-
-          socket.on('error', (data) => {
-            console.error('WebSocket error:', data.message)
-          })
-
-          socket.on('connect_error', () => {
-            console.log('WebSocket connection failed, falling back to polling')
-            socket.disconnect()
+          pusher.connection.bind('error', (err) => {
+            console.error('Pusher error:', err)
             setConnectionMode('polling')
-            fetchChannelsREST()
           })
 
-          socket.on('disconnect', () => {
-            console.log('WebSocket disconnected')
-            if (connectionMode === 'websocket') {
-              setConnectionMode('polling')
-            }
-          })
-
-          socketRef.current = socket
-
+          pusherRef.current = pusher
         } catch (err) {
-          console.log('WebSocket setup failed, using polling')
+          console.log('Pusher setup failed, using polling')
           setConnectionMode('polling')
-          fetchChannelsREST()
         }
       } else {
-        // No WebSocket URL configured, use polling
+        // No Pusher configured, use polling only
         setConnectionMode('polling')
-        fetchChannelsREST()
       }
+
+      // Fetch channels
+      fetchChannelsREST()
     }
 
     init()
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect()
+      if (pusherRef.current) {
+        pusherRef.current.disconnect()
       }
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current)
@@ -128,7 +88,7 @@ export function useDiscord() {
     }
   }, [])
 
-  // Fetch channels via REST (polling fallback)
+  // Fetch channels via REST
   const fetchChannelsREST = useCallback(async () => {
     try {
       const response = await api.get('/api/discord/channels', { withCredentials: true })
@@ -147,97 +107,141 @@ export function useDiscord() {
     }
   }, [])
 
-  // Fetch messages via REST (polling fallback)
-  const fetchMessagesREST = useCallback(async (channelId) => {
+  // Fetch messages via REST
+  const fetchMessagesREST = useCallback(async (channelId, isInitial = false) => {
     if (!channelId) return
 
-    const cachedMessages = messageCache[channelId] || []
-
     try {
-      setLoading(cachedMessages.length === 0 && messages.length === 0)
+      if (isInitial) setLoading(true)
       const response = await api.get(`/api/discord/messages?channelId=${channelId}`, { withCredentials: true })
       const newMessages = response.data.messages
 
-      // Only update if changed
-      const lastCachedId = cachedMessages[cachedMessages.length - 1]?.id
-      const lastNewId = newMessages[newMessages.length - 1]?.id
-
-      if (lastCachedId !== lastNewId || cachedMessages.length !== newMessages.length) {
-        setMessages(newMessages)
-        setMessageCache(prev => ({ ...prev, [channelId]: newMessages }))
-      }
+      setMessages(prev => {
+        // Only update if actually different (compare last message id)
+        const lastPrevId = prev[prev.length - 1]?.id
+        const lastNewId = newMessages[newMessages.length - 1]?.id
+        if (lastPrevId === lastNewId && prev.length === newMessages.length) {
+          return prev // No change, don't trigger re-render
+        }
+        return newMessages
+      })
+      setMessageCache(prev => ({ ...prev, [channelId]: newMessages }))
       setError(null)
     } catch (err) {
-      if (cachedMessages.length === 0 && messages.length === 0) {
-        setError('Failed to load messages')
-      }
+      if (isInitial) setError('Failed to load messages')
     } finally {
-      setLoading(false)
+      if (isInitial) setLoading(false)
     }
-  }, [messageCache, messages.length])
+  }, [])
 
-  // Handle channel change
+  // Handle channel change - subscribe to Pusher channel
   useEffect(() => {
     if (!activeChannel) return
 
-    // Clear polling interval
+    // Clear previous polling interval
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current)
+    }
+
+    // Unsubscribe from previous Pusher channel
+    if (pusherChannelRef.current && pusherRef.current) {
+      pusherRef.current.unsubscribe(pusherChannelRef.current.name)
+      pusherChannelRef.current = null
     }
 
     // Load from cache immediately
     if (messageCache[activeChannel.id]) {
       setMessages(messageCache[activeChannel.id])
+    } else {
+      setMessages([])
     }
 
-    if (connectionMode === 'websocket' && socketRef.current) {
-      // WebSocket mode
-      socketRef.current.emit('subscribe', { channelId: activeChannel.id })
-      socketRef.current.emit('getMessages', { channelId: activeChannel.id })
-    } else if (connectionMode === 'polling') {
-      // Polling mode
-      fetchMessagesREST(activeChannel.id)
-      pollIntervalRef.current = setInterval(() => {
-        fetchMessagesREST(activeChannel.id)
-      }, 3000)
+    // Fetch initial messages
+    fetchMessagesREST(activeChannel.id, true)
+
+    // Subscribe to Pusher channel for real-time updates (if Pusher is connected)
+    if (pusherRef.current) {
+      const channelName = `discord-${activeChannel.id}`
+      const pusherChannel = pusherRef.current.subscribe(channelName)
+
+      pusherChannel.bind('new-message', (data) => {
+        // Add message if not already present
+        setMessages(prev => {
+          if (prev.some(m => m.id === data.id)) return prev
+          return [...prev, data]
+        })
+        setMessageCache(prev => {
+          const cached = prev[activeChannel.id] || []
+          if (cached.some(m => m.id === data.id)) return prev
+          return { ...prev, [activeChannel.id]: [...cached, data] }
+        })
+      })
+
+      pusherChannelRef.current = pusherChannel
     }
+
+    // Set up polling as backup (poll every 10s to catch Discord-only messages)
+    pollIntervalRef.current = setInterval(() => {
+      fetchMessagesREST(activeChannel.id, false)
+    }, 10000)
 
     return () => {
-      if (connectionMode === 'websocket' && socketRef.current) {
-        socketRef.current.emit('unsubscribe', { channelId: activeChannel.id })
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+      }
+      if (pusherChannelRef.current && pusherRef.current) {
+        pusherRef.current.unsubscribe(`discord-${activeChannel.id}`)
       }
     }
-  }, [activeChannel, connectionMode])
+  }, [activeChannel?.id])
 
-  // Send message
+  // Send message with optimistic update
   const sendMessage = useCallback(async (content) => {
     if (!content.trim() || !activeChannel) return false
 
     const user = discordUserRef.current
 
-    if (connectionMode === 'websocket' && socketRef.current) {
-      // WebSocket mode
-      socketRef.current.emit('sendMessage', {
-        channelId: activeChannel.id,
-        content,
-        username: user?.discordUsername,
-        avatarUrl: user?.discordAvatar
-      })
-      return true
-    } else {
-      // REST mode
-      try {
-        await api.post(`/api/discord/messages?channelId=${activeChannel.id}`, {
-          content
-        }, { withCredentials: true })
-        await fetchMessagesREST(activeChannel.id)
-        return true
-      } catch (err) {
-        setError('Failed to send message')
-        return false
-      }
+    // Optimistic update - add message immediately
+    const tempId = `temp-${Date.now()}`
+    const optimisticMessage = {
+      id: tempId,
+      content: content,
+      author: {
+        id: user?.discordId || 'unknown',
+        username: user?.discordUsername || 'You',
+        avatar: user?.discordAvatar || 'https://cdn.discordapp.com/embed/avatars/0.png'
+      },
+      timestamp: Date.now(),
+      attachments: [],
+      pending: true
     }
-  }, [activeChannel, connectionMode, fetchMessagesREST])
+
+    setMessages(prev => [...prev, optimisticMessage])
+
+    try {
+      const response = await api.post(`/api/discord/messages?channelId=${activeChannel.id}`, {
+        content
+      }, { withCredentials: true })
+
+      // Replace temp message with real one
+      setMessages(prev => prev.map(m =>
+        m.id === tempId ? { ...response.data.message, pending: false } : m
+      ))
+      setMessageCache(prev => ({
+        ...prev,
+        [activeChannel.id]: prev[activeChannel.id]?.map(m =>
+          m.id === tempId ? { ...response.data.message, pending: false } : m
+        ) || []
+      }))
+
+      return true
+    } catch (err) {
+      // Remove failed message
+      setMessages(prev => prev.filter(m => m.id !== tempId))
+      setError('Failed to send message')
+      return false
+    }
+  }, [activeChannel])
 
   // Connect Discord (redirect to OAuth)
   const connectDiscord = useCallback(async () => {
@@ -253,8 +257,8 @@ export function useDiscord() {
   const disconnectDiscord = useCallback(async () => {
     try {
       await api.post('/api/discord/disconnect', {}, { withCredentials: true })
-      if (socketRef.current) {
-        socketRef.current.disconnect()
+      if (pusherRef.current) {
+        pusherRef.current.disconnect()
       }
       setDiscordStatus({ connected: false, loading: false })
       setChannels({})

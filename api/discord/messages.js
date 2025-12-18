@@ -1,7 +1,51 @@
 import { handleCors, verifyRequestToken } from '../../config/utils.js'
+import crypto from 'crypto'
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN
 const DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID || '1445647668125892620'
+
+// Pusher config
+const PUSHER_APP_ID = process.env.PUSHER_APP_ID
+const PUSHER_KEY = process.env.PUSHER_KEY
+const PUSHER_SECRET = process.env.PUSHER_SECRET
+const PUSHER_CLUSTER = process.env.PUSHER_CLUSTER || 'us2'
+
+// Trigger Pusher event (using REST API directly)
+async function triggerPusher(channelName, event, data) {
+  if (!PUSHER_APP_ID || !PUSHER_KEY || !PUSHER_SECRET) return
+
+  const timestamp = Math.floor(Date.now() / 1000).toString()
+  const body = JSON.stringify({ name: event, channel: channelName, data: JSON.stringify(data) })
+  const bodyMd5 = crypto.createHash('md5').update(body).digest('hex')
+
+  const params = new URLSearchParams({
+    auth_key: PUSHER_KEY,
+    auth_timestamp: timestamp,
+    auth_version: '1.0',
+    body_md5: bodyMd5
+  })
+  params.sort()
+
+  const stringToSign = `POST\n/apps/${PUSHER_APP_ID}/events\n${params.toString()}`
+  const signature = crypto.createHmac('sha256', PUSHER_SECRET).update(stringToSign).digest('hex')
+  params.append('auth_signature', signature)
+
+  try {
+    const response = await fetch(
+      `https://api-${PUSHER_CLUSTER}.pusher.com/apps/${PUSHER_APP_ID}/events?${params.toString()}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: body
+      }
+    )
+    if (!response.ok) {
+      console.error('Pusher error:', response.status, await response.text())
+    }
+  } catch (err) {
+    console.error('Pusher trigger failed:', err.message)
+  }
+}
 
 // Discord role IDs
 const ROLES = {
@@ -229,13 +273,23 @@ export default async function handler(req, res) {
         sentMessage = await sendResponse.json()
       }
 
+      // Trigger Pusher to notify other dashboard users
+      const messageData = {
+        id: sentMessage.id,
+        content: sentMessage.content,
+        author: {
+          id: discordUser.id,
+          username: discordUser.username,
+          avatar: avatarUrl
+        },
+        timestamp: new Date(sentMessage.timestamp).getTime(),
+        attachments: []
+      }
+      triggerPusher(`discord-${channelId}`, 'new-message', messageData)
+
       return res.json({
         success: true,
-        message: {
-          id: sentMessage.id,
-          content: sentMessage.content,
-          timestamp: new Date(sentMessage.timestamp).getTime()
-        }
+        message: messageData
       })
 
     } else {
