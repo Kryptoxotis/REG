@@ -1,150 +1,43 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import api from '../lib/api'
+import { useDiscord } from '../hooks/useDiscord'
 
 function Chat({ isAdmin = false }) {
-  const [discordStatus, setDiscordStatus] = useState({ connected: false, loading: true })
-  const [channels, setChannels] = useState({})
-  const [activeChannel, setActiveChannel] = useState(null)
-  const [messages, setMessages] = useState([])
-  const [messageCache, setMessageCache] = useState({}) // Cache messages per channel
+  const {
+    connectionMode,
+    discordStatus,
+    error,
+    loading,
+    setError,
+    channels,
+    activeChannel,
+    setActiveChannel,
+    messages,
+    sendMessage,
+    connectDiscord,
+    disconnectDiscord
+  } = useDiscord()
+
   const [newMessage, setNewMessage] = useState('')
-  const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
-  const [error, setError] = useState(null)
   const messagesEndRef = useRef(null)
-  const pollIntervalRef = useRef(null)
-
-  // Check Discord connection status
-  useEffect(() => {
-    async function checkStatus() {
-      try {
-        const response = await api.get('/api/discord/status', { withCredentials: true })
-        setDiscordStatus({ ...response.data, loading: false })
-        if (response.data.connected) {
-          fetchChannels()
-        }
-      } catch (err) {
-        setDiscordStatus({ connected: false, loading: false })
-      }
-    }
-    checkStatus()
-  }, [])
-
-  // Fetch channels
-  async function fetchChannels() {
-    try {
-      const response = await api.get('/api/discord/channels', { withCredentials: true })
-      setChannels(response.data.channels)
-
-      // Auto-select first channel (general if available)
-      const allChannels = Object.values(response.data.channels).flat()
-      const generalChannel = allChannels.find(c => c.name === 'general')
-      if (generalChannel) {
-        setActiveChannel(generalChannel)
-      } else if (allChannels.length > 0) {
-        setActiveChannel(allChannels[0])
-      }
-    } catch (err) {
-      setError('Failed to load channels')
-    }
-  }
-
-  // Fetch messages when channel changes
-  useEffect(() => {
-    if (activeChannel) {
-      // Load from cache immediately if available
-      if (messageCache[activeChannel.id]) {
-        setMessages(messageCache[activeChannel.id])
-      }
-
-      fetchMessages()
-
-      // Set up polling for new messages (3 seconds)
-      pollIntervalRef.current = setInterval(fetchMessages, 3000)
-
-      return () => {
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current)
-        }
-      }
-    }
-  }, [activeChannel])
-
-  // Fetch messages
-  async function fetchMessages() {
-    if (!activeChannel) return
-
-    const channelId = activeChannel.id
-    const cachedMessages = messageCache[channelId] || []
-
-    try {
-      setLoading(cachedMessages.length === 0 && messages.length === 0)
-      const response = await api.get(`/api/discord/messages?channelId=${channelId}`, { withCredentials: true })
-      const newMessages = response.data.messages
-
-      // Only update if messages actually changed (compare last message ID)
-      const lastCachedId = cachedMessages[cachedMessages.length - 1]?.id
-      const lastNewId = newMessages[newMessages.length - 1]?.id
-
-      if (lastCachedId !== lastNewId || cachedMessages.length !== newMessages.length) {
-        setMessages(newMessages)
-        setMessageCache(prev => ({ ...prev, [channelId]: newMessages }))
-      }
-      setError(null)
-    } catch (err) {
-      if (cachedMessages.length === 0 && messages.length === 0) {
-        setError('Failed to load messages')
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
 
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Connect Discord account
-  async function handleConnectDiscord() {
-    try {
-      const response = await api.get('/api/discord/auth/url', { withCredentials: true })
-      window.location.href = response.data.url
-    } catch (err) {
-      setError('Failed to start Discord connection')
-    }
-  }
-
-  // Disconnect Discord
-  async function handleDisconnect() {
-    try {
-      await api.post('/api/discord/disconnect', {}, { withCredentials: true })
-      setDiscordStatus({ connected: false, loading: false })
-      setChannels({})
-      setActiveChannel(null)
-      setMessages([])
-    } catch (err) {
-      setError('Failed to disconnect')
-    }
-  }
-
-  // Send message
+  // Handle send message
   async function handleSendMessage(e) {
     e.preventDefault()
-    if (!newMessage.trim() || !activeChannel || sending) return
+    if (!newMessage.trim() || sending) return
 
     try {
       setSending(true)
-      await api.post(`/api/discord/messages?channelId=${activeChannel.id}`, {
-        content: newMessage
-      }, { withCredentials: true })
-
-      setNewMessage('')
-      // Immediately fetch new messages
-      await fetchMessages()
-    } catch (err) {
-      setError('Failed to send message')
+      const success = await sendMessage(newMessage)
+      if (success) {
+        setNewMessage('')
+      }
     } finally {
       setSending(false)
     }
@@ -202,7 +95,7 @@ function Chat({ isAdmin = false }) {
               Link your Discord account to access team channels. You'll only see channels you have permission to view.
             </p>
             <button
-              onClick={handleConnectDiscord}
+              onClick={connectDiscord}
               className="px-6 py-3 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg font-medium transition-colors flex items-center gap-2 mx-auto"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -225,11 +118,14 @@ function Chat({ isAdmin = false }) {
           <h2 className="text-xl font-bold text-white">Team Chat</h2>
           <p className="text-sm text-gray-400">
             Connected as {discordStatus.discordUsername}
+            <span className="ml-2 text-xs px-2 py-0.5 rounded bg-gray-800 text-gray-500">
+              {connectionMode === 'websocket' ? 'Real-time' : 'Polling'}
+            </span>
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={handleDisconnect}
+            onClick={disconnectDiscord}
             className="px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
           >
             Disconnect
