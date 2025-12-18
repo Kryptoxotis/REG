@@ -180,10 +180,10 @@ export function useDiscord() {
       pusherChannelRef.current = pusherChannel
     }
 
-    // Set up polling as backup (poll every 3s to catch Discord-only messages)
+    // Set up polling as backup (poll every 10s to catch Discord-only messages)
     pollIntervalRef.current = setInterval(() => {
       fetchMessagesREST(activeChannel.id, false)
-    }, 3000)
+    }, 10000)
 
     return () => {
       if (pollIntervalRef.current) {

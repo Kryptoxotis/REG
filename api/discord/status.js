@@ -31,9 +31,14 @@ export default async function handler(req, res) {
 
   const discordUser = getDiscordUser(req)
 
+  const avatarUrl = discordUser?.avatar
+    ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
+    : 'https://cdn.discordapp.com/embed/avatars/0.png'
+
   res.json({
     connected: !!discordUser,
     discordId: discordUser?.id || null,
-    discordUsername: discordUser?.username || null
+    discordUsername: discordUser?.username || null,
+    discordAvatar: discordUser ? avatarUrl : null
   })
 }

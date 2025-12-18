@@ -285,7 +285,9 @@ export default async function handler(req, res) {
         timestamp: new Date(sentMessage.timestamp).getTime(),
         attachments: []
       }
-      triggerPusher(`discord-${channelId}`, 'new-message', messageData)
+
+      // Await Pusher trigger (don't block response on failure)
+      await triggerPusher(`discord-${channelId}`, 'new-message', messageData)
 
       return res.json({
         success: true,
