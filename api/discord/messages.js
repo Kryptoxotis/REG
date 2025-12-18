@@ -146,28 +146,88 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Message content is required' })
       }
 
-      // Send as bot with user attribution
-      const userName = user.fullName || discordUser.username || 'Unknown'
+      // Get or create webhook for this channel
+      let webhook = null
 
-      const sendResponse = await fetch(
-        `https://discord.com/api/v10/channels/${channelId}/messages`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            content: `**${userName}:** ${content}`
-          })
-        }
+      // First, try to find existing webhook created by our bot
+      const webhooksResponse = await fetch(
+        `https://discord.com/api/v10/channels/${channelId}/webhooks`,
+        { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } }
       )
 
-      if (!sendResponse.ok) {
-        throw new Error(`Failed to send message: ${sendResponse.status}`)
+      if (webhooksResponse.ok) {
+        const webhooks = await webhooksResponse.json()
+        webhook = webhooks.find(w => w.name === 'REG Dashboard')
       }
 
-      const sentMessage = await sendResponse.json()
+      // Create webhook if not found
+      if (!webhook) {
+        const createResponse = await fetch(
+          `https://discord.com/api/v10/channels/${channelId}/webhooks`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ name: 'REG Dashboard' })
+          }
+        )
+
+        if (createResponse.ok) {
+          webhook = await createResponse.json()
+        }
+      }
+
+      // Build user's avatar URL
+      const avatarUrl = discordUser.avatar
+        ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
+        : `https://cdn.discordapp.com/embed/avatars/0.png`
+
+      let sentMessage
+
+      if (webhook) {
+        // Send via webhook with user's name and avatar
+        const webhookResponse = await fetch(
+          `https://discord.com/api/v10/webhooks/${webhook.id}/${webhook.token}?wait=true`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content: content,
+              username: discordUser.username,
+              avatar_url: avatarUrl
+            })
+          }
+        )
+
+        if (!webhookResponse.ok) {
+          throw new Error(`Failed to send webhook message: ${webhookResponse.status}`)
+        }
+
+        sentMessage = await webhookResponse.json()
+      } else {
+        // Fallback to bot message if webhook fails
+        const sendResponse = await fetch(
+          `https://discord.com/api/v10/channels/${channelId}/messages`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              content: `**${discordUser.username}:** ${content}`
+            })
+          }
+        )
+
+        if (!sendResponse.ok) {
+          throw new Error(`Failed to send message: ${sendResponse.status}`)
+        }
+
+        sentMessage = await sendResponse.json()
+      }
 
       return res.json({
         success: true,

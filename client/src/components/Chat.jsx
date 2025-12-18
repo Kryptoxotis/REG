@@ -60,8 +60,8 @@ function Chat({ isAdmin = false }) {
 
       fetchMessages()
 
-      // Set up polling for new messages (15 seconds)
-      pollIntervalRef.current = setInterval(fetchMessages, 15000)
+      // Set up polling for new messages (3 seconds)
+      pollIntervalRef.current = setInterval(fetchMessages, 3000)
 
       return () => {
         if (pollIntervalRef.current) {
