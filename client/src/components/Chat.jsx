@@ -7,6 +7,7 @@ function Chat({ isAdmin = false }) {
   const [channels, setChannels] = useState({})
   const [activeChannel, setActiveChannel] = useState(null)
   const [messages, setMessages] = useState([])
+  const [messageCache, setMessageCache] = useState({}) // Cache messages per channel
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
@@ -52,10 +53,15 @@ function Chat({ isAdmin = false }) {
   // Fetch messages when channel changes
   useEffect(() => {
     if (activeChannel) {
+      // Load from cache immediately if available
+      if (messageCache[activeChannel.id]) {
+        setMessages(messageCache[activeChannel.id])
+      }
+
       fetchMessages()
 
-      // Set up polling for new messages
-      pollIntervalRef.current = setInterval(fetchMessages, 5000)
+      // Set up polling for new messages (15 seconds)
+      pollIntervalRef.current = setInterval(fetchMessages, 15000)
 
       return () => {
         if (pollIntervalRef.current) {
@@ -69,13 +75,25 @@ function Chat({ isAdmin = false }) {
   async function fetchMessages() {
     if (!activeChannel) return
 
+    const channelId = activeChannel.id
+    const cachedMessages = messageCache[channelId] || []
+
     try {
-      setLoading(messages.length === 0)
-      const response = await api.get(`/api/discord/messages?channelId=${activeChannel.id}`, { withCredentials: true })
-      setMessages(response.data.messages)
+      setLoading(cachedMessages.length === 0 && messages.length === 0)
+      const response = await api.get(`/api/discord/messages?channelId=${channelId}`, { withCredentials: true })
+      const newMessages = response.data.messages
+
+      // Only update if messages actually changed (compare last message ID)
+      const lastCachedId = cachedMessages[cachedMessages.length - 1]?.id
+      const lastNewId = newMessages[newMessages.length - 1]?.id
+
+      if (lastCachedId !== lastNewId || cachedMessages.length !== newMessages.length) {
+        setMessages(newMessages)
+        setMessageCache(prev => ({ ...prev, [channelId]: newMessages }))
+      }
       setError(null)
     } catch (err) {
-      if (messages.length === 0) {
+      if (cachedMessages.length === 0 && messages.length === 0) {
         setError('Failed to load messages')
       }
     } finally {
