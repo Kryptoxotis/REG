@@ -22,7 +22,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
   const [error, setError] = useState(null)
   const [selectedDeal, setSelectedDeal] = useState(null)
   const [viewMode, setViewMode] = useState('monthly')
-  const [pipelineTab, setPipelineTab] = useState('loan-status')
+  const [pipelineTab, setPipelineTab] = useState('pending')
   const [presaleCity, setPresaleCity] = useState('')
   const [expandedColumns, setExpandedColumns] = useState({})
   const [searchTerm, setSearchTerm] = useState('')
@@ -81,7 +81,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     setLoading(true)
     setError(null)
     try {
-      const dbMap = { 'presale': 'PROPERTIES', 'loan-status': 'PIPELINE', 'closed': 'CLOSED_DEALS' }
+      const dbMap = { 'submitted': 'PROPERTIES', 'pending': 'PIPELINE', 'closed-deals': 'CLOSED_DEALS' }
       const database = dbMap[pipelineTab] || 'PIPELINE'
       // HttpOnly cookies handle auth automatically via withCredentials
       const response = await api.get(`/api/databases/${database}`)
@@ -363,11 +363,11 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
   const filteredDeals = deals.filter(deal => {
     if (viewMode === 'monthly' && !isThisMonth(deal)) return false
-    if (pipelineTab === 'loan-status') {
+    if (pipelineTab === 'pending') {
       const loanStatus = deal['Loan Status'] || ''
       if (loanStatus === 'Closed' || loanStatus === 'Funded' || loanStatus === 'Loan Complete / Transfer') return false
     }
-    if (pipelineTab === 'presale' && presaleCity) {
+    if (pipelineTab === 'submitted' && presaleCity) {
       const edwardsCo = CITY_TO_EDWARDS[presaleCity]
       const dealOffice = deal.Office || deal['Edwards Co'] || deal['Edwards Co.'] || ''
       if (edwardsCo && dealOffice !== edwardsCo) return false
@@ -396,7 +396,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     if (filters.mortgageCompany && deal['Mortgage Company'] !== filters.mortgageCompany) return false
     if (filters.brokerName && deal['Broker Name'] !== filters.brokerName) return false
     if (filters.realtorPartner && deal['Realtor Partner'] !== filters.realtorPartner) return false
-    if (isEmployee && employeeName && pipelineTab === 'loan-status') {
+    if (isEmployee && employeeName && pipelineTab === 'pending') {
       const dealAgent = (deal.Agent || '').toLowerCase()
       const userNameLower = employeeName.toLowerCase()
       if (!dealAgent.includes(userNameLower) && !userNameLower.includes(dealAgent)) return false
@@ -477,23 +477,23 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
       {/* Pipeline Tabs */}
       <div className="flex bg-gray-800/50 rounded-xl p-1.5 border border-gray-700 gap-1">
-        <button onClick={() => setPipelineTab('presale')} className={`flex-1 px-3 sm:px-4 py-3 sm:py-2.5 text-sm font-medium rounded-lg transition-all ${pipelineTab === 'presale' ? 'bg-amber-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}`}>
-          <span className="hidden sm:inline">📋 Presale</span><span className="sm:hidden">Presale</span>
-          {pipelineTab === 'presale' && <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-black/20">{deals.length}</span>}
+        <button onClick={() => setPipelineTab('submitted')} className={`flex-1 px-3 sm:px-4 py-3 sm:py-2.5 text-sm font-medium rounded-lg transition-all ${pipelineTab === 'submitted' ? 'bg-amber-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}`}>
+          <span className="hidden sm:inline">📋 Submitted</span><span className="sm:hidden">Submit</span>
+          {pipelineTab === 'submitted' && <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-black/20">{deals.length}</span>}
         </button>
-        <button onClick={() => setPipelineTab('loan-status')} className={`flex-1 px-3 sm:px-4 py-3 sm:py-2.5 text-sm font-medium rounded-lg transition-all ${pipelineTab === 'loan-status' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}`}>
-          <span className="hidden sm:inline">💰 Loan Status</span><span className="sm:hidden">Loan</span>
-          {pipelineTab === 'loan-status' && <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-black/20">{filteredDeals.length}</span>}
+        <button onClick={() => setPipelineTab('pending')} className={`flex-1 px-3 sm:px-4 py-3 sm:py-2.5 text-sm font-medium rounded-lg transition-all ${pipelineTab === 'pending' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}`}>
+          <span className="hidden sm:inline">💰 Pending</span><span className="sm:hidden">Pending</span>
+          {pipelineTab === 'pending' && <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-black/20">{filteredDeals.length}</span>}
         </button>
-        <button onClick={() => setPipelineTab('closed')} className={`flex-1 px-3 sm:px-4 py-3 sm:py-2.5 text-sm font-medium rounded-lg transition-all ${pipelineTab === 'closed' ? 'bg-emerald-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}`}>
+        <button onClick={() => setPipelineTab('closed-deals')} className={`flex-1 px-3 sm:px-4 py-3 sm:py-2.5 text-sm font-medium rounded-lg transition-all ${pipelineTab === 'closed-deals' ? 'bg-emerald-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}`}>
           <span className="hidden sm:inline">✅ Closed Deals</span><span className="sm:hidden">Closed</span>
-          {pipelineTab === 'closed' && <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-black/20">{deals.length}</span>}
+          {pipelineTab === 'closed-deals' && <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-black/20">{deals.length}</span>}
         </button>
       </div>
 
       {/* Presale City Filter */}
       <AnimatePresence>
-        {pipelineTab === 'presale' && (
+        {pipelineTab === 'submitted' && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="flex flex-wrap gap-2">
               <button onClick={() => setPresaleCity('')} className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${presaleCity === '' ? 'bg-amber-600/30 text-amber-400 border border-amber-500/50' : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white'}`}>All Cities</button>
@@ -514,16 +514,16 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       />
 
       {/* Grid View for Presale and Closed tabs */}
-      {(pipelineTab === 'presale' || pipelineTab === 'closed') && (
+      {(pipelineTab === 'submitted' || pipelineTab === 'closed-deals') && (
         <>
           <div className="bg-gray-800/50 rounded-xl p-4 mb-4 flex items-center justify-between">
             <div>
               <span className="text-2xl font-bold text-white">{filteredDeals.length}</span>
-              <span className="text-gray-400 ml-2">{pipelineTab === 'presale' ? 'Properties' : 'Closed Deals'}</span>
+              <span className="text-gray-400 ml-2">{pipelineTab === 'submitted' ? 'Submitted' : 'Closed Deals'}</span>
             </div>
           </div>
           {filteredDeals.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">{error || `No ${pipelineTab === 'presale' ? 'properties' : 'closed deals'} found`}</div>
+            <div className="text-center py-12 text-gray-500">{error || `No ${pipelineTab === 'submitted' ? 'submitted items' : 'closed deals'} found`}</div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredDeals.map(deal => (
@@ -543,7 +543,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       )}
 
       {/* Loan Status Tab - Kanban View */}
-      {pipelineTab === 'loan-status' && (
+      {pipelineTab === 'pending' && (
         <>
           {/* Mobile Summary */}
           <div className="sm:hidden bg-gray-800/50 rounded-xl p-4 flex items-center justify-between">

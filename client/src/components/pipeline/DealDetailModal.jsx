@@ -76,7 +76,7 @@ function DealDetailModal({
             </div>
 
             {/* Move to Submitted section - only show on Presale tab */}
-            {pipelineTab === 'presale' && (
+            {pipelineTab === 'submitted' && (
               <div className="mt-4 p-4 bg-gray-800/50 rounded-xl border border-amber-500/30">
                 <h3 className="text-sm font-semibold text-amber-400 mb-3">Move to Submitted</h3>
                 <p className="text-xs text-gray-400 mb-3">Start the contract process. Property address can still be edited after submission.</p>
@@ -145,7 +145,7 @@ function DealDetailModal({
             )}
 
             {/* Move to Pending section - only show for Submitted deals in Loan Status tab */}
-            {pipelineTab === 'loan-status' && selectedDeal['Loan Status'] === 'Submitted' && (
+            {pipelineTab === 'pending' && selectedDeal['Loan Status'] === 'Submitted' && (
               <div className="mt-4 p-4 bg-gray-800/50 rounded-xl border border-blue-500/30">
                 <h3 className="text-sm font-semibold text-blue-400 mb-3">Complete Contract Submission</h3>
                 <p className="text-xs text-gray-400 mb-3">Fill out the full contract details. This will lock the address and archive the property.</p>
@@ -426,7 +426,7 @@ function DealDetailModal({
             )}
 
             {/* Change Status section - only show on Loan Status tab for non-Submitted deals */}
-            {pipelineTab === 'loan-status' && selectedDeal['Loan Status'] !== 'Submitted' && (
+            {pipelineTab === 'pending' && selectedDeal['Loan Status'] !== 'Submitted' && (
               <div className="mt-4 p-3 bg-gray-800/50 rounded-xl border border-gray-700">
                 <h3 className="text-sm font-semibold text-gray-300 mb-2">Change Status</h3>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
