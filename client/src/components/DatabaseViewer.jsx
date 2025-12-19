@@ -49,15 +49,20 @@ function getStatusBorderColor(status) {
   return 'border-l-gray-600'
 }
 
-// Check if item was created today
+// Check if item was created today (in local timezone)
 function isNewItem(item) {
-  if (!item?.created_time) return false
+  if (!item?.created_time) {
+    console.log('No created_time for item:', item?.Address || item?.id)
+    return false
+  }
   const created = new Date(item.created_time)
   const now = new Date()
-  // Compare year, month, and day only
-  return created.getFullYear() === now.getFullYear() &&
-         created.getMonth() === now.getMonth() &&
-         created.getDate() === now.getDate()
+  // Convert both to local date strings for comparison (handles timezone)
+  const createdDate = created.toLocaleDateString()
+  const todayDate = now.toLocaleDateString()
+  const isToday = createdDate === todayDate
+  if (isToday) console.log('NEW TODAY:', item.Address, item.created_time)
+  return isToday
 }
 
 function PropertyCard({ item, config, onClick }) {
