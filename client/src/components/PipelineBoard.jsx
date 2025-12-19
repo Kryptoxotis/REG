@@ -38,12 +38,18 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     agent: '', buyerName: '', buyerEmail: '', buyerPhone: '',
     assistingAgent: '', brokerName: '', loName: '', loEmail: '', loPhone: '',
     loanAmount: '', loanType: '', realtorPartner: '', realtorEmail: '', realtorPhone: '',
-    notes: '', closedDate: '', executeDate: ''
+    notes: '', closedDate: '', executeDate: '',
+    // New fields for Submitted and Pending flows
+    foreman: '', subdivision: '', agentAssist: '',
+    submittedBy: '', agentRole: '', streetAddress: '', city: '', state: '', zipCode: '',
+    lot: '', block: '', floorPlan: ''
   })
   const [teamMembers, setTeamMembers] = useState([])
   const [isMoving, setIsMoving] = useState(false)
   const [isChangingStatus, setIsChangingStatus] = useState(false)
   const [isSendingBack, setIsSendingBack] = useState(false)
+  const [isMovingToSubmitted, setIsMovingToSubmitted] = useState(false)
+  const [isMovingToPending, setIsMovingToPending] = useState(false)
 
   useEffect(() => { fetchDeals() }, [pipelineTab])
 
@@ -227,6 +233,111 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       console.error('Failed to send back to properties:', err)
       alert('Failed to send back to Properties')
     } finally { setIsSendingBack(false) }
+  }
+
+  // Move Property to Submitted (first Pipeline stage, keeps Property linked)
+  const moveToSubmitted = async () => {
+    if (!selectedDeal || isMovingToSubmitted) return
+    if (!moveForm.buyerName) { alert('Buyer Name is required'); return }
+
+    setIsMovingToSubmitted(true)
+    try {
+      const result = await api.post('/api/databases/actions', {
+        action: 'move-to-submitted',
+        propertyId: selectedDeal.id,
+        address: selectedDeal.Address || selectedDeal.address || '',
+        salesPrice: selectedDeal['Sales Price'] || selectedDeal.salesPrice || 0,
+        foreman: moveForm.foreman,
+        subdivision: moveForm.subdivision,
+        agentAssist: moveForm.agentAssist,
+        buyerName: moveForm.buyerName
+      })
+
+      await api.post('/api/databases/actions', {
+        action: 'log-activity',
+        logAction: `Property moved to Submitted: ${selectedDeal.Address || 'Unknown'}`,
+        dealAddress: selectedDeal.Address || 'Unknown Address',
+        entityType: 'Deal',
+        actionType: 'Move to Submitted'
+      })
+
+      // Reset form and close modal
+      setMoveForm(prev => ({
+        ...prev, foreman: '', subdivision: '', agentAssist: '', buyerName: ''
+      }))
+      setSelectedDeal(null)
+      fetchDeals()
+    } catch (err) {
+      console.error('Failed to move to submitted:', err)
+      alert(err.response?.data?.error || 'Failed to move to Submitted')
+    } finally { setIsMovingToSubmitted(false) }
+  }
+
+  // Move Submitted deal to Pending (full form, archives Property, locks address)
+  const moveToPending = async () => {
+    if (!selectedDeal || isMovingToPending) return
+    if (!moveForm.agent) { alert('Agent is required'); return }
+    if (!moveForm.buyerName) { alert('Buyer Name is required'); return }
+    if (!moveForm.buyerEmail) { alert('Buyer Email is required'); return }
+    if (!moveForm.buyerPhone) { alert('Buyer Phone is required'); return }
+
+    setIsMovingToPending(true)
+    try {
+      await api.post('/api/databases/actions', {
+        action: 'move-to-pending',
+        dealId: selectedDeal.id,
+        propertyId: selectedDeal['Linked Property']?.[0] || null,
+        submittedBy: moveForm.submittedBy || employeeName,
+        agentRole: moveForm.agentRole,
+        streetAddress: moveForm.streetAddress,
+        city: moveForm.city,
+        state: moveForm.state,
+        zipCode: moveForm.zipCode,
+        lot: moveForm.lot,
+        block: moveForm.block,
+        subdivision: moveForm.subdivision,
+        floorPlan: moveForm.floorPlan,
+        agent: moveForm.agent,
+        buyerName: moveForm.buyerName,
+        buyerEmail: moveForm.buyerEmail,
+        buyerPhone: moveForm.buyerPhone,
+        assistingAgent: moveForm.assistingAgent,
+        brokerName: moveForm.brokerName,
+        loName: moveForm.loName,
+        loEmail: moveForm.loEmail,
+        loPhone: moveForm.loPhone,
+        loanAmount: moveForm.loanAmount,
+        loanType: moveForm.loanType,
+        realtorPartner: moveForm.realtorPartner,
+        realtorEmail: moveForm.realtorEmail,
+        realtorPhone: moveForm.realtorPhone,
+        notes: moveForm.notes
+      })
+
+      await api.post('/api/databases/actions', {
+        action: 'log-activity',
+        logAction: `Deal moved to Pending: ${moveForm.streetAddress || selectedDeal.Address || 'Unknown'}`,
+        dealAddress: moveForm.streetAddress || selectedDeal.Address || 'Unknown Address',
+        entityType: 'Deal',
+        actionType: 'Move to Pending'
+      })
+
+      // Reset form and refresh
+      setMoveForm({
+        agent: '', buyerName: '', buyerEmail: '', buyerPhone: '',
+        assistingAgent: '', brokerName: '', loName: '', loEmail: '', loPhone: '',
+        loanAmount: '', loanType: '', realtorPartner: '', realtorEmail: '', realtorPhone: '',
+        notes: '', closedDate: '', executeDate: '',
+        foreman: '', subdivision: '', agentAssist: '',
+        submittedBy: '', agentRole: '', streetAddress: '', city: '', state: '', zipCode: '',
+        lot: '', block: '', floorPlan: ''
+      })
+      setSelectedDeal(null)
+      fetchDeals()
+    } catch (err) {
+      console.error('Failed to move to pending:', err)
+      alert(err.response?.data?.error || 'Failed to move to Pending')
+    } finally { setIsMovingToPending(false) }
   }
 
   const isThisMonth = (deal) => {
@@ -543,6 +654,8 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
           selectedDeal={selectedDeal} onClose={() => setSelectedDeal(null)} pipelineTab={pipelineTab}
           moveForm={moveForm} setMoveForm={setMoveForm} teamMembers={teamMembers} moveToPipeline={moveToPipeline} isMoving={isMoving}
           changeStatus={changeStatus} isChangingStatus={isChangingStatus} sendBackToProperties={sendBackToProperties} isSendingBack={isSendingBack}
+          moveToSubmitted={moveToSubmitted} isMovingToSubmitted={isMovingToSubmitted}
+          moveToPending={moveToPending} isMovingToPending={isMovingToPending}
         />
       )}
     </div>

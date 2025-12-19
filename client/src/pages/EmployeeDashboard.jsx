@@ -2,12 +2,14 @@ import { useState, useEffect, useMemo } from 'react'
 import api from '../lib/api'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ActivityLogger } from '../utils/activityLogger'
+import { useToast } from '../components/Toast'
 import ScheduleCalendar from '../components/ScheduleCalendar'
 import PipelineBoard from '../components/PipelineBoard'
 import OfficeOverview from '../components/OfficeOverview'
 import Chat from '../components/Chat'
 
 function EmployeeDashboard({ user, setUser }) {
+  const toast = useToast()
   const [activeSection, setActiveSection] = useState('overview')
   const [profileData, setProfileData] = useState(null)
   const [personalStats, setPersonalStats] = useState(null)
@@ -37,8 +39,30 @@ function EmployeeDashboard({ user, setUser }) {
     { id: 'chat', label: 'Chat', icon: '💬' },
   ]
 
-  // Handle section change with logging
-  const handleSectionChange = (sectionId) => {
+  // Handle section change with logging and session verification
+  const handleSectionChange = async (sectionId) => {
+    // Verify session is still valid before navigation
+    try {
+      const response = await api.get('/api/auth/check')
+      if (!response.data?.user) {
+        toast.error('Session expired. Please log in again.')
+        setUser(null)
+        return
+      }
+      // Update user state if role changed (e.g., promoted to admin)
+      const currentUser = response.data.user
+      if (currentUser.role !== user?.role) {
+        toast.info('Your permissions have been updated.')
+        setUser(currentUser)
+        return
+      }
+    } catch (err) {
+      console.error('Session check failed:', err)
+      toast.error('Session expired. Please log in again.')
+      setUser(null)
+      return
+    }
+
     setActiveSection(sectionId)
     const section = navItems.find(n => n.id === sectionId)
     ActivityLogger.navigate(section?.label || sectionId)
@@ -225,6 +249,9 @@ function EmployeeDashboard({ user, setUser }) {
   }, [propertiesData])
 
   const handleLogout = async () => {
+    // Log the logout action before clearing user state
+    ActivityLogger.logout(user?.fullName || user?.email || 'Unknown User')
+
     try {
       // HttpOnly cookies handle auth automatically via withCredentials
       await api.post('/api/auth/logout')

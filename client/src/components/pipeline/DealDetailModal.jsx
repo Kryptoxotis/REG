@@ -13,6 +13,11 @@ function DealDetailModal({
   teamMembers,
   moveToPipeline,
   isMoving,
+  // New Submitted flow props
+  moveToSubmitted,
+  isMovingToSubmitted,
+  moveToPending,
+  isMovingToPending,
   // Status change props (for Loan Status tab)
   changeStatus,
   isChangingStatus,
@@ -70,13 +75,211 @@ function DealDetailModal({
               <DetailRow label="Mortgage Company" value={selectedDeal['Mortgage Company']} />
             </div>
 
-            {/* Move to Pipeline section - only show on Presale tab */}
+            {/* Move to Submitted section - only show on Presale tab */}
             {pipelineTab === 'presale' && (
-              <div className="mt-4 p-4 bg-gray-800/50 rounded-xl border border-gray-700">
-                <h3 className="text-sm font-semibold text-gray-300 mb-3">Move to Loan Status</h3>
+              <div className="mt-4 p-4 bg-gray-800/50 rounded-xl border border-amber-500/30">
+                <h3 className="text-sm font-semibold text-amber-400 mb-3">Move to Submitted</h3>
+                <p className="text-xs text-gray-400 mb-3">Start the contract process. Property address can still be edited after submission.</p>
                 <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
-                  {/* Required Fields */}
-                  <p className="text-xs text-amber-400 font-medium">Required Fields</p>
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Buyer Name *</label>
+                    <input
+                      type="text"
+                      value={moveForm.buyerName}
+                      onChange={e => setMoveForm(prev => ({ ...prev, buyerName: e.target.value }))}
+                      placeholder="Full name"
+                      className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Foreman</label>
+                    <input
+                      type="text"
+                      value={moveForm.foreman || ''}
+                      onChange={e => setMoveForm(prev => ({ ...prev, foreman: e.target.value }))}
+                      placeholder="Foreman name"
+                      className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Subdivision</label>
+                    <input
+                      type="text"
+                      value={moveForm.subdivision || ''}
+                      onChange={e => setMoveForm(prev => ({ ...prev, subdivision: e.target.value }))}
+                      placeholder="Subdivision"
+                      className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Agent Assist</label>
+                    <select
+                      value={moveForm.agentAssist || ''}
+                      onChange={e => setMoveForm(prev => ({ ...prev, agentAssist: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
+                    >
+                      <option value="">None</option>
+                      {teamMembers.map(member => (
+                        <option key={member.id} value={member.Name || member.name}>
+                          {member.Name || member.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={moveToSubmitted}
+                    disabled={!moveForm.buyerName || isMovingToSubmitted}
+                    className="w-full py-2.5 bg-amber-600 hover:bg-amber-500 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg transition-colors font-medium text-sm flex items-center justify-center gap-2"
+                  >
+                    {isMovingToSubmitted && (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    )}
+                    {isMovingToSubmitted ? 'Submitting...' : 'Move to Submitted'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Move to Pending section - only show for Submitted deals in Loan Status tab */}
+            {pipelineTab === 'loan-status' && selectedDeal['Loan Status'] === 'Submitted' && (
+              <div className="mt-4 p-4 bg-gray-800/50 rounded-xl border border-blue-500/30">
+                <h3 className="text-sm font-semibold text-blue-400 mb-3">Complete Contract Submission</h3>
+                <p className="text-xs text-gray-400 mb-3">Fill out the full contract details. This will lock the address and archive the property.</p>
+                <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
+                  {/* Contract Info */}
+                  <p className="text-xs text-amber-400 font-medium">Contract Information</p>
+
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Who is submitting this contract? *</label>
+                    <select
+                      value={moveForm.submittedBy || ''}
+                      onChange={e => setMoveForm(prev => ({ ...prev, submittedBy: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="">Select</option>
+                      {teamMembers.map(member => (
+                        <option key={member.id} value={member.Name || member.name}>
+                          {member.Name || member.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Agent Role</label>
+                    <select
+                      value={moveForm.agentRole || ''}
+                      onChange={e => setMoveForm(prev => ({ ...prev, agentRole: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="">Select Role</option>
+                      <option value="Listing Agent">Listing Agent</option>
+                      <option value="Buyers Agent">Buyers Agent</option>
+                      <option value="Dual Agent">Dual Agent</option>
+                    </select>
+                  </div>
+
+                  {/* Address Info */}
+                  <p className="text-xs text-amber-400 font-medium mt-4 pt-3 border-t border-gray-700">Property Address</p>
+
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Street Address *</label>
+                    <input
+                      type="text"
+                      value={moveForm.streetAddress || ''}
+                      onChange={e => setMoveForm(prev => ({ ...prev, streetAddress: e.target.value }))}
+                      placeholder="123 Main St"
+                      className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">City *</label>
+                      <select
+                        value={moveForm.city || ''}
+                        onChange={e => setMoveForm(prev => ({ ...prev, city: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="">Select City</option>
+                        <option value="El Paso">El Paso</option>
+                        <option value="Horizon">Horizon</option>
+                        <option value="Socorro">Socorro</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">State *</label>
+                      <select
+                        value={moveForm.state || ''}
+                        onChange={e => setMoveForm(prev => ({ ...prev, state: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="">Select</option>
+                        <option value="TX">TX</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">ZIP Code</label>
+                      <input
+                        type="text"
+                        value={moveForm.zipCode || ''}
+                        onChange={e => setMoveForm(prev => ({ ...prev, zipCode: e.target.value }))}
+                        placeholder="79936"
+                        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Lot</label>
+                      <input
+                        type="text"
+                        value={moveForm.lot || ''}
+                        onChange={e => setMoveForm(prev => ({ ...prev, lot: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Block</label>
+                      <input
+                        type="text"
+                        value={moveForm.block || ''}
+                        onChange={e => setMoveForm(prev => ({ ...prev, block: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Subdivision</label>
+                      <input
+                        type="text"
+                        value={moveForm.subdivision || ''}
+                        onChange={e => setMoveForm(prev => ({ ...prev, subdivision: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Floor Plan</label>
+                      <input
+                        type="text"
+                        value={moveForm.floorPlan || ''}
+                        onChange={e => setMoveForm(prev => ({ ...prev, floorPlan: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Buyer Info */}
+                  <p className="text-xs text-amber-400 font-medium mt-4 pt-3 border-t border-gray-700">Buyer Information</p>
 
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">Agent *</label>
@@ -105,26 +308,27 @@ function DealDetailModal({
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Buyer Email *</label>
-                    <input
-                      type="email"
-                      value={moveForm.buyerEmail}
-                      onChange={e => setMoveForm(prev => ({ ...prev, buyerEmail: e.target.value }))}
-                      placeholder="buyer@email.com"
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Buyer Phone *</label>
-                    <input
-                      type="tel"
-                      value={moveForm.buyerPhone}
-                      onChange={e => setMoveForm(prev => ({ ...prev, buyerPhone: e.target.value }))}
-                      placeholder="(555) 555-5555"
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
-                    />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Buyer Email *</label>
+                      <input
+                        type="email"
+                        value={moveForm.buyerEmail}
+                        onChange={e => setMoveForm(prev => ({ ...prev, buyerEmail: e.target.value }))}
+                        placeholder="buyer@email.com"
+                        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Buyer Phone *</label>
+                      <input
+                        type="tel"
+                        value={moveForm.buyerPhone}
+                        onChange={e => setMoveForm(prev => ({ ...prev, buyerPhone: e.target.value }))}
+                        placeholder="(555) 555-5555"
+                        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
                   </div>
 
                   {/* Optional Fields */}
@@ -148,15 +352,6 @@ function DealDetailModal({
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-xs text-gray-400 mb-1">Broker Name</label>
-                      <input
-                        type="text"
-                        value={moveForm.brokerName}
-                        onChange={e => setMoveForm(prev => ({ ...prev, brokerName: e.target.value }))}
-                        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-                    <div>
                       <label className="block text-xs text-gray-400 mb-1">Loan Type</label>
                       <select
                         value={moveForm.loanType}
@@ -172,76 +367,13 @@ function DealDetailModal({
                         <option value="Other">Other</option>
                       </select>
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">LO Name</label>
-                    <input
-                      type="text"
-                      value={moveForm.loName}
-                      onChange={e => setMoveForm(prev => ({ ...prev, loName: e.target.value }))}
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-xs text-gray-400 mb-1">LO Email</label>
+                      <label className="block text-xs text-gray-400 mb-1">Loan Amount</label>
                       <input
-                        type="email"
-                        value={moveForm.loEmail}
-                        onChange={e => setMoveForm(prev => ({ ...prev, loEmail: e.target.value }))}
-                        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">LO Phone</label>
-                      <input
-                        type="tel"
-                        value={moveForm.loPhone}
-                        onChange={e => setMoveForm(prev => ({ ...prev, loPhone: e.target.value }))}
-                        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Loan Amount</label>
-                    <input
-                      type="number"
-                      value={moveForm.loanAmount}
-                      onChange={e => setMoveForm(prev => ({ ...prev, loanAmount: e.target.value }))}
-                      placeholder="0"
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Realtor Partner</label>
-                    <input
-                      type="text"
-                      value={moveForm.realtorPartner}
-                      onChange={e => setMoveForm(prev => ({ ...prev, realtorPartner: e.target.value }))}
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">Realtor Email</label>
-                      <input
-                        type="email"
-                        value={moveForm.realtorEmail}
-                        onChange={e => setMoveForm(prev => ({ ...prev, realtorEmail: e.target.value }))}
-                        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">Realtor Phone</label>
-                      <input
-                        type="tel"
-                        value={moveForm.realtorPhone}
-                        onChange={e => setMoveForm(prev => ({ ...prev, realtorPhone: e.target.value }))}
+                        type="number"
+                        value={moveForm.loanAmount}
+                        onChange={e => setMoveForm(prev => ({ ...prev, loanAmount: e.target.value }))}
+                        placeholder="0"
                         className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
                       />
                     </div>
@@ -258,11 +390,12 @@ function DealDetailModal({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-400 mb-1">Execute Date</label>
+                      <label className="block text-xs text-gray-400 mb-1">Sales Price</label>
                       <input
-                        type="date"
-                        value={moveForm.executeDate}
-                        onChange={e => setMoveForm(prev => ({ ...prev, executeDate: e.target.value }))}
+                        type="number"
+                        value={moveForm.salesPrice || ''}
+                        onChange={e => setMoveForm(prev => ({ ...prev, salesPrice: e.target.value }))}
+                        placeholder="0"
                         className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none"
                       />
                     </div>
@@ -279,21 +412,21 @@ function DealDetailModal({
                   </div>
 
                   <button
-                    onClick={moveToPipeline}
-                    disabled={!moveForm.agent || !moveForm.buyerName || !moveForm.buyerEmail || !moveForm.buyerPhone || isMoving}
+                    onClick={moveToPending}
+                    disabled={!moveForm.streetAddress || !moveForm.buyerName || !moveForm.buyerEmail || !moveForm.buyerPhone || !moveForm.agent || isMovingToPending}
                     className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg transition-colors font-medium text-sm flex items-center justify-center gap-2"
                   >
-                    {isMoving && (
+                    {isMovingToPending && (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     )}
-                    {isMoving ? 'Moving...' : 'Move to Loan Status'}
+                    {isMovingToPending ? 'Processing...' : 'Complete Submission & Lock Address'}
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Change Status section - only show on Loan Status tab */}
-            {pipelineTab === 'loan-status' && (
+            {/* Change Status section - only show on Loan Status tab for non-Submitted deals */}
+            {pipelineTab === 'loan-status' && selectedDeal['Loan Status'] !== 'Submitted' && (
               <div className="mt-4 p-3 bg-gray-800/50 rounded-xl border border-gray-700">
                 <h3 className="text-sm font-semibold text-gray-300 mb-2">Change Status</h3>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
@@ -362,12 +495,31 @@ DealDetailModal.propTypes = {
     mortgageCompany: PropTypes.string,
     realtorPartner: PropTypes.string,
     loanStatus: PropTypes.string,
-    assistingAgent: PropTypes.string
+    assistingAgent: PropTypes.string,
+    buyerName: PropTypes.string,
+    buyerEmail: PropTypes.string,
+    buyerPhone: PropTypes.string,
+    foreman: PropTypes.string,
+    subdivision: PropTypes.string,
+    agentAssist: PropTypes.string,
+    submittedBy: PropTypes.string,
+    agentRole: PropTypes.string,
+    streetAddress: PropTypes.string,
+    city: PropTypes.string,
+    state: PropTypes.string,
+    zipCode: PropTypes.string,
+    lot: PropTypes.string,
+    block: PropTypes.string,
+    floorPlan: PropTypes.string
   }),
   setMoveForm: PropTypes.func,
   teamMembers: PropTypes.array,
   moveToPipeline: PropTypes.func,
   isMoving: PropTypes.bool,
+  moveToSubmitted: PropTypes.func,
+  isMovingToSubmitted: PropTypes.bool,
+  moveToPending: PropTypes.func,
+  isMovingToPending: PropTypes.bool,
   changeStatus: PropTypes.func,
   isChangingStatus: PropTypes.bool,
   sendBackToProperties: PropTypes.func,

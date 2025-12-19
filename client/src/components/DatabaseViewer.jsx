@@ -49,6 +49,15 @@ function getStatusBorderColor(status) {
   return 'border-l-gray-600'
 }
 
+// Check if item was created within the last 7 days
+function isNewItem(item) {
+  if (!item?.created_time) return false
+  const created = new Date(item.created_time)
+  const now = new Date()
+  const daysDiff = (now - created) / (1000 * 60 * 60 * 24)
+  return daysDiff <= 7
+}
+
 function PropertyCard({ item, config, onClick }) {
   const status = item[config.statusField] || item.Status || item.status || ''
   const primaryValue = item[config.primaryField] || item.Address || 'No Address'
@@ -101,8 +110,9 @@ function PropertyCard({ item, config, onClick }) {
     >
       <div className="p-4">
         <div className="flex justify-between items-start mb-3">
-          <h3 className="font-semibold text-white truncate flex-1 text-sm sm:text-base">
+          <h3 className="font-semibold text-white truncate flex-1 text-sm sm:text-base flex items-center gap-1">
             {primaryValue}
+            {isNewItem(item) && <span className="text-red-500 font-bold text-lg" title="Added in last 7 days">*</span>}
           </h3>
           {status && (
             <span className={`ml-2 px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getStatusColor(status)}`}>
@@ -541,19 +551,22 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
                     key={col}
                     className={`px-5 py-4 text-sm ${colIdx === 0 ? 'font-medium text-white' : 'text-gray-300'}`}
                   >
-                    {col === config.statusField && item[col] ? (
-                      <span className={"inline-flex px-3 py-1 text-xs font-medium rounded-full shadow-sm " + getStatusColor(item[col])}>
-                        {item[col]}
-                      </span>
-                    ) : (col.toLowerCase().includes('price') || col === 'Sales Price') ? (
-                      <span className="text-emerald-400 font-semibold">{formatPrice(item[col])}</span>
-                    ) : (col === 'Floorplan' || col === 'Floor Plan') ? (
-                      <span className="text-blue-400 font-medium">{String(item[col] || '-')}</span>
-                    ) : col === 'Subdivision' ? (
-                      <span className="text-purple-400">{String(item[col] || '-')}</span>
-                    ) : (
-                      <span className="group-hover:text-white transition-colors">{String(item[col] || '-')}</span>
-                    )}
+                    <span className="flex items-center gap-1">
+                      {colIdx === 0 && isNewItem(item) && <span className="text-red-500 font-bold text-lg" title="Added in last 7 days">*</span>}
+                      {col === config.statusField && item[col] ? (
+                        <span className={"inline-flex px-3 py-1 text-xs font-medium rounded-full shadow-sm " + getStatusColor(item[col])}>
+                          {item[col]}
+                        </span>
+                      ) : (col.toLowerCase().includes('price') || col === 'Sales Price') ? (
+                        <span className="text-emerald-400 font-semibold">{formatPrice(item[col])}</span>
+                      ) : (col === 'Floorplan' || col === 'Floor Plan') ? (
+                        <span className="text-blue-400 font-medium">{String(item[col] || '-')}</span>
+                      ) : col === 'Subdivision' ? (
+                        <span className="text-purple-400">{String(item[col] || '-')}</span>
+                      ) : (
+                        <span className="group-hover:text-white transition-colors">{String(item[col] || '-')}</span>
+                      )}
+                    </span>
                   </td>
                 ))}
               </motion.tr>
@@ -667,116 +680,132 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
         </div>
       </div>
 
-      {/* Clients Filter Panel */}
+      {/* Clients Filter Panel - filters based on fieldPrefs.filters configuration */}
       {databaseKey === 'CLIENTS' && showFilters && (
         <div className="px-4 pb-4 pt-2 border-b border-gray-700 bg-gray-800/50">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Source</label>
-              <select
-                value={sourceFilter}
-                onChange={(e) => setSourceFilter(e.target.value)}
-                className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-              >
-                <option value="">All Sources</option>
-                {filterOptions.sources?.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Status</label>
-              <select
-                value={clientStatusFilter}
-                onChange={(e) => setClientStatusFilter(e.target.value)}
-                className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-              >
-                <option value="">All Statuses</option>
-                {filterOptions.statuses?.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
+            {fieldPrefs.filters?.includes('Source') && (
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Source</label>
+                <select
+                  value={sourceFilter}
+                  onChange={(e) => setSourceFilter(e.target.value)}
+                  className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                >
+                  <option value="">All Sources</option>
+                  {filterOptions.sources?.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {fieldPrefs.filters?.includes('Status') && (
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Status</label>
+                <select
+                  value={clientStatusFilter}
+                  onChange={(e) => setClientStatusFilter(e.target.value)}
+                  className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                >
+                  <option value="">All Statuses</option>
+                  {filterOptions.statuses?.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Properties Filter Panel */}
+      {/* Properties Filter Panel - filters based on fieldPrefs.filters configuration */}
       {databaseKey === 'PROPERTIES' && showFilters && (
         <div className="px-4 pb-4 pt-2 border-b border-gray-700 bg-gray-800/50">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Status</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-              >
-                <option value="">All Statuses</option>
-                {filterOptions.statuses?.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Subdivision</label>
-              <select
-                value={subdivisionFilter}
-                onChange={(e) => setSubdivisionFilter(e.target.value)}
-                className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-              >
-                <option value="">All Subdivisions</option>
-                {filterOptions.subdivisions?.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Beds</label>
-              <select
-                value={bedsFilter}
-                onChange={(e) => setBedsFilter(e.target.value)}
-                className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-              >
-                <option value="">Any</option>
-                {filterOptions.beds?.map(b => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Baths</label>
-              <select
-                value={bathsFilter}
-                onChange={(e) => setBathsFilter(e.target.value)}
-                className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-              >
-                <option value="">Any</option>
-                {filterOptions.baths?.map(b => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Min Price</label>
-              <input
-                type="number"
-                placeholder="$0"
-                value={priceMin}
-                onChange={(e) => setPriceMin(e.target.value)}
-                className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Max Price</label>
-              <input
-                type="number"
-                placeholder="No Max"
-                value={priceMax}
-                onChange={(e) => setPriceMax(e.target.value)}
-                className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-              />
-            </div>
+            {fieldPrefs.filters?.includes('Status') && (
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                >
+                  <option value="">All Statuses</option>
+                  {filterOptions.statuses?.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {fieldPrefs.filters?.includes('Subdivision') && (
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Subdivision</label>
+                <select
+                  value={subdivisionFilter}
+                  onChange={(e) => setSubdivisionFilter(e.target.value)}
+                  className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                >
+                  <option value="">All Subdivisions</option>
+                  {filterOptions.subdivisions?.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {fieldPrefs.filters?.includes('Beds') && (
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Beds</label>
+                <select
+                  value={bedsFilter}
+                  onChange={(e) => setBedsFilter(e.target.value)}
+                  className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                >
+                  <option value="">Any</option>
+                  {filterOptions.beds?.map(b => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {fieldPrefs.filters?.includes('Baths') && (
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Baths</label>
+                <select
+                  value={bathsFilter}
+                  onChange={(e) => setBathsFilter(e.target.value)}
+                  className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                >
+                  <option value="">Any</option>
+                  {filterOptions.baths?.map(b => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {fieldPrefs.filters?.includes('Sales Price') && (
+              <>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Min Price</label>
+                  <input
+                    type="number"
+                    placeholder="$0"
+                    value={priceMin}
+                    onChange={(e) => setPriceMin(e.target.value)}
+                    className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Max Price</label>
+                  <input
+                    type="number"
+                    placeholder="No Max"
+                    value={priceMax}
+                    onChange={(e) => setPriceMax(e.target.value)}
+                    className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

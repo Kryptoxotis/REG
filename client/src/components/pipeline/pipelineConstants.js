@@ -1,6 +1,7 @@
 // Pipeline constants and helper functions
 
 export const LOAN_STATUS_COLUMNS = [
+  { key: 'Submitted', label: 'Submitted', shortLabel: 'Submit', color: 'amber' },
   { key: 'Loan Application Received', label: 'Application Received', shortLabel: 'App', color: 'slate' },
   { key: 'Disclosures Sent', label: 'Disclosures Sent', shortLabel: 'Disc Sent', color: 'gray' },
   { key: 'Disclosures Signed', label: 'Disclosures Signed', shortLabel: 'Disc Sign', color: 'zinc' },

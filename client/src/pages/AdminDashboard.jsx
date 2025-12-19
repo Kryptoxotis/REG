@@ -43,6 +43,9 @@ function AdminDashboard({ user, setUser }) {
   }, [])
 
   const handleLogout = async () => {
+    // Log the logout action before clearing user state
+    ActivityLogger.logout(user?.fullName || user?.email || 'Unknown User')
+
     try {
       // HttpOnly cookies handle auth automatically via withCredentials
       await api.post('/api/auth/logout')
@@ -55,7 +58,29 @@ function AdminDashboard({ user, setUser }) {
     }
   }
 
-  const handleNavClick = (view) => {
+  const handleNavClick = async (view) => {
+    // Verify session is still valid before navigation
+    try {
+      const response = await api.get('/api/auth/check')
+      if (!response.data?.user) {
+        toast.error('Session expired. Please log in again.')
+        setUser(null)
+        return
+      }
+      // Update user state if role or status changed
+      const currentUser = response.data.user
+      if (currentUser.role !== user?.role) {
+        toast.info('Your permissions have been updated.')
+        setUser(currentUser)
+        return
+      }
+    } catch (err) {
+      console.error('Session check failed:', err)
+      toast.error('Session expired. Please log in again.')
+      setUser(null)
+      return
+    }
+
     setActiveView(view)
     setMobileMenuOpen(false)
     setHighlightedDealId(null) // Clear highlight when navigating normally

@@ -1,23 +1,24 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Settings, Check, Eye, List, Maximize2 } from 'lucide-react'
+import { X, Settings, Check, Eye, List, Maximize2, Filter } from 'lucide-react'
 import api from '../lib/api'
 
 const DATABASES = ['TEAM_MEMBERS', 'PROPERTIES', 'PIPELINE', 'CLIENTS', 'SCHEDULE', 'ACTIVITY_LOG', 'CLOSED_DEALS']
 const DISPLAY_LEVELS = [
   { key: 'list', label: 'List View', icon: List, description: 'Initial grid/list display' },
   { key: 'card', label: 'Card View', icon: Eye, description: 'Single record detail' },
-  { key: 'expanded', label: 'Expanded View', icon: Maximize2, description: 'Full record details' }
+  { key: 'expanded', label: 'Expanded View', icon: Maximize2, description: 'Full record details' },
+  { key: 'filters', label: 'Filterable Fields', icon: Filter, description: 'Fields available for filtering' }
 ]
 
 const DEFAULT_PREFS = {
-  TEAM_MEMBERS: { list: ['Name', 'Role', 'Status'], card: ['Name', 'Role', 'Phone', 'Email', 'Status'], expanded: [] },
-  PROPERTIES: { list: ['Address', 'Status', 'Floorplan', 'Sales Price'], card: ['Address', 'Status', 'Floorplan', 'Sales Price', 'Subdivision'], expanded: [] },
-  PIPELINE: { list: ['Deal Name', 'Stage', 'Value', 'Agent'], card: ['Deal Name', 'Stage', 'Value', 'Agent', 'Loan Status'], expanded: [] },
-  CLIENTS: { list: ['Name', 'Email', 'Phone', 'Source'], card: ['Name', 'Email', 'Phone', 'Source', 'Status'], expanded: [] },
-  SCHEDULE: { list: ['Date', 'Model Home Address', 'Assigned Staff 1'], card: ['Date', 'Model Home Address', 'Assigned Staff 1', 'Assigned Staff 2'], expanded: [] },
-  ACTIVITY_LOG: { list: ['Action', 'Date', 'User'], card: ['Action', 'Date', 'User', 'Details'], expanded: [] },
-  CLOSED_DEALS: { list: ['Deal Name', 'Close Date', 'Value'], card: ['Deal Name', 'Close Date', 'Value', 'Agent'], expanded: [] }
+  TEAM_MEMBERS: { list: ['Name', 'Role', 'Status'], card: ['Name', 'Role', 'Phone', 'Email', 'Status'], expanded: [], filters: ['Status', 'Role', 'City'] },
+  PROPERTIES: { list: ['Address', 'Status', 'Floorplan', 'Sales Price'], card: ['Address', 'Status', 'Floorplan', 'Sales Price', 'Subdivision'], expanded: [], filters: ['Status', 'Subdivision', 'Beds', 'Baths'] },
+  PIPELINE: { list: ['Deal Name', 'Stage', 'Value', 'Agent'], card: ['Deal Name', 'Stage', 'Value', 'Agent', 'Loan Status'], expanded: [], filters: ['Loan Status', 'Agent', 'Loan Type'] },
+  CLIENTS: { list: ['Name', 'Email', 'Phone', 'Source'], card: ['Name', 'Email', 'Phone', 'Source', 'Status'], expanded: [], filters: ['Status', 'Source'] },
+  SCHEDULE: { list: ['Date', 'Model Home Address', 'Assigned Staff 1'], card: ['Date', 'Model Home Address', 'Assigned Staff 1', 'Assigned Staff 2'], expanded: [], filters: [] },
+  ACTIVITY_LOG: { list: ['Action', 'Date', 'User'], card: ['Action', 'Date', 'User', 'Details'], expanded: [], filters: ['Action', 'User'] },
+  CLOSED_DEALS: { list: ['Deal Name', 'Close Date', 'Value'], card: ['Deal Name', 'Close Date', 'Value', 'Agent'], expanded: [], filters: ['Agent'] }
 }
 
 export function getFieldPreferences(databaseKey) {
@@ -25,12 +26,12 @@ export function getFieldPreferences(databaseKey) {
     const stored = localStorage.getItem('fieldPreferences')
     if (stored) {
       const prefs = JSON.parse(stored)
-      return prefs[databaseKey] || DEFAULT_PREFS[databaseKey] || { list: [], card: [], expanded: [] }
+      return prefs[databaseKey] || DEFAULT_PREFS[databaseKey] || { list: [], card: [], expanded: [], filters: [] }
     }
   } catch (e) {
     console.error('Error reading preferences:', e)
   }
-  return DEFAULT_PREFS[databaseKey] || { list: [], card: [], expanded: [] }
+  return DEFAULT_PREFS[databaseKey] || { list: [], card: [], expanded: [], filters: [] }
 }
 
 export function saveFieldPreferences(databaseKey, preferences) {
@@ -88,7 +89,7 @@ export default function FieldSettings({ isOpen, onClose }) {
 
   const toggleField = (level, fieldName) => {
     setPreferences(prev => {
-      const dbPrefs = prev[selectedDb] || { list: [], card: [], expanded: [] }
+      const dbPrefs = prev[selectedDb] || { list: [], card: [], expanded: [], filters: [] }
       const levelFields = dbPrefs[level] || []
       const newLevelFields = levelFields.includes(fieldName)
         ? levelFields.filter(f => f !== fieldName)
@@ -122,11 +123,11 @@ export default function FieldSettings({ isOpen, onClose }) {
   const resetToDefaults = () => {
     setPreferences(prev => ({
       ...prev,
-      [selectedDb]: DEFAULT_PREFS[selectedDb] || { list: [], card: [], expanded: [] }
+      [selectedDb]: DEFAULT_PREFS[selectedDb] || { list: [], card: [], expanded: [], filters: [] }
     }))
   }
 
-  const currentPrefs = preferences[selectedDb] || { list: [], card: [], expanded: [] }
+  const currentPrefs = preferences[selectedDb] || { list: [], card: [], expanded: [], filters: [] }
 
   if (!isOpen) return null
 
