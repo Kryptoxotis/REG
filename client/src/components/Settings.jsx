@@ -56,6 +56,8 @@ function Settings() {
   const [filterEntityType, setFilterEntityType] = useState('')
   const [filterDateRange, setFilterDateRange] = useState('all') // all, today, week, month
   const [showFilters, setShowFilters] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 50
 
   // Fetch activity log data
   const { data: activityData, isLoading: activityLoading, refetch: refetchActivity } = useDatabase('ACTIVITY_LOG')
@@ -134,8 +136,12 @@ function Settings() {
         const dateB = new Date(b.Timestamp || b.created_time || 0)
         return dateB - dateA
       })
-      .slice(0, 100) // Show up to 100 with filters
+      
   }, [activityData, filterUser, filterActionType, filterEntityType, filterDateRange])
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredActivity.length / itemsPerPage)
+  const paginatedActivity = filteredActivity.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
   // Count active filters
   const activeFilterCount = [filterUser, filterActionType, filterEntityType, filterDateRange !== 'all' ? filterDateRange : ''].filter(Boolean).length
@@ -146,6 +152,7 @@ function Settings() {
     setFilterActionType('')
     setFilterEntityType('')
     setFilterDateRange('all')
+    setCurrentPage(1)
   }
 
   // Format timestamp for display
@@ -303,7 +310,7 @@ function Settings() {
           <div className="flex items-center gap-3">
             {activityData && (
               <span className="px-2 py-1 bg-gray-700 text-gray-300 rounded-lg text-sm">
-                {activityData.length} entries
+                {filteredActivity.length} of {activityData.length} entries
               </span>
             )}
             {activityExpanded ? (
@@ -444,7 +451,7 @@ function Settings() {
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                    {filteredActivity.map((item, idx) => (
+                    {paginatedActivity.map((item, idx) => (
                       <div
                         key={item.id || idx}
                         className="p-3 bg-gray-900 rounded-lg flex items-start gap-3"
@@ -482,6 +489,48 @@ function Settings() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-700 mt-4">
+                    <div className="text-sm text-gray-500">
+                      Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, filteredActivity.length)} of {filteredActivity.length}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(1)}
+                        disabled={currentPage === 1}
+                        className="px-2 py-1 text-sm bg-gray-700 text-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-600"
+                      >
+                        First
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 text-sm bg-gray-700 text-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-600"
+                      >
+                        ←
+                      </button>
+                      <span className="text-sm text-gray-400 px-2">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 text-sm bg-gray-700 text-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-600"
+                      >
+                        →
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage(totalPages)}
+                        disabled={currentPage === totalPages}
+                        className="px-2 py-1 text-sm bg-gray-700 text-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-600"
+                      >
+                        Last
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
