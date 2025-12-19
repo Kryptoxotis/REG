@@ -49,13 +49,15 @@ function getStatusBorderColor(status) {
   return 'border-l-gray-600'
 }
 
-// Check if item was created within the last 7 days
+// Check if item was created today
 function isNewItem(item) {
   if (!item?.created_time) return false
   const created = new Date(item.created_time)
   const now = new Date()
-  const daysDiff = (now - created) / (1000 * 60 * 60 * 24)
-  return daysDiff <= 7
+  // Compare year, month, and day only
+  return created.getFullYear() === now.getFullYear() &&
+         created.getMonth() === now.getMonth() &&
+         created.getDate() === now.getDate()
 }
 
 function PropertyCard({ item, config, onClick }) {
@@ -112,7 +114,7 @@ function PropertyCard({ item, config, onClick }) {
         <div className="flex justify-between items-start mb-3">
           <h3 className="font-semibold text-white truncate flex-1 text-sm sm:text-base flex items-center gap-1">
             {primaryValue}
-            {isNewItem(item) && <span className="text-red-500 font-bold text-lg" title="Added in last 7 days">*</span>}
+            {isNewItem(item) && <span className="text-red-500 font-bold text-lg" title="Added today">*</span>}
           </h3>
           {status && (
             <span className={`ml-2 px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getStatusColor(status)}`}>
