@@ -51,18 +51,11 @@ function getStatusBorderColor(status) {
 
 // Check if item was created today (in local timezone)
 function isNewItem(item) {
-  if (!item?.created_time) {
-    console.log('No created_time for item:', item?.Address || item?.id)
-    return false
-  }
+  if (!item?.created_time) return false
   const created = new Date(item.created_time)
   const now = new Date()
   // Convert both to local date strings for comparison (handles timezone)
-  const createdDate = created.toLocaleDateString()
-  const todayDate = now.toLocaleDateString()
-  const isToday = createdDate === todayDate
-  if (isToday) console.log('NEW TODAY:', item.Address, item.created_time)
-  return isToday
+  return created.toLocaleDateString() === now.toLocaleDateString()
 }
 
 function PropertyCard({ item, config, onClick }) {
@@ -183,7 +176,10 @@ function SmartCardView({ item, config, onClick }) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gray-800 rounded-xl border border-gray-700 p-4 cursor-pointer hover:border-gray-600 transition-colors" onClick={onClick}>
       <div className="flex justify-between items-start mb-2">
-        <h3 className="font-semibold text-white truncate flex-1">{item[config.primaryField] || 'Untitled'}</h3>
+        <h3 className="font-semibold text-white truncate flex-1 flex items-center gap-1">
+          {isNewItem(item) && <span className="text-red-500 font-bold text-lg" title="Added today">*</span>}
+          {item[config.primaryField] || 'Untitled'}
+        </h3>
         {config.statusField && item[config.statusField] && <span className={"ml-2 px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(item[config.statusField])}>{item[config.statusField]}</span>}
       </div>
       <div className="space-y-1">{config.secondaryFields.map(field => item[field] && <p key={field} className="text-sm text-gray-400 truncate"><span className="text-gray-500">{field}:</span> {String(item[field])}</p>)}</div>
