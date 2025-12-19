@@ -61,8 +61,8 @@ function isNewItem(item) {
 function PropertyCard({ item, config, onClick }) {
   const status = item[config.statusField] || item.Status || item.status || ''
   const primaryValue = item[config.primaryField] || item.Address || 'No Address'
-  // Fields to show (from list preferences, excluding primary and status)
-  const displayFields = config.secondaryFields?.filter(f => f !== config.primaryField && f !== config.statusField) || []
+  // Fields to show (from card preferences, excluding primary and status)
+  const displayFields = (config.cardFields || config.secondaryFields || []).filter(f => f !== config.primaryField && f !== config.statusField)
 
   // Get icon for field type
   const getFieldIcon = (fieldName) => {
@@ -145,8 +145,8 @@ function PropertyCard({ item, config, onClick }) {
 
 function TeamMemberCard({ item, config, onClick }) {
   const [expanded, setExpanded] = useState(false)
-  // Use secondaryFields from list preferences for main grid display (excluding primary which is the title)
-  const mainFields = config.secondaryFields?.filter(f => f !== config.primaryField && f !== config.statusField) || []
+  // Use cardFields from preferences for main grid display (excluding primary which is the title)
+  const mainFields = (config.cardFields || config.secondaryFields || []).filter(f => f !== config.primaryField && f !== config.statusField)
   // For expanded: use expandedFields if set, otherwise show all remaining fields not in the main display
   const allFieldKeys = Object.keys(item).filter(k => k !== 'id' && k !== 'created_time' && k !== 'last_edited_time')
   const shownInCard = [config.primaryField, config.statusField, ...mainFields].filter(Boolean)
@@ -373,6 +373,15 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
   useEffect(() => {
     const handlePrefsChange = () => {
       setPrefVersion(v => v + 1)
+      // Reset all filters when preferences change to ensure removed filters don't persist
+      setStatusFilter('')
+      setSubdivisionFilter('')
+      setBedsFilter('')
+      setBathsFilter('')
+      setPriceMin('')
+      setPriceMax('')
+      setSourceFilter('')
+      setClientStatusFilter('')
     }
     window.addEventListener('fieldPreferencesChanged', handlePrefsChange)
     return () => window.removeEventListener('fieldPreferencesChanged', handlePrefsChange)
