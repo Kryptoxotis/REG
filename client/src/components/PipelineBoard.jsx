@@ -22,6 +22,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
   const [error, setError] = useState(null)
   const [selectedDeal, setSelectedDeal] = useState(null)
   const [viewMode, setViewMode] = useState('monthly')
+  const [layoutMode, setLayoutMode] = useState('card') // 'card' or 'row'
   const [pipelineTab, setPipelineTab] = useState('pending')
   const [expandedColumns, setExpandedColumns] = useState({})
   const [searchTerm, setSearchTerm] = useState('')
@@ -367,6 +368,28 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     return !dateFields.some(d => d?.start)
   }
 
+  const isThisWeek = (deal) => {
+    const dateFields = [deal['Scheduled Closing'], deal['Closed Date'], deal.Executed]
+    const now = new Date()
+    // Get start of current week (Sunday)
+    const startOfWeek = new Date(now)
+    startOfWeek.setDate(now.getDate() - now.getDay())
+    startOfWeek.setHours(0, 0, 0, 0)
+    // Get end of current week (Saturday)
+    const endOfWeek = new Date(startOfWeek)
+    endOfWeek.setDate(startOfWeek.getDate() + 6)
+    endOfWeek.setHours(23, 59, 59, 999)
+
+    for (const dateObj of dateFields) {
+      if (dateObj?.start) {
+        const d = new Date(dateObj.start)
+        if (d >= startOfWeek && d <= endOfWeek) return true
+      }
+    }
+    // If no dates, include it
+    return !dateFields.some(d => d?.start)
+  }
+
   const uniqueAgents = [...new Set(deals.map(d => d.Agent).filter(Boolean))].sort()
   const uniqueLoanTypes = [...new Set(deals.map(d => d['Loan Type']).filter(Boolean))].sort()
   const uniqueAssistingAgents = [...new Set(deals.map(d => d['Assisting Agent']).filter(Boolean))].sort()
@@ -376,6 +399,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
   const filteredDeals = deals.filter(deal => {
     if (viewMode === 'monthly' && !isThisMonth(deal)) return false
+    if (viewMode === 'weekly' && !isThisWeek(deal)) return false
     if (pipelineTab === 'pending') {
       const loanStatus = deal['Loan Status'] || ''
       if (loanStatus === 'Closed' || loanStatus === 'Funded' || loanStatus === 'Loan Complete / Transfer') return false
@@ -468,15 +492,20 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
           </div>
           <p className="text-sm text-gray-400">
             {filteredDeals.length} deal{filteredDeals.length !== 1 ? 's' : ''}
-            {viewMode === 'monthly' ? ` in ${currentMonthName}` : ' total'}
+            {viewMode === 'monthly' ? ` in ${currentMonthName}` : viewMode === 'weekly' ? ' this week' : ' total'}
             {hasActiveFilters && ' (filtered)'}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <div className="flex bg-gray-800 rounded-xl p-1 border border-gray-700">
+            <button onClick={() => setViewMode('weekly')} className={`px-3 py-1.5 text-sm rounded-lg transition-all ${viewMode === 'weekly' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>Weekly</button>
             <button onClick={() => setViewMode('monthly')} className={`px-3 py-1.5 text-sm rounded-lg transition-all ${viewMode === 'monthly' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>Monthly</button>
             <button onClick={() => setViewMode('all')} className={`px-3 py-1.5 text-sm rounded-lg transition-all ${viewMode === 'all' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>All Time</button>
+          </div>
+          <div className="flex bg-gray-800 rounded-xl p-1 border border-gray-700">
+            <button onClick={() => setLayoutMode('card')} className={`px-3 py-1.5 text-sm rounded-lg transition-all ${layoutMode === 'card' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}>Cards</button>
+            <button onClick={() => setLayoutMode('row')} className={`px-3 py-1.5 text-sm rounded-lg transition-all ${layoutMode === 'row' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}>Rows</button>
           </div>
           <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowFilters(!showFilters)} aria-label={showFilters ? 'Hide filters' : 'Show filters'} aria-expanded={showFilters} className={`p-3.5 border rounded-xl transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center ${showFilters || hasActiveFilters ? 'bg-blue-600 border-blue-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'}`}>🔍</motion.button>
           <motion.button whileTap={{ scale: 0.95 }} onClick={fetchDeals} aria-label="Refresh pipeline data" className="p-3.5 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white min-w-[48px] min-h-[48px] flex items-center justify-center">🔄</motion.button>
@@ -519,7 +548,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
           </div>
           {filteredDeals.length === 0 ? (
             <div className="text-center py-12 text-gray-500">{error || `No ${pipelineTab === 'submitted' ? 'submitted items' : 'closed deals'} found`}</div>
-          ) : (
+          ) : layoutMode === 'card' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredDeals.map(deal => (
                 <div key={deal.id} onClick={() => setSelectedDeal(deal)} className="bg-gray-800 border border-gray-700 rounded-xl p-4 cursor-pointer hover:border-gray-500 transition-colors">
@@ -530,6 +559,35 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
                     {(deal['Scheduled Closing'] || deal['Close Date']) && <span className="text-gray-500 text-xs">{formatDate(deal['Scheduled Closing'] || deal['Close Date'])}</span>}
                   </div>
                   {deal.Agent && <p className="text-xs text-gray-500 mt-2 truncate">{deal.Agent}</p>}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="hidden sm:grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-gray-400 uppercase">
+                <div className="col-span-4">Address</div>
+                <div className="col-span-2">Buyer</div>
+                <div className="col-span-2">Price</div>
+                <div className="col-span-2">Date</div>
+                <div className="col-span-2">Agent</div>
+              </div>
+              {filteredDeals.map(deal => (
+                <div key={deal.id} onClick={() => setSelectedDeal(deal)} className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 cursor-pointer hover:border-gray-500 transition-colors grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 items-center">
+                  <div className="sm:col-span-4">
+                    <p className="font-medium text-white truncate">{getAddress(deal) || 'No Address'}</p>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <p className="text-gray-400 text-sm truncate">{deal['Buyer Name'] || '-'}</p>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <span className="text-emerald-400 font-semibold">{formatCurrency(deal['Sales Price'] || deal['Final Sale Price'] || deal.Price || 0)}</span>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <span className="text-gray-500 text-sm">{formatDate(deal['Scheduled Closing'] || deal['Close Date']) || '-'}</span>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <span className="text-gray-500 text-sm truncate">{deal.Agent || '-'}</span>
+                  </div>
                 </div>
               ))}
             </div>
