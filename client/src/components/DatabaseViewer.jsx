@@ -238,6 +238,23 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
   const [isEditing, setIsEditing] = useState(false)
   const [editedFields, setEditedFields] = useState({})
   const [saving, setSaving] = useState(false)
+  // Move to Submitted state (for Properties)
+  const [showMoveToSubmitted, setShowMoveToSubmitted] = useState(false)
+  const [moveToSubmittedForm, setMoveToSubmittedForm] = useState({ foreman: '', subdivision: '', agentAssist: '', buyerName: '' })
+  const [isMovingToSubmitted, setIsMovingToSubmitted] = useState(false)
+  const [teamMembers, setTeamMembers] = useState([])
+
+  // Fetch team members for agent dropdown (for Properties move to submitted)
+  useEffect(() => {
+    if (databaseKey === 'PROPERTIES') {
+      api.get('/api/databases/TEAM_MEMBERS')
+        .then(res => {
+          const members = Array.isArray(res.data) ? res.data : []
+          setTeamMembers(members.filter(m => m.Status === 'Active' || m.status === 'Active'))
+        })
+        .catch(err => console.error('Failed to fetch team members:', err))
+    }
+  }, [databaseKey])
 
   // Database key to API path mapping
   const DB_KEY_TO_API = {
@@ -308,6 +325,39 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
     setIsExpanded(false)
     setIsEditing(false)
     setEditedFields({})
+    setShowMoveToSubmitted(false)
+    setMoveToSubmittedForm({ foreman: '', subdivision: '', agentAssist: '', buyerName: '' })
+  }
+
+  // Handle Move to Submitted (Properties only)
+  const handleMoveToSubmitted = async () => {
+    if (!selectedItem || isMovingToSubmitted) return
+    if (!moveToSubmittedForm.buyerName) {
+      toast.error('Buyer Name is required')
+      return
+    }
+    setIsMovingToSubmitted(true)
+    try {
+      await api.post('/api/databases/actions', {
+        action: 'move-to-submitted',
+        propertyId: selectedItem.id,
+        address: selectedItem.Address || selectedItem.address || '',
+        salesPrice: selectedItem['Sales Price'] || selectedItem.salesPrice || 0,
+        foreman: moveToSubmittedForm.foreman,
+        subdivision: moveToSubmittedForm.subdivision || selectedItem.Subdivision || '',
+        agentAssist: moveToSubmittedForm.agentAssist,
+        buyerName: moveToSubmittedForm.buyerName
+      })
+      // Log activity
+      ActivityLogger.log('Move to Submitted', selectedItem.Address || 'Unknown', 'Property', 'Properties', 'Submitted')
+      toast.success('Property moved to Submitted!')
+      handleCloseModal()
+      refetch()
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to move to Submitted')
+    } finally {
+      setIsMovingToSubmitted(false)
+    }
   }
 
   // Show toast on error
@@ -980,6 +1030,88 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
                         </p>
                       ) : null
                     })()}
+                  </div>
+                )}
+
+                {/* Move to Submitted Action - Properties Only */}
+                {databaseKey === 'PROPERTIES' && !isEditing && (
+                  <div className="mt-4 pt-4 border-t border-gray-700">
+                    {!showMoveToSubmitted ? (
+                      <button
+                        onClick={() => setShowMoveToSubmitted(true)}
+                        className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                      >
+                        📋 Move to Submitted
+                      </button>
+                    ) : (
+                      <div className="p-4 bg-gray-800/50 rounded-xl border border-amber-500/30">
+                        <h4 className="text-sm font-semibold text-amber-400 mb-3">Move to Submitted</h4>
+                        <p className="text-xs text-gray-400 mb-3">This will create a Pipeline record linked to this property.</p>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Buyer Name *</label>
+                            <input
+                              type="text"
+                              value={moveToSubmittedForm.buyerName}
+                              onChange={e => setMoveToSubmittedForm(prev => ({ ...prev, buyerName: e.target.value }))}
+                              placeholder="Full name"
+                              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Foreman</label>
+                            <input
+                              type="text"
+                              value={moveToSubmittedForm.foreman}
+                              onChange={e => setMoveToSubmittedForm(prev => ({ ...prev, foreman: e.target.value }))}
+                              placeholder="Foreman name"
+                              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Subdivision</label>
+                            <input
+                              type="text"
+                              value={moveToSubmittedForm.subdivision || selectedItem?.Subdivision || ''}
+                              onChange={e => setMoveToSubmittedForm(prev => ({ ...prev, subdivision: e.target.value }))}
+                              placeholder="Subdivision"
+                              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Agent Assist</label>
+                            <select
+                              value={moveToSubmittedForm.agentAssist}
+                              onChange={e => setMoveToSubmittedForm(prev => ({ ...prev, agentAssist: e.target.value }))}
+                              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
+                            >
+                              <option value="">None</option>
+                              {teamMembers.map(member => (
+                                <option key={member.id} value={member.Name || member.name}>
+                                  {member.Name || member.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex gap-2 pt-2">
+                            <button
+                              onClick={() => setShowMoveToSubmitted(false)}
+                              className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={handleMoveToSubmitted}
+                              disabled={!moveToSubmittedForm.buyerName || isMovingToSubmitted}
+                              className="flex-1 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                            >
+                              {isMovingToSubmitted && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                              {isMovingToSubmitted ? 'Moving...' : 'Submit'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -23,7 +23,6 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
   const [selectedDeal, setSelectedDeal] = useState(null)
   const [viewMode, setViewMode] = useState('monthly')
   const [pipelineTab, setPipelineTab] = useState('pending')
-  const [presaleCity, setPresaleCity] = useState('')
   const [expandedColumns, setExpandedColumns] = useState({})
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
@@ -81,11 +80,25 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     setLoading(true)
     setError(null)
     try {
-      const dbMap = { 'submitted': 'PROPERTIES', 'pending': 'PIPELINE', 'closed-deals': 'CLOSED_DEALS' }
+      // Submitted and Pending both pull from PIPELINE, just filtered differently
+      // Submitted = PIPELINE items with Loan Status 'Submitted'
+      // Pending = PIPELINE items with other Loan Status values
+      const dbMap = { 'submitted': 'PIPELINE', 'pending': 'PIPELINE', 'closed-deals': 'CLOSED_DEALS' }
       const database = dbMap[pipelineTab] || 'PIPELINE'
       // HttpOnly cookies handle auth automatically via withCredentials
       const response = await api.get(`/api/databases/${database}`)
-      setDeals(Array.isArray(response.data) ? response.data : [])
+      let data = Array.isArray(response.data) ? response.data : []
+
+      // Filter Submitted tab to only show Loan Status = 'Submitted'
+      if (pipelineTab === 'submitted') {
+        data = data.filter(deal => deal['Loan Status'] === 'Submitted')
+      }
+      // Filter Pending tab to exclude 'Submitted' status (handled in filteredDeals already for Closed/Funded)
+      if (pipelineTab === 'pending') {
+        data = data.filter(deal => deal['Loan Status'] !== 'Submitted')
+      }
+
+      setDeals(data)
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch data')
     } finally { setLoading(false) }
@@ -367,12 +380,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       const loanStatus = deal['Loan Status'] || ''
       if (loanStatus === 'Closed' || loanStatus === 'Funded' || loanStatus === 'Loan Complete / Transfer') return false
     }
-    if (pipelineTab === 'submitted' && presaleCity) {
-      const edwardsCo = CITY_TO_EDWARDS[presaleCity]
-      const dealOffice = deal.Office || deal['Edwards Co'] || deal['Edwards Co.'] || ''
-      if (edwardsCo && dealOffice !== edwardsCo) return false
-    }
-    if (cityFilter) {
+        if (cityFilter) {
       const edwardsCo = CITY_TO_EDWARDS[cityFilter]
       const dealOffice = deal.Office || deal['Edwards Co'] || deal['Edwards Co.'] || ''
       if (edwardsCo && dealOffice !== edwardsCo) return false
@@ -491,19 +499,6 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         </button>
       </div>
 
-      {/* Presale City Filter */}
-      <AnimatePresence>
-        {pipelineTab === 'submitted' && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => setPresaleCity('')} className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${presaleCity === '' ? 'bg-amber-600/30 text-amber-400 border border-amber-500/50' : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white'}`}>All Cities</button>
-              {CITIES.map(city => (
-                <button key={city} onClick={() => setPresaleCity(city)} className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${presaleCity === city ? 'bg-amber-600/30 text-amber-400 border border-amber-500/50' : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white'}`}>{city}</button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Filters */}
       <PipelineFilters
