@@ -173,6 +173,8 @@ function TeamMemberCard({ item, config, onClick }) {
 }
 
 function SmartCardView({ item, config, onClick }) {
+  // Use cardFields for display (fallback to secondaryFields)
+  const displayFields = (config.cardFields || config.secondaryFields || []).filter(f => f !== config.primaryField && f !== config.statusField)
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gray-800 rounded-xl border border-gray-700 p-4 cursor-pointer hover:border-gray-600 transition-colors" onClick={onClick}>
       <div className="flex justify-between items-start mb-2">
@@ -182,7 +184,7 @@ function SmartCardView({ item, config, onClick }) {
         </h3>
         {config.statusField && item[config.statusField] && <span className={"ml-2 px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(item[config.statusField])}>{item[config.statusField]}</span>}
       </div>
-      <div className="space-y-1">{config.secondaryFields.map(field => item[field] && <p key={field} className="text-sm text-gray-400 truncate"><span className="text-gray-500">{field}:</span> {String(item[field])}</p>)}</div>
+      <div className="space-y-1">{displayFields.map(field => item[field] && <p key={field} className="text-sm text-gray-400 truncate"><span className="text-gray-500">{field}:</span> {String(item[field])}</p>)}</div>
     </motion.div>
   )
 }

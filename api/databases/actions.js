@@ -487,6 +487,8 @@ export default async function handler(req, res) {
       response: error.response?.data,
       status: error.response?.status
     }))
-    res.status(500).json({ error: 'Operation failed' })
+    // Return actual error message for debugging
+    const notionError = error.response?.data?.message || error.message || 'Operation failed'
+    res.status(500).json({ error: notionError })
   }
 }
