@@ -51,11 +51,14 @@ function getStatusBorderColor(status) {
 
 // Check if item was created within the last 3 days
 function isNewItem(item) {
-  if (!item?.created_time) return false
+  if (!item?.created_time) {
+    return false
+  }
   const created = new Date(item.created_time)
   const now = new Date()
   const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
-  return created >= threeDaysAgo
+  const isNew = created >= threeDaysAgo
+  return isNew
 }
 
 function PropertyCard({ item, config, onClick }) {
@@ -699,7 +702,7 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
       <div className="p-4 border-b border-gray-700 flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-violet-500/20 rounded-xl"><Icon className="w-5 h-5 text-violet-400" /></div>
-          <div><h2 className="font-semibold text-white">{config.title}</h2><p className="text-sm text-gray-400">{filteredData.length} records{databaseKey === 'PROPERTIES' && (() => { const newCount = filteredData.filter(isNewItem).length; return newCount > 0 ? <span className="text-red-400 ml-1">({newCount} new*)</span> : null })()}</p></div>
+          <div><h2 className="font-semibold text-white">{config.title}</h2><p className="text-sm text-gray-400">{filteredData.length} records{databaseKey === 'PROPERTIES' && <span className="text-red-400 ml-1">({filteredData.filter(isNewItem).length} new*)</span>}</p></div>
           {searchTerm && (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-violet-500/20 text-violet-300 rounded-xl text-sm">
               <span>Searching: "{searchTerm}"</span>
