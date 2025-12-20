@@ -49,15 +49,15 @@ function getStatusBorderColor(status) {
   return 'border-l-gray-600'
 }
 
-// Check if item was created within the last 3 days
+// Check if item was created within the last 7 days
 function isNewItem(item) {
   if (!item?.created_time) {
     return false
   }
   const created = new Date(item.created_time)
   const now = new Date()
-  const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
-  const isNew = created >= threeDaysAgo
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+  const isNew = created >= sevenDaysAgo
   return isNew
 }
 
