@@ -275,20 +275,6 @@ function EmployeeDashboard({ user, setUser }) {
     return Array.from(statuses).sort()
   }, [propertiesData])
 
-  const handleLogout = async () => {
-    // Log the logout action before clearing user state
-    ActivityLogger.logout(user?.fullName || user?.email || 'Unknown User')
-
-    try {
-      // HttpOnly cookies handle auth automatically via withCredentials
-      await api.post('/api/auth/logout')
-    } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      setUser(null)
-    }
-  }
-
   return (
     <div className="min-h-screen bg-gray-900 pb-20 md:pb-0">
       {/* Header - Simpler than admin */}
