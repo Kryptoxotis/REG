@@ -111,8 +111,8 @@ function PropertyCard({ item, config, onClick }) {
       <div className="p-4">
         <div className="flex justify-between items-start mb-3">
           <h3 className="font-semibold text-white truncate flex-1 text-sm sm:text-base flex items-center gap-1">
+            {isNewItem(item) && <span className="text-red-500 font-bold text-xl" title="Added in last 3 days">*</span>}
             {primaryValue}
-            {isNewItem(item) && <span className="text-red-500 font-bold text-lg" title="Added in last 3 days">*</span>}
           </h3>
           {status && (
             <span className={`ml-2 px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getStatusColor(status)}`}>
@@ -669,13 +669,11 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
   )
 
   const renderContent = () => {
-    // Use layoutMode toggle - cards or table/rows
+    // Use layoutMode toggle - user choice overrides default mobileLayout
     if (layoutMode === 'row') {
       return renderTableView()
     }
-    // Card view (default)
-    if (config.mobileLayout === 'table') return (<><div className="sm:hidden">{renderCardView()}</div><div className="hidden sm:block">{renderTableView()}</div></>)
-    if (config.mobileLayout === 'list') return (<><div className="sm:hidden">{renderListView()}</div><div className="hidden sm:block">{renderCardView()}</div></>)
+    // Card mode - always show cards regardless of mobileLayout config
     return renderCardView()
   }
 
