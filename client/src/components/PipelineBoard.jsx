@@ -523,7 +523,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
           {pipelineTab === 'pending' && <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-black/20">{filteredDeals.length}</span>}
         </button>
         <button onClick={() => setPipelineTab('closed-deals')} className={`flex-1 px-3 sm:px-4 py-3 sm:py-2.5 text-sm font-medium rounded-lg transition-all ${pipelineTab === 'closed-deals' ? 'bg-emerald-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}`}>
-          <span className="hidden sm:inline">✅ Closed Deals</span><span className="sm:hidden">Closed</span>
+          <span className="hidden sm:inline">✅ Closed</span><span className="sm:hidden">Closed</span>
           {pipelineTab === 'closed-deals' && <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-black/20">{deals.length}</span>}
         </button>
       </div>
@@ -543,11 +543,11 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
           <div className="bg-gray-800/50 rounded-xl p-4 mb-4 flex items-center justify-between">
             <div>
               <span className="text-2xl font-bold text-white">{filteredDeals.length}</span>
-              <span className="text-gray-400 ml-2">{pipelineTab === 'submitted' ? 'Submitted' : 'Closed Deals'}</span>
+              <span className="text-gray-400 ml-2">{pipelineTab === 'submitted' ? 'Submitted' : 'Closed'}</span>
             </div>
           </div>
           {filteredDeals.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">{error || `No ${pipelineTab === 'submitted' ? 'submitted items' : 'closed deals'} found`}</div>
+            <div className="text-center py-12 text-gray-500">{error || `No ${pipelineTab === 'submitted' ? 'submitted items' : 'closed'} found`}</div>
           ) : layoutMode === 'card' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredDeals.map(deal => (

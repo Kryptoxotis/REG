@@ -242,6 +242,7 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
   const [saving, setSaving] = useState(false)
   // Move to Submitted state (for Properties)
   const [showMoveToSubmitted, setShowMoveToSubmitted] = useState(false)
+  const [layoutMode, setLayoutMode] = useState('card') // 'card' or 'row'
   const [moveToSubmittedForm, setMoveToSubmittedForm] = useState({ foreman: '', subdivision: '', agentAssist: '', buyerName: '' })
   const [isMovingToSubmitted, setIsMovingToSubmitted] = useState(false)
   const [teamMembers, setTeamMembers] = useState([])
@@ -667,7 +668,16 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
     </div>
   )
 
-  const renderContent = () => { if (config.mobileLayout === 'table') return (<><div className="sm:hidden">{renderCardView()}</div><div className="hidden sm:block">{renderTableView()}</div></>); if (config.mobileLayout === 'list') return (<><div className="sm:hidden">{renderListView()}</div><div className="hidden sm:block">{renderCardView()}</div></>); return renderCardView() }
+  const renderContent = () => {
+    // Use layoutMode toggle - cards or table/rows
+    if (layoutMode === 'row') {
+      return renderTableView()
+    }
+    // Card view (default)
+    if (config.mobileLayout === 'table') return (<><div className="sm:hidden">{renderCardView()}</div><div className="hidden sm:block">{renderTableView()}</div></>)
+    if (config.mobileLayout === 'list') return (<><div className="sm:hidden">{renderListView()}</div><div className="hidden sm:block">{renderCardView()}</div></>)
+    return renderCardView()
+  }
 
   if (isLoading) return (<div className="bg-gray-800 rounded-2xl border border-gray-700 p-6"><div className="animate-pulse space-y-4"><div className="h-6 bg-gray-700 rounded w-1/4"></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{[1, 2, 3].map(i => <div key={i} className="h-32 bg-gray-700 rounded-xl"></div>)}</div></div></div>)
 
@@ -702,6 +712,11 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
           )}
         </div>
         <div className="flex items-center gap-2">
+          {/* Card/Row toggle for all databases */}
+          <div className="flex bg-gray-700 rounded-lg p-0.5 border border-gray-600">
+            <button onClick={() => setLayoutMode('card')} className={`px-3 py-1.5 text-sm rounded-md transition-all ${layoutMode === 'card' ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-white'}`}>Cards</button>
+            <button onClick={() => setLayoutMode('row')} className={`px-3 py-1.5 text-sm rounded-md transition-all ${layoutMode === 'row' ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-white'}`}>Rows</button>
+          </div>
           {databaseKey === 'PROPERTIES' && (
             <>
               <select
