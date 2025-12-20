@@ -49,13 +49,13 @@ function getStatusBorderColor(status) {
   return 'border-l-gray-600'
 }
 
-// Check if item was created within the last 7 days
+// Check if item was created within the last 3 days
 function isNewItem(item) {
   if (!item?.created_time) return false
   const created = new Date(item.created_time)
   const now = new Date()
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-  return created >= sevenDaysAgo
+  const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
+  return created >= threeDaysAgo
 }
 
 function PropertyCard({ item, config, onClick }) {
@@ -112,7 +112,7 @@ function PropertyCard({ item, config, onClick }) {
         <div className="flex justify-between items-start mb-3">
           <h3 className="font-semibold text-white truncate flex-1 text-sm sm:text-base flex items-center gap-1">
             {primaryValue}
-            {isNewItem(item) && <span className="text-red-500 font-bold text-lg" title="Added in last 7 days">*</span>}
+            {isNewItem(item) && <span className="text-red-500 font-bold text-lg" title="Added in last 3 days">*</span>}
           </h3>
           {status && (
             <span className={`ml-2 px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getStatusColor(status)}`}>
@@ -179,7 +179,7 @@ function SmartCardView({ item, config, onClick }) {
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gray-800 rounded-xl border border-gray-700 p-4 cursor-pointer hover:border-gray-600 transition-colors" onClick={onClick}>
       <div className="flex justify-between items-start mb-2">
         <h3 className="font-semibold text-white truncate flex-1 flex items-center gap-1">
-          {isNewItem(item) && <span className="text-red-500 font-bold text-lg" title="Added in last 7 days">*</span>}
+          {isNewItem(item) && <span className="text-red-500 font-bold text-lg" title="Added in last 3 days">*</span>}
           {item[config.primaryField] || 'Untitled'}
         </h3>
         {config.statusField && item[config.statusField] && <span className={"ml-2 px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(item[config.statusField])}>{item[config.statusField]}</span>}
@@ -626,7 +626,7 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
                     className={`px-5 py-4 text-sm ${colIdx === 0 ? 'font-medium text-white' : 'text-gray-300'}`}
                   >
                     <span className="flex items-center gap-1">
-                      {colIdx === 0 && isNewItem(item) && <span className="text-red-500 font-bold text-lg" title="Added in last 7 days">*</span>}
+                      {colIdx === 0 && isNewItem(item) && <span className="text-red-500 font-bold text-lg" title="Added in last 3 days">*</span>}
                       {col === config.statusField && item[col] ? (
                         <span className={"inline-flex px-3 py-1 text-xs font-medium rounded-full shadow-sm " + getStatusColor(item[col])}>
                           {item[col]}
