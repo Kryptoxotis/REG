@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../lib/api'
-import { Eye, EyeOff, Search, X, Maximize2, Minimize2, Edit3, Save, XCircle } from 'lucide-react'
+import { Eye, EyeOff, Search, X, Maximize2, Minimize2, Edit3, Save, XCircle, LayoutGrid, List } from 'lucide-react'
 import { getFieldPreferences } from './FieldSettings'
 
 // #10 - Extract magic numbers to named constants
@@ -23,6 +23,7 @@ function TeamKPIView({ onNavigate }) {
   const [editedFields, setEditedFields] = useState({})
   const [saving, setSaving] = useState(false)
   const [prefVersion, setPrefVersion] = useState(0)
+  const [layoutMode, setLayoutMode] = useState('card') // 'card' or 'row'
 
   // Get field preferences for Team Members
   const fieldPrefs = useMemo(() => getFieldPreferences('TEAM_MEMBERS'), [prefVersion])
@@ -223,6 +224,23 @@ function TeamKPIView({ onNavigate }) {
             )}
           </div>
 
+          {/* Card/Row Toggle */}
+          <div className="flex items-center bg-gray-800 border border-gray-700 rounded-xl p-1">
+            <button
+              onClick={() => setLayoutMode('card')}
+              className={`p-2 rounded-lg transition-colors ${layoutMode === 'card' ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-white'}`}
+              title="Card View"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setLayoutMode('row')}
+              className={`p-2 rounded-lg transition-colors ${layoutMode === 'row' ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-white'}`}
+              title="Row View"
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
           {terminatedCount > 0 && (
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -240,78 +258,127 @@ function TeamKPIView({ onNavigate }) {
         </div>
       </div>
 
-      {/* Team Member Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {filteredData.map((member, idx) => (
-          <motion.div
-            key={member.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.05 }}
-            whileHover={{ scale: 1.01, y: -2 }}
-            onClick={() => setSelectedMember(member)}
-            // #11 - Keyboard navigation and accessibility
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                setSelectedMember(member)
-              }
-            }}
-            tabIndex={0}
-            role="button"
-            aria-label={`View profile for ${member.name || 'Unknown'}, ${member.role || 'Agent'}, ${member.kpis?.totalDeals || 0} total deals`}
-            className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden hover:border-violet-500/50 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-gray-900"
-          >
-            <div className="h-1.5 bg-gradient-to-r from-violet-500 to-purple-400" />
-            <div className="p-5">
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-lg font-bold">
-                    {member.name?.charAt(0) || '?'}
+      {/* Team Members - Card or Row View */}
+      {layoutMode === 'card' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {filteredData.map((member, idx) => (
+            <motion.div
+              key={member.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.05 }}
+              whileHover={{ scale: 1.01, y: -2 }}
+              onClick={() => setSelectedMember(member)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setSelectedMember(member)
+                }
+              }}
+              tabIndex={0}
+              role="button"
+              aria-label={`View profile for ${member.name || 'Unknown'}, ${member.role || 'Agent'}, ${member.kpis?.totalDeals || 0} total deals`}
+              className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden hover:border-violet-500/50 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+            >
+              <div className="h-1.5 bg-gradient-to-r from-violet-500 to-purple-400" />
+              <div className="p-5">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-lg font-bold">
+                      {member.name?.charAt(0) || '?'}
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white text-lg">{member.name || 'Unknown'}</h3>
+                      <p className="text-xs text-gray-500">{member.role || 'Agent'}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-white text-lg">{member.name || 'Unknown'}</h3>
-                    <p className="text-xs text-gray-500">{member.role || 'Agent'}</p>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    member.status === 'Active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-600/30 text-gray-400'
+                  }`}>
+                    {member.status}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="bg-gray-900 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-white">{member.kpis.totalDeals}</p>
+                    <p className="text-xs text-gray-500">Total Deals</p>
+                  </div>
+                  <div className="bg-gray-900 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-emerald-400">{member.kpis.closedDeals}</p>
+                    <p className="text-xs text-gray-500">Closed</p>
+                  </div>
+                  <div className="bg-gray-900 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-amber-400">{member.kpis.pendingDeals}</p>
+                    <p className="text-xs text-gray-500">Pending</p>
                   </div>
                 </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  member.status === 'Active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-600/30 text-gray-400'
-                }`}>
-                  {member.status}
-                </span>
-              </div>
-
-              {/* KPI Grid */}
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="bg-gray-900 rounded-xl p-3 text-center">
-                  <p className="text-2xl font-bold text-white">{member.kpis.totalDeals}</p>
-                  <p className="text-xs text-gray-500">Total Deals</p>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-400">Volume: <span className="text-white font-semibold">{formatCompact(member.kpis.totalVolume)}</span></span>
+                  <span className={`font-semibold ${member.kpis.closingRate >= CLOSING_RATE_THRESHOLDS.HIGH ? 'text-emerald-400' : member.kpis.closingRate >= CLOSING_RATE_THRESHOLDS.MEDIUM ? 'text-amber-400' : 'text-gray-400'}`}>
+                    {member.kpis.closingRate}% closing
+                  </span>
                 </div>
-                <div className="bg-gray-900 rounded-xl p-3 text-center">
-                  <p className="text-2xl font-bold text-emerald-400">{member.kpis.closedDeals}</p>
-                  <p className="text-xs text-gray-500">Closed</p>
-                </div>
-                <div className="bg-gray-900 rounded-xl p-3 text-center">
-                  <p className="text-2xl font-bold text-amber-400">{member.kpis.pendingDeals}</p>
-                  <p className="text-xs text-gray-500">Pending</p>
-                </div>
+                <p className="text-xs text-violet-400 mt-3 opacity-60">Click to view full profile</p>
               </div>
-
-              {/* Volume & Closing Rate */}
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-400">Volume: <span className="text-white font-semibold">{formatCompact(member.kpis.totalVolume)}</span></span>
-                <span className={`font-semibold ${member.kpis.closingRate >= CLOSING_RATE_THRESHOLDS.HIGH ? 'text-emerald-400' : member.kpis.closingRate >= CLOSING_RATE_THRESHOLDS.MEDIUM ? 'text-amber-400' : 'text-gray-400'}`}>
-                  {member.kpis.closingRate}% closing
-                </span>
-              </div>
-
-              {/* Click hint */}
-              <p className="text-xs text-violet-400 mt-3 opacity-60">Click to view full profile</p>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        /* Row/Table View */
+        <div className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-900 border-b border-gray-700">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Role</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Status</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase">Total</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase">Closed</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase">Pending</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Volume</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Close Rate</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-700">
+                {filteredData.map((member) => (
+                  <tr
+                    key={member.id}
+                    onClick={() => setSelectedMember(member)}
+                    className="hover:bg-gray-700/50 cursor-pointer transition-colors"
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">
+                          {member.name?.charAt(0) || '?'}
+                        </div>
+                        <span className="font-medium text-white">{member.name || 'Unknown'}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 text-sm">{member.role || 'Agent'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        member.status === 'Active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-600/30 text-gray-400'
+                      }`}>
+                        {member.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center text-white font-semibold">{member.kpis.totalDeals}</td>
+                    <td className="px-4 py-3 text-center text-emerald-400 font-semibold">{member.kpis.closedDeals}</td>
+                    <td className="px-4 py-3 text-center text-amber-400 font-semibold">{member.kpis.pendingDeals}</td>
+                    <td className="px-4 py-3 text-right text-white font-semibold">{formatCompact(member.kpis.totalVolume)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <span className={`font-semibold ${member.kpis.closingRate >= CLOSING_RATE_THRESHOLDS.HIGH ? 'text-emerald-400' : member.kpis.closingRate >= CLOSING_RATE_THRESHOLDS.MEDIUM ? 'text-amber-400' : 'text-gray-400'}`}>
+                        {member.kpis.closingRate}%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Detail Modal */}
       <AnimatePresence>
