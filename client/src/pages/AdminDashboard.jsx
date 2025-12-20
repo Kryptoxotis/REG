@@ -59,26 +59,41 @@ function AdminDashboard({ user, setUser }) {
   }
 
   const handleNavClick = async (view) => {
-    // Verify session is still valid before navigation
+    // Verify permissions against database before navigation
     try {
-      const response = await api.get('/api/auth/check')
-      if (!response.data?.user) {
+      const response = await api.get('/api/auth/verify-permissions')
+      const result = response.data
+
+      if (!result.valid) {
+        // Handle terminated or pending accounts
+        if (result.action === 'logout') {
+          toast.error(result.message || 'Your account access has been revoked.')
+          handleLogout()
+          return
+        }
+        if (result.action === 'create-password') {
+          toast.info(result.message || 'Please complete your account setup.')
+          setUser(null) // This will redirect to login/create-password flow
+          return
+        }
+      }
+
+      // Handle role changes (admin demoted to employee)
+      if (result.roleChanged) {
+        toast.info(result.message || 'Your access level has changed.')
+        setUser(prev => ({ ...prev, role: result.newRole }))
+        // If demoted to employee, they'll see the EmployeeDashboard after re-render
+        return
+      }
+    } catch (err) {
+      // On 401, logout
+      if (err.response?.status === 401) {
         toast.error('Session expired. Please log in again.')
         setUser(null)
         return
       }
-      // Update user state if role or status changed
-      const currentUser = response.data.user
-      if (currentUser.role !== user?.role) {
-        toast.info('Your permissions have been updated.')
-        setUser(currentUser)
-        return
-      }
-    } catch (err) {
-      console.error('Session check failed:', err)
-      toast.error('Session expired. Please log in again.')
-      setUser(null)
-      return
+      // On other errors, log but allow navigation
+      console.error('Permission check failed:', err)
     }
 
     setActiveView(view)

@@ -24,9 +24,7 @@ async function moveToSubmitted(data) {
     Address: {
       title: [{ type: 'text', text: { content: address || 'Unknown' } }]
     },
-    'Loan Status': {
-      select: { name: 'Submitted' }
-    },
+    // Loan Status is left blank - property is submitted, not yet in loan process
     'Linked Property': {
       relation: [{ id: propertyId }]
     },

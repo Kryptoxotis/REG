@@ -226,6 +226,73 @@ router.get('/check', (req, res) => {
   }
 })
 
+// Verify user permissions - lightweight check for PWA navigation
+// Checks current user status and role against Notion, updates session if changed
+router.get('/verify-permissions', async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ error: 'Not authenticated', action: 'logout' })
+  }
+
+  try {
+    const user = await findUserByEmail(req.session.user.email)
+
+    if (!user) {
+      // User no longer exists in database
+      return res.json({
+        valid: false,
+        action: 'logout',
+        message: 'Account not found'
+      })
+    }
+
+    const status = user.status?.toLowerCase()
+    const currentRole = user.role?.toLowerCase() === 'admin' ? 'admin' : 'employee'
+
+    // Check account status
+    if (status === 'terminated') {
+      return res.json({
+        valid: false,
+        action: 'logout',
+        message: 'Your account has been terminated. Please contact admin.'
+      })
+    }
+
+    if (status === 'pending') {
+      return res.json({
+        valid: false,
+        action: 'create-password',
+        message: 'Please complete your account setup.'
+      })
+    }
+
+    // Check if role changed (admin demoted to employee)
+    const sessionRole = req.session.user.role
+    if (sessionRole !== currentRole) {
+      // Update session with new role
+      req.session.user.role = currentRole
+      return res.json({
+        valid: true,
+        roleChanged: true,
+        newRole: currentRole,
+        message: currentRole === 'employee'
+          ? 'Your access level has changed to Employee.'
+          : 'Your access level has changed to Admin.'
+      })
+    }
+
+    // All checks passed, user is valid
+    return res.json({
+      valid: true,
+      user: req.session.user
+    })
+
+  } catch (error) {
+    logger.error('Permission verification error', { error: error.message })
+    // On error, don't force logout - just report error
+    res.status(500).json({ error: 'Permission check failed', valid: true })
+  }
+})
+
 // Logout endpoint
 router.post('/logout', (req, res) => {
   req.session.destroy((err) => {

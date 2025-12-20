@@ -7,18 +7,14 @@ function DealDetailModal({
   selectedDeal,
   onClose,
   pipelineTab,
-  // Move form props (for Presale tab)
+  // Move form props
   moveForm,
   setMoveForm,
   teamMembers,
-  moveToPipeline,
-  isMoving,
-  // New Submitted flow props
-  moveToSubmitted,
-  isMovingToSubmitted,
+  // Move to Pending flow props (Submitted → Pending)
   moveToPending,
   isMovingToPending,
-  // Status change props (for Loan Status tab)
+  // Status change props (for Pending tab)
   changeStatus,
   isChangingStatus,
   sendBackToProperties,
@@ -75,77 +71,8 @@ function DealDetailModal({
               <DetailRow label="Mortgage Company" value={selectedDeal['Mortgage Company']} />
             </div>
 
-            {/* Move to Submitted section - only show on Presale tab */}
-            {pipelineTab === 'submitted' && (
-              <div className="mt-4 p-4 bg-gray-800/50 rounded-xl border border-amber-500/30">
-                <h3 className="text-sm font-semibold text-amber-400 mb-3">Move to Submitted</h3>
-                <p className="text-xs text-gray-400 mb-3">Start the contract process. Property address can still be edited after submission.</p>
-                <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Buyer Name *</label>
-                    <input
-                      type="text"
-                      value={moveForm.buyerName}
-                      onChange={e => setMoveForm(prev => ({ ...prev, buyerName: e.target.value }))}
-                      placeholder="Full name"
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Foreman</label>
-                    <input
-                      type="text"
-                      value={moveForm.foreman || ''}
-                      onChange={e => setMoveForm(prev => ({ ...prev, foreman: e.target.value }))}
-                      placeholder="Foreman name"
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Subdivision</label>
-                    <input
-                      type="text"
-                      value={moveForm.subdivision || ''}
-                      onChange={e => setMoveForm(prev => ({ ...prev, subdivision: e.target.value }))}
-                      placeholder="Subdivision"
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Agent Assist</label>
-                    <select
-                      value={moveForm.agentAssist || ''}
-                      onChange={e => setMoveForm(prev => ({ ...prev, agentAssist: e.target.value }))}
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-amber-500 focus:outline-none"
-                    >
-                      <option value="">None</option>
-                      {teamMembers.map(member => (
-                        <option key={member.id} value={member.Name || member.name}>
-                          {member.Name || member.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <button
-                    onClick={moveToSubmitted}
-                    disabled={!moveForm.buyerName || isMovingToSubmitted}
-                    className="w-full py-2.5 bg-amber-600 hover:bg-amber-500 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg transition-colors font-medium text-sm flex items-center justify-center gap-2"
-                  >
-                    {isMovingToSubmitted && (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    )}
-                    {isMovingToSubmitted ? 'Submitting...' : 'Move to Submitted'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Move to Pending section - only show for Submitted deals in Loan Status tab */}
-            {pipelineTab === 'pending' && selectedDeal['Loan Status'] === 'Submitted' && (
+            {/* Move to Pending section - show for Submitted deals in Submitted tab */}
+            {pipelineTab === 'submitted' && selectedDeal['Loan Status'] === 'Submitted' && (
               <div className="mt-4 p-4 bg-gray-800/50 rounded-xl border border-blue-500/30">
                 <h3 className="text-sm font-semibold text-blue-400 mb-3">Complete Contract Submission</h3>
                 <p className="text-xs text-gray-400 mb-3">Fill out the full contract details. This will lock the address and archive the property.</p>
@@ -499,9 +426,6 @@ DealDetailModal.propTypes = {
     buyerName: PropTypes.string,
     buyerEmail: PropTypes.string,
     buyerPhone: PropTypes.string,
-    foreman: PropTypes.string,
-    subdivision: PropTypes.string,
-    agentAssist: PropTypes.string,
     submittedBy: PropTypes.string,
     agentRole: PropTypes.string,
     streetAddress: PropTypes.string,
@@ -510,14 +434,15 @@ DealDetailModal.propTypes = {
     zipCode: PropTypes.string,
     lot: PropTypes.string,
     block: PropTypes.string,
-    floorPlan: PropTypes.string
+    floorPlan: PropTypes.string,
+    subdivision: PropTypes.string,
+    salesPrice: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    closedDate: PropTypes.string,
+    loanAmount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    notes: PropTypes.string
   }),
   setMoveForm: PropTypes.func,
   teamMembers: PropTypes.array,
-  moveToPipeline: PropTypes.func,
-  isMoving: PropTypes.bool,
-  moveToSubmitted: PropTypes.func,
-  isMovingToSubmitted: PropTypes.bool,
   moveToPending: PropTypes.func,
   isMovingToPending: PropTypes.bool,
   changeStatus: PropTypes.func,

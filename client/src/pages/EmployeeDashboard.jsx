@@ -39,28 +39,55 @@ function EmployeeDashboard({ user, setUser }) {
     { id: 'chat', label: 'Chat', icon: '💬' },
   ]
 
-  // Handle section change with logging and session verification
-  const handleSectionChange = async (sectionId) => {
-    // Verify session is still valid before navigation
+  // Handle logout
+  const handleLogout = async () => {
+    ActivityLogger.logout(user?.fullName || user?.email || 'Unknown User')
     try {
-      const response = await api.get('/api/auth/check')
-      if (!response.data?.user) {
+      await api.post('/api/auth/logout')
+    } catch (error) {
+      console.error('Logout API failed:', error)
+    } finally {
+      setUser(null)
+    }
+  }
+
+  // Handle section change with logging and permission verification
+  const handleSectionChange = async (sectionId) => {
+    // Verify permissions against database before navigation
+    try {
+      const response = await api.get('/api/auth/verify-permissions')
+      const result = response.data
+
+      if (!result.valid) {
+        // Handle terminated or pending accounts
+        if (result.action === 'logout') {
+          toast.error(result.message || 'Your account access has been revoked.')
+          handleLogout()
+          return
+        }
+        if (result.action === 'create-password') {
+          toast.info(result.message || 'Please complete your account setup.')
+          setUser(null)
+          return
+        }
+      }
+
+      // Handle role changes (employee promoted to admin)
+      if (result.roleChanged) {
+        toast.info(result.message || 'Your access level has changed.')
+        setUser(prev => ({ ...prev, role: result.newRole }))
+        // If promoted to admin, parent component will re-render with AdminDashboard
+        return
+      }
+    } catch (err) {
+      // On 401, logout
+      if (err.response?.status === 401) {
         toast.error('Session expired. Please log in again.')
         setUser(null)
         return
       }
-      // Update user state if role changed (e.g., promoted to admin)
-      const currentUser = response.data.user
-      if (currentUser.role !== user?.role) {
-        toast.info('Your permissions have been updated.')
-        setUser(currentUser)
-        return
-      }
-    } catch (err) {
-      console.error('Session check failed:', err)
-      toast.error('Session expired. Please log in again.')
-      setUser(null)
-      return
+      // On other errors, log but allow navigation
+      console.error('Permission check failed:', err)
     }
 
     setActiveSection(sectionId)

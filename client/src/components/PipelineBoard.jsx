@@ -90,13 +90,13 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       const response = await api.get(`/api/databases/${database}`)
       let data = Array.isArray(response.data) ? response.data : []
 
-      // Filter Submitted tab to only show Loan Status = 'Submitted'
+      // Filter Submitted tab to show deals with NO Loan Status (just submitted from Properties)
       if (pipelineTab === 'submitted') {
-        data = data.filter(deal => deal['Loan Status'] === 'Submitted')
+        data = data.filter(deal => !deal['Loan Status'] || deal['Loan Status'] === '')
       }
-      // Filter Pending tab to exclude 'Submitted' status (handled in filteredDeals already for Closed/Funded)
+      // Filter Pending tab to show deals WITH a Loan Status (in active loan process)
       if (pipelineTab === 'pending') {
-        data = data.filter(deal => deal['Loan Status'] !== 'Submitted')
+        data = data.filter(deal => deal['Loan Status'] && deal['Loan Status'] !== '')
       }
 
       setDeals(data)
@@ -704,11 +704,18 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       {/* Deal Detail Modal */}
       {selectedDeal && (
         <DealDetailModal
-          selectedDeal={selectedDeal} onClose={() => setSelectedDeal(null)} pipelineTab={pipelineTab}
-          moveForm={moveForm} setMoveForm={setMoveForm} teamMembers={teamMembers} moveToPipeline={moveToPipeline} isMoving={isMoving}
-          changeStatus={changeStatus} isChangingStatus={isChangingStatus} sendBackToProperties={sendBackToProperties} isSendingBack={isSendingBack}
-          moveToSubmitted={moveToSubmitted} isMovingToSubmitted={isMovingToSubmitted}
-          moveToPending={moveToPending} isMovingToPending={isMovingToPending}
+          selectedDeal={selectedDeal}
+          onClose={() => setSelectedDeal(null)}
+          pipelineTab={pipelineTab}
+          moveForm={moveForm}
+          setMoveForm={setMoveForm}
+          teamMembers={teamMembers}
+          moveToPending={moveToPending}
+          isMovingToPending={isMovingToPending}
+          changeStatus={changeStatus}
+          isChangingStatus={isChangingStatus}
+          sendBackToProperties={sendBackToProperties}
+          isSendingBack={isSendingBack}
         />
       )}
     </div>

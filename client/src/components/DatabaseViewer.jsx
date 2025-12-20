@@ -49,13 +49,13 @@ function getStatusBorderColor(status) {
   return 'border-l-gray-600'
 }
 
-// Check if item was created today (in local timezone)
+// Check if item was created within the last 7 days
 function isNewItem(item) {
   if (!item?.created_time) return false
   const created = new Date(item.created_time)
   const now = new Date()
-  // Convert both to local date strings for comparison (handles timezone)
-  return created.toLocaleDateString() === now.toLocaleDateString()
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+  return created >= sevenDaysAgo
 }
 
 function PropertyCard({ item, config, onClick }) {
@@ -112,7 +112,7 @@ function PropertyCard({ item, config, onClick }) {
         <div className="flex justify-between items-start mb-3">
           <h3 className="font-semibold text-white truncate flex-1 text-sm sm:text-base flex items-center gap-1">
             {primaryValue}
-            {isNewItem(item) && <span className="text-red-500 font-bold text-lg" title="Added today">*</span>}
+            {isNewItem(item) && <span className="text-red-500 font-bold text-lg" title="Added in last 7 days">*</span>}
           </h3>
           {status && (
             <span className={`ml-2 px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getStatusColor(status)}`}>
@@ -179,7 +179,7 @@ function SmartCardView({ item, config, onClick }) {
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gray-800 rounded-xl border border-gray-700 p-4 cursor-pointer hover:border-gray-600 transition-colors" onClick={onClick}>
       <div className="flex justify-between items-start mb-2">
         <h3 className="font-semibold text-white truncate flex-1 flex items-center gap-1">
-          {isNewItem(item) && <span className="text-red-500 font-bold text-lg" title="Added today">*</span>}
+          {isNewItem(item) && <span className="text-red-500 font-bold text-lg" title="Added in last 7 days">*</span>}
           {item[config.primaryField] || 'Untitled'}
         </h3>
         {config.statusField && item[config.statusField] && <span className={"ml-2 px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(item[config.statusField])}>{item[config.statusField]}</span>}
@@ -573,6 +573,16 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
         })
       })
     }
+
+    // Sort Properties by created date, most recent first
+    if (databaseKey === 'PROPERTIES') {
+      result = [...result].sort((a, b) => {
+        const dateA = a.created_time ? new Date(a.created_time) : new Date(0)
+        const dateB = b.created_time ? new Date(b.created_time) : new Date(0)
+        return dateB - dateA // Most recent first
+      })
+    }
+
     return result
   }, [safeData, databaseKey, showTerminated, cityFilter, statusFilter, subdivisionFilter, bedsFilter, bathsFilter, priceMin, priceMax, sourceFilter, clientStatusFilter, config.statusField, searchTerm])
 
