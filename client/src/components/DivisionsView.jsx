@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Building2, ChevronDown, ChevronRight, Search, X, LayoutGrid, List, Home, MapPin } from 'lucide-react'
+import { Building2, ChevronDown, ChevronRight, Search, X, LayoutGrid, List, Home, MapPin, Database } from 'lucide-react'
 import api from '../lib/api'
 
 // City to Edwards Co. mapping (same as OfficeOverview)
@@ -12,9 +12,9 @@ const OFFICE_MAP = {
 }
 
 // Determine city from Edwards Co. field
-function getCityFromProperty(prop) {
-  const officeField = prop['Edwards Co.'] || prop['Edwards Co'] || prop.Office || ''
-  const address = prop.FullAddress || prop.Address || ''
+function getCityFromItem(item) {
+  const officeField = item['Edwards Co.'] || item['Edwards Co'] || item.Office || ''
+  const address = item.FullAddress || item.Address || item['Property Address'] || ''
 
   for (const [city, terms] of Object.entries(OFFICE_MAP)) {
     if (terms.some(term =>
@@ -28,49 +28,54 @@ function getCityFromProperty(prop) {
 }
 
 function DivisionsView() {
-  const [properties, setProperties] = useState([])
+  const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [expandedCities, setExpandedCities] = useState({})
   const [expandedDivisions, setExpandedDivisions] = useState({})
   const [searchTerm, setSearchTerm] = useState('')
   const [layoutMode, setLayoutMode] = useState('card')
+  const [dataSource, setDataSource] = useState('properties') // 'properties' or 'pipeline'
 
   useEffect(() => {
-    fetchProperties()
-  }, [])
+    fetchData()
+  }, [dataSource])
 
-  const fetchProperties = async () => {
+  const fetchData = async () => {
     setLoading(true)
     setError(null)
     try {
-      const response = await api.get('/api/databases/PROPERTIES')
-      const data = response.data?.data || response.data || []
-      setProperties(Array.isArray(data) ? data : [])
+      const endpoint = dataSource === 'properties' ? '/api/databases/PROPERTIES' : '/api/databases/PIPELINE'
+      const response = await api.get(endpoint)
+      const result = response.data?.data || response.data || []
+      setData(Array.isArray(result) ? result : [])
     } catch (err) {
-      console.error('Failed to fetch properties:', err)
-      setError(err.response?.data?.error || 'Failed to fetch properties')
+      console.error(`Failed to fetch ${dataSource}:`, err)
+      setError(err.response?.data?.error || `Failed to fetch ${dataSource}`)
     } finally {
       setLoading(false)
     }
   }
 
-  // Group properties by city (from Edwards Co.), then by subdivision
+  // Group data by city (from Edwards Co.), then by subdivision
   const divisionsByCity = useMemo(() => {
     const cityData = {}
 
-    // Group properties by city and subdivision
-    properties.forEach(prop => {
-      const city = getCityFromProperty(prop)
-      const subdivision = prop.Subdivision || prop.subdivision || prop.Division || prop.division || 'Unknown'
-      const status = prop.Status || prop['Sold/Available'] || ''
+    // Group items by city and subdivision
+    data.forEach(item => {
+      const city = getCityFromItem(item)
+      // For properties use Subdivision, for pipeline use Subdivision or Address-based grouping
+      const subdivision = item.Subdivision || item.subdivision || item.Division || item.division || 'Unknown'
+      const status = dataSource === 'properties'
+        ? (item.Status || item['Sold/Available'] || '')
+        : (item['Loan Status'] || '')
 
       // Initialize city if needed
       if (!cityData[city]) {
         cityData[city] = {
           name: city,
           divisions: {},
-          totalProperties: 0,
+          totalItems: 0,
           totalModelHomes: 0,
           totalActiveHomes: 0,
           totalSoldHomes: 0
@@ -81,7 +86,7 @@ function DivisionsView() {
       if (!cityData[city].divisions[subdivision]) {
         cityData[city].divisions[subdivision] = {
           name: subdivision,
-          properties: [],
+          items: [],
           stats: {
             modelHomes: 0,
             activeHomes: 0,
@@ -93,25 +98,39 @@ function DivisionsView() {
       }
 
       const div = cityData[city].divisions[subdivision]
-      div.properties.push(prop)
+      div.items.push(item)
       div.stats.total++
-      cityData[city].totalProperties++
+      cityData[city].totalItems++
 
       // Update stats based on status
       const statusLower = status.toLowerCase()
-      if (statusLower.includes('model')) {
-        div.stats.modelHomes++
-        cityData[city].totalModelHomes++
-      } else if (statusLower === 'available' || statusLower === 'inventory') {
-        div.stats.availableHomes++
-        div.stats.activeHomes++
-        cityData[city].totalActiveHomes++
-      } else if (statusLower === 'sold') {
-        div.stats.soldHomes++
-        cityData[city].totalSoldHomes++
-      } else if (!statusLower.includes('sold')) {
-        div.stats.activeHomes++
-        cityData[city].totalActiveHomes++
+      if (dataSource === 'properties') {
+        if (statusLower.includes('model')) {
+          div.stats.modelHomes++
+          cityData[city].totalModelHomes++
+        } else if (statusLower === 'available' || statusLower === 'inventory') {
+          div.stats.availableHomes++
+          div.stats.activeHomes++
+          cityData[city].totalActiveHomes++
+        } else if (statusLower === 'sold') {
+          div.stats.soldHomes++
+          cityData[city].totalSoldHomes++
+        } else if (!statusLower.includes('sold')) {
+          div.stats.activeHomes++
+          cityData[city].totalActiveHomes++
+        }
+      } else {
+        // Pipeline status logic
+        if (statusLower.includes('closed') || statusLower.includes('sold')) {
+          div.stats.soldHomes++
+          cityData[city].totalSoldHomes++
+        } else if (statusLower.includes('pending') || statusLower.includes('active') || statusLower.includes('submitted')) {
+          div.stats.activeHomes++
+          cityData[city].totalActiveHomes++
+        } else {
+          div.stats.activeHomes++
+          cityData[city].totalActiveHomes++
+        }
       }
     })
 
@@ -121,7 +140,7 @@ function DivisionsView() {
     })
 
     return cityData
-  }, [properties])
+  }, [data, dataSource])
 
   // Filter by search
   const filteredByCity = useMemo(() => {
@@ -171,7 +190,7 @@ function DivisionsView() {
   }
 
   const totalDivisions = Object.values(divisionsByCity).reduce((acc, city) => acc + city.divisions.length, 0)
-  const totalProperties = properties.length
+  const totalItems = data.length
   const totalCities = Object.keys(divisionsByCity).length
 
   if (loading) {
@@ -193,7 +212,7 @@ function DivisionsView() {
     return (
       <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6 text-center">
         <p className="text-red-400">{error}</p>
-        <button onClick={fetchProperties} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg">
+        <button onClick={fetchData} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg">
           Try Again
         </button>
       </div>
@@ -207,10 +226,27 @@ function DivisionsView() {
         <div>
           <h2 className="text-2xl font-bold text-white">Divisions</h2>
           <p className="text-sm text-gray-400">
-            {totalCities} cities · {totalDivisions} divisions · {totalProperties} properties
+            {totalCities} cities · {totalDivisions} divisions · {totalItems} {dataSource === 'properties' ? 'properties' : 'deals'}
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Data Source Toggle */}
+          <div className="flex items-center bg-gray-800 border border-gray-700 rounded-xl p-1">
+            <button
+              onClick={() => setDataSource('properties')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${dataSource === 'properties' ? 'bg-emerald-600 text-white' : 'text-gray-400 hover:text-white'}`}
+              title="View Inventory/Properties"
+            >
+              Inventory
+            </button>
+            <button
+              onClick={() => setDataSource('pipeline')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${dataSource === 'pipeline' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
+              title="View Pipeline Deals"
+            >
+              Pipeline
+            </button>
+          </div>
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -249,7 +285,7 @@ function DivisionsView() {
           </div>
           {/* Refresh */}
           <button
-            onClick={fetchProperties}
+            onClick={fetchData}
             className="p-2.5 bg-gray-800 border border-gray-700 rounded-xl text-gray-400 hover:text-white transition-colors"
             title="Refresh"
           >
@@ -292,7 +328,7 @@ function DivisionsView() {
                     <div className="text-left">
                       <h3 className="text-lg font-semibold text-white">{cityName}</h3>
                       <p className="text-xs text-gray-500">
-                        {cityData.divisions.length} division{cityData.divisions.length !== 1 ? 's' : ''} · {cityData.totalProperties} properties
+                        {cityData.divisions.length} division{cityData.divisions.length !== 1 ? 's' : ''} · {cityData.totalItems} {dataSource === 'properties' ? 'properties' : 'deals'}
                       </p>
                     </div>
                   </div>
@@ -376,19 +412,21 @@ function DivisionsView() {
                                         exit={{ height: 0, opacity: 0 }}
                                         className="mt-2 pt-2 border-t border-gray-700 space-y-2 overflow-hidden max-h-48 overflow-y-auto"
                                       >
-                                        {division.properties.slice(0, 10).map(prop => (
-                                          <div key={prop.id} className="text-sm bg-gray-800 rounded-lg p-2">
+                                        {division.items.slice(0, 10).map((item, idx) => (
+                                          <div key={item.id || idx} className="text-sm bg-gray-800 rounded-lg p-2">
                                             <p className="text-gray-200 truncate">
-                                              {prop.FullAddress || prop.Address || prop.Stname || 'No Address'}
+                                              {item.FullAddress || item.Address || item['Property Address'] || item.Stname || 'No Address'}
                                             </p>
                                             <p className="text-xs text-gray-500">
-                                              {prop.Status || prop['Sold/Available'] || 'No Status'}
+                                              {dataSource === 'properties'
+                                                ? (item.Status || item['Sold/Available'] || 'No Status')
+                                                : (item['Loan Status'] || item.Status || 'No Status')}
                                             </p>
                                           </div>
                                         ))}
-                                        {division.properties.length > 10 && (
+                                        {division.items.length > 10 && (
                                           <p className="text-xs text-gray-500 text-center">
-                                            +{division.properties.length - 10} more
+                                            +{division.items.length - 10} more
                                           </p>
                                         )}
                                       </motion.div>
