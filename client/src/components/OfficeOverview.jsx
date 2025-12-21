@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { ChevronDown, ChevronRight, Home, Building2 } from 'lucide-react'
 import api from '../lib/api'
 
 function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
@@ -8,6 +9,8 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
   const [error, setError] = useState(null)
   const [expandedOffice, setExpandedOffice] = useState(null)
   const [expandedDeals, setExpandedDeals] = useState([]) // Deals for expanded office
+  const [properties, setProperties] = useState([]) // All properties for subdivision stats
+  const [loadingProperties, setLoadingProperties] = useState(false)
 
   useEffect(() => {
     fetchOfficeStats()
@@ -41,22 +44,27 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
     }
   }
 
-  // Fetch deals for expanded office (admin only)
-  const fetchDealsForOffice = async (officeName) => {
-    try {
-      // HttpOnly cookies handle auth automatically via withCredentials
-      const response = await api.get('/api/databases/PIPELINE', {
-        timeout: 15000
-      })
-      const deals = Array.isArray(response.data) ? response.data : []
+  // City to office matching terms
+  const officeMap = {
+    'El Paso': ["Edward's LLC.", "Edwards LLC", "El Paso"],
+    'Las Cruces': ["Edward's NM.", "Edwards NM", "Las Cruces", "New Mexico"],
+    'McAllen': ["Edward's RGV", "Edwards RGV", "McAllen"],
+    'San Antonio': ["San Antonio"]
+  }
 
-      // Filter by office - match Edwards Co. field
-      const officeMap = {
-        'El Paso': ["Edward's LLC.", "Edwards LLC", "El Paso"],
-        'Las Cruces': ["Edward's NM.", "Edwards NM", "Las Cruces", "New Mexico"],
-        'McAllen': ["Edward's RGV", "Edwards RGV", "McAllen"],
-        'San Antonio': ["San Antonio"]
-      }
+  // Fetch deals and properties for expanded office (admin only)
+  const fetchDealsForOffice = async (officeName) => {
+    setLoadingProperties(true)
+    try {
+      // Fetch both pipeline deals and properties in parallel
+      const [pipelineRes, propertiesRes] = await Promise.all([
+        api.get('/api/databases/PIPELINE', { timeout: 15000 }),
+        api.get('/api/databases/PROPERTIES', { timeout: 15000 })
+      ])
+
+      const deals = Array.isArray(pipelineRes.data) ? pipelineRes.data : []
+      const props = Array.isArray(propertiesRes.data) ? propertiesRes.data : []
+
       const matchTerms = officeMap[officeName] || [officeName]
 
       const filteredDeals = deals.filter(deal => {
@@ -68,12 +76,67 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
         )
       })
 
+      // Filter properties by office/city
+      const filteredProps = props.filter(prop => {
+        const officeField = prop['Edwards Co.'] || prop['Edwards Co'] || prop.Office || ''
+        const address = prop.FullAddress || prop.Address || ''
+        const city = prop.City || ''
+        return matchTerms.some(term =>
+          officeField.toLowerCase().includes(term.toLowerCase()) ||
+          address.toLowerCase().includes(term.toLowerCase()) ||
+          city.toLowerCase().includes(term.toLowerCase())
+        )
+      })
+
       setExpandedDeals(filteredDeals)
+      setProperties(filteredProps)
     } catch (err) {
       console.error('Error fetching deals:', err)
       setExpandedDeals([])
+      setProperties([])
+    } finally {
+      setLoadingProperties(false)
     }
   }
+
+  // Group properties by subdivision for the expanded city
+  const subdivisionStats = useMemo(() => {
+    if (properties.length === 0) return []
+
+    const stats = {}
+    properties.forEach(prop => {
+      const subdivision = prop.Subdivision || prop.subdivision || 'Unknown'
+      const status = prop.Status || prop['Sold/Available'] || ''
+
+      if (!stats[subdivision]) {
+        stats[subdivision] = {
+          name: subdivision,
+          modelHomes: 0,
+          activeHomes: 0,
+          soldHomes: 0,
+          availableHomes: 0,
+          total: 0
+        }
+      }
+
+      stats[subdivision].total++
+
+      const statusLower = status.toLowerCase()
+      if (statusLower.includes('model')) {
+        stats[subdivision].modelHomes++
+      } else if (statusLower === 'available' || statusLower === 'inventory') {
+        stats[subdivision].availableHomes++
+        stats[subdivision].activeHomes++
+      } else if (statusLower === 'sold') {
+        stats[subdivision].soldHomes++
+      } else if (!statusLower.includes('sold')) {
+        stats[subdivision].activeHomes++
+      }
+    })
+
+    // Convert to array and sort by total descending
+    return Object.values(stats).sort((a, b) => b.total - a.total)
+  }, [properties])
 
   // Handle office card click
   const handleOfficeClick = (officeName) => {
@@ -86,6 +149,7 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
       if (expandedOffice === officeName) {
         setExpandedOffice(null)
         setExpandedDeals([])
+        setProperties([])
       } else {
         setExpandedOffice(officeName)
         fetchDealsForOffice(officeName)
@@ -295,7 +359,7 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
                   </div>
                 </div>
 
-                {/* Expandable Details - Property List */}
+                {/* Expandable Details - Subdivisions */}
                 <AnimatePresence>
                   {isExpanded && !readOnly && (
                     <motion.div
@@ -306,15 +370,60 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
                       className="overflow-hidden"
                     >
                       <div className="mt-4 pt-4 border-t border-gray-700">
-                        {/* Property List */}
-                        <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                          <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">
-                            Properties in Pipeline ({expandedDeals.length})
-                          </p>
-                          {expandedDeals.length === 0 ? (
-                            <p className="text-gray-500 text-sm py-4 text-center">Loading...</p>
+                        {/* Subdivisions Section */}
+                        <div className="mb-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Building2 className="w-4 h-4 text-gray-400" />
+                            <p className="text-xs text-gray-500 uppercase tracking-wide">
+                              Subdivisions ({subdivisionStats.length})
+                            </p>
+                          </div>
+
+                          {loadingProperties ? (
+                            <div className="flex items-center justify-center py-4">
+                              <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                                className="w-6 h-6 border-2 border-pink-500 border-t-transparent rounded-full"
+                              />
+                            </div>
+                          ) : subdivisionStats.length === 0 ? (
+                            <p className="text-gray-500 text-sm py-2 text-center">No subdivisions found</p>
                           ) : (
-                            expandedDeals.map(deal => (
+                            <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                              {subdivisionStats.map(sub => (
+                                <div
+                                  key={sub.name}
+                                  className="bg-gray-900/50 rounded-lg p-3 border border-gray-700/50"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-white text-sm font-medium">{sub.name}</p>
+                                    <span className="text-xs text-gray-500">{sub.total} homes</span>
+                                  </div>
+                                  <div className="flex items-center gap-3 mt-2 text-xs">
+                                    <span className="flex items-center gap-1 text-emerald-400">
+                                      <Home className="w-3 h-3" /> {sub.modelHomes} model
+                                    </span>
+                                    <span className="text-blue-400">{sub.activeHomes} active</span>
+                                    <span className="text-violet-400">{sub.soldHomes} sold</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Pipeline Deals Section */}
+                        <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                          <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">
+                            Pipeline Deals ({expandedDeals.length})
+                          </p>
+                          {loadingProperties ? (
+                            <p className="text-gray-500 text-sm py-4 text-center">Loading...</p>
+                          ) : expandedDeals.length === 0 ? (
+                            <p className="text-gray-500 text-sm py-2 text-center">No pipeline deals</p>
+                          ) : (
+                            expandedDeals.slice(0, 5).map(deal => (
                               <div
                                 key={deal.id}
                                 className="bg-gray-900/50 rounded-lg p-3 border border-gray-700/50"
@@ -330,11 +439,13 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
                                     {deal['Sales Price'] ? formatCurrency(deal['Sales Price']) : '-'}
                                   </span>
                                 </div>
-                                {deal.Agent && (
-                                  <p className="text-xs text-gray-500 mt-1">{deal.Agent}</p>
-                                )}
                               </div>
                             ))
+                          )}
+                          {expandedDeals.length > 5 && (
+                            <p className="text-xs text-gray-500 text-center pt-1">
+                              +{expandedDeals.length - 5} more deals
+                            </p>
                           )}
                         </div>
 

@@ -9,6 +9,7 @@ import Settings from '../components/Settings'
 import TeamKPIView from '../components/TeamKPIView'
 import ScheduleCalendar from '../components/ScheduleCalendar'
 import PipelineBoard from '../components/PipelineBoard'
+import ContactView from '../components/ContactView'
 import Chat from '../components/Chat'
 import { ActivityLogger } from '../utils/activityLogger'
 import EmployeeDashboard from './EmployeeDashboard'
@@ -441,6 +442,8 @@ function AdminDashboard({ user, setUser }) {
                   <ScheduleCalendar user={user} onNavigate={handleNavClick} />
                 ) : activeView === 'PIPELINE' ? (
                   <PipelineBoard highlightedDealId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} cityFilter={selectedCity} onClearCity={() => setSelectedCity(null)} />
+                ) : activeView === 'CLIENTS' ? (
+                  <ContactView highlightedId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} onNavigate={handleDealNavigate} searchTerm={searchTerm} onClearSearch={() => setSearchTerm('')} />
                 ) : (
                   <DatabaseViewer databaseKey={activeView} databaseName={databases.find(db => db.key === activeView)?.name} highlightedId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} onNavigate={handleDealNavigate} searchTerm={searchTerm} onClearSearch={() => setSearchTerm('')} />
                 )}
