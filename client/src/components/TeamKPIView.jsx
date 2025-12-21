@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../lib/api'
-import { Eye, EyeOff, Search, X, Maximize2, Minimize2, Edit3, Save, XCircle, LayoutGrid, List } from 'lucide-react'
+import { Eye, EyeOff, Search, X, Maximize2, Minimize2, Edit3, Save, XCircle, LayoutGrid, List, Filter } from 'lucide-react'
 import { getFieldPreferences } from './FieldSettings'
 
 // #10 - Extract magic numbers to named constants
@@ -24,9 +24,21 @@ function TeamKPIView({ onNavigate }) {
   const [saving, setSaving] = useState(false)
   const [prefVersion, setPrefVersion] = useState(0)
   const [layoutMode, setLayoutMode] = useState('row') // 'card' or 'row'
+  const [showFilters, setShowFilters] = useState(false)
+  const [dynamicFilters, setDynamicFilters] = useState({})
 
   // Get field preferences for Team Members
   const fieldPrefs = useMemo(() => getFieldPreferences('TEAM_MEMBERS'), [prefVersion])
+
+  // Check if user has explicitly set preferences (array exists, even if empty)
+  const hasListPrefs = Array.isArray(fieldPrefs.list)
+  const hasCardPrefs = Array.isArray(fieldPrefs.card)
+  const hasExpandedPrefs = Array.isArray(fieldPrefs.expanded)
+
+  // Get the fields to display based on preferences
+  const listFields = hasListPrefs ? fieldPrefs.list : ['Name', 'Role', 'Status', 'Total', 'Closed', 'Pending', 'Volume', 'Close Rate']
+  const cardFields = hasCardPrefs ? fieldPrefs.card : ['Name', 'Role', 'Status', 'Total', 'Closed', 'Pending', 'Volume', 'Close Rate']
+  const expandedFields = hasExpandedPrefs ? fieldPrefs.expanded : []
 
   // Listen for preference changes
   useEffect(() => {
@@ -120,6 +132,36 @@ function TeamKPIView({ onNavigate }) {
   }
 
   const terminatedCount = useMemo(() => data.filter(m => m.status?.toLowerCase() === 'terminated').length, [data])
+
+  // Extract unique filter options dynamically from fieldPrefs.filters
+  const filterOptions = useMemo(() => {
+    const options = {}
+    const filterFields = fieldPrefs.filters || []
+
+    filterFields.forEach(fieldName => {
+      // Map field name to data property
+      let values = []
+      if (fieldName === 'Status') {
+        values = [...new Set(data.map(m => m.status).filter(Boolean))]
+      } else if (fieldName === 'Role') {
+        values = [...new Set(data.map(m => m.role).filter(Boolean))]
+      } else if (fieldName === 'City') {
+        values = [...new Set(data.map(m => m.allFields?.City).filter(Boolean))]
+      } else {
+        // Try to get from allFields
+        values = [...new Set(data.map(m => m.allFields?.[fieldName]).filter(v => v !== null && v !== undefined && v !== ''))]
+      }
+      values.sort((a, b) => String(a).localeCompare(String(b)))
+      if (values.length > 0) {
+        options[fieldName] = values
+      }
+    })
+
+    return options
+  }, [data, fieldPrefs.filters])
+
+  const hasActiveFilters = Object.values(dynamicFilters).some(v => v !== '' && v !== null && v !== undefined)
+
   const filteredData = useMemo(() => {
     let result = showTerminated ? data : data.filter(m => m.status?.toLowerCase() !== 'terminated')
     if (searchQuery.trim()) {
@@ -131,8 +173,28 @@ function TeamKPIView({ onNavigate }) {
         m.phone?.toLowerCase().includes(query)
       )
     }
+
+    // Apply dynamic filters
+    Object.entries(dynamicFilters).forEach(([fieldName, filterValue]) => {
+      if (filterValue === '' || filterValue === null || filterValue === undefined) return
+
+      result = result.filter(m => {
+        let itemValue
+        if (fieldName === 'Status') {
+          itemValue = m.status
+        } else if (fieldName === 'Role') {
+          itemValue = m.role
+        } else if (fieldName === 'City') {
+          itemValue = m.allFields?.City
+        } else {
+          itemValue = m.allFields?.[fieldName]
+        }
+        return String(itemValue) === String(filterValue)
+      })
+    })
+
     return result
-  }, [data, showTerminated, searchQuery])
+  }, [data, showTerminated, searchQuery, dynamicFilters])
 
   if (loading) {
     return (
@@ -241,6 +303,16 @@ function TeamKPIView({ onNavigate }) {
               <List className="w-4 h-4" />
             </button>
           </div>
+          {/* Filters Button - only show if filters are configured */}
+          {fieldPrefs.filters?.length > 0 && (
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`p-2.5 rounded-xl border transition-colors ${showFilters || hasActiveFilters ? 'bg-violet-600 border-violet-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'}`}
+              title="Toggle Filters"
+            >
+              <Filter className="w-4 h-4" />
+            </button>
+          )}
           {terminatedCount > 0 && (
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -258,70 +330,150 @@ function TeamKPIView({ onNavigate }) {
         </div>
       </div>
 
+      {/* Filter Panel */}
+      {showFilters && Object.keys(filterOptions).length > 0 && (
+        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-gray-400">Filters</h3>
+            {hasActiveFilters && (
+              <button
+                onClick={() => setDynamicFilters({})}
+                className="text-xs text-violet-400 hover:text-violet-300"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {Object.entries(filterOptions).map(([fieldName, values]) => (
+              <div key={fieldName}>
+                <label className="block text-xs text-gray-500 mb-1">{fieldName}</label>
+                <select
+                  value={dynamicFilters[fieldName] || ''}
+                  onChange={(e) => setDynamicFilters(prev => ({ ...prev, [fieldName]: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                >
+                  <option value="">All</option>
+                  {values.map(val => (
+                    <option key={val} value={val}>{val}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Team Members - Card or Row View */}
       {layoutMode === 'card' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {filteredData.map((member, idx) => (
-            <motion.div
-              key={member.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              whileHover={{ scale: 1.01, y: -2 }}
-              onClick={() => setSelectedMember(member)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  setSelectedMember(member)
-                }
-              }}
-              tabIndex={0}
-              role="button"
-              aria-label={`View profile for ${member.name || 'Unknown'}, ${member.role || 'Agent'}, ${member.kpis?.totalDeals || 0} total deals`}
-              className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden hover:border-violet-500/50 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-gray-900"
-            >
-              <div className="h-1.5 bg-gradient-to-r from-violet-500 to-purple-400" />
-              <div className="p-5">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-lg font-bold">
-                      {member.name?.charAt(0) || '?'}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-white text-lg">{member.name || 'Unknown'}</h3>
-                      <p className="text-xs text-gray-500">{member.role || 'Agent'}</p>
-                    </div>
+        cardFields.length === 0 ? (
+          <div className="rounded-xl border border-gray-700 p-8 text-center bg-gray-800">
+            <p className="text-gray-500 italic">No fields configured for card view</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {filteredData.map((member, idx) => {
+              // Helper to get field value
+              const getFieldValue = (field) => {
+                if (field === 'Name') return member.name
+                if (field === 'Role') return member.role
+                if (field === 'Status') return member.status
+                if (field === 'Total') return member.kpis?.totalDeals
+                if (field === 'Closed') return member.kpis?.closedDeals
+                if (field === 'Pending') return member.kpis?.pendingDeals
+                if (field === 'Volume') return formatCompact(member.kpis?.totalVolume || 0)
+                if (field === 'Close Rate') return `${member.kpis?.closingRate || 0}%`
+                return member.allFields?.[field] || null
+              }
+
+              const showName = cardFields.includes('Name')
+              const showRole = cardFields.includes('Role')
+              const showStatus = cardFields.includes('Status')
+              const showKPIs = cardFields.some(f => ['Total', 'Closed', 'Pending', 'Volume', 'Close Rate'].includes(f))
+              const otherFields = cardFields.filter(f => !['Name', 'Role', 'Status', 'Total', 'Closed', 'Pending', 'Volume', 'Close Rate'].includes(f))
+
+              return (
+                <motion.div
+                  key={member.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  whileHover={{ scale: 1.01, y: -2 }}
+                  onClick={() => setSelectedMember(member)}
+                  tabIndex={0}
+                  role="button"
+                  className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden hover:border-violet-500/50 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500"
+                >
+                  <div className="h-1.5 bg-gradient-to-r from-violet-500 to-purple-400" />
+                  <div className="p-5">
+                    {(showName || showRole || showStatus) && (
+                      <div className="flex items-start justify-between mb-4">
+                        {showName && (
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-lg font-bold">
+                              {member.name?.charAt(0) || '?'}
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-white text-lg">{member.name || 'Unknown'}</h3>
+                              {showRole && <p className="text-xs text-gray-500">{member.role || 'Agent'}</p>}
+                            </div>
+                          </div>
+                        )}
+                        {showStatus && (
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${member.status === 'Active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-600/30 text-gray-400'}`}>
+                            {member.status}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {showKPIs && (
+                      <>
+                        <div className="grid grid-cols-3 gap-3 mb-4">
+                          {cardFields.includes('Total') && (
+                            <div className="bg-gray-900 rounded-xl p-3 text-center">
+                              <p className="text-2xl font-bold text-white">{member.kpis?.totalDeals || 0}</p>
+                              <p className="text-xs text-gray-500">Total</p>
+                            </div>
+                          )}
+                          {cardFields.includes('Closed') && (
+                            <div className="bg-gray-900 rounded-xl p-3 text-center">
+                              <p className="text-2xl font-bold text-emerald-400">{member.kpis?.closedDeals || 0}</p>
+                              <p className="text-xs text-gray-500">Closed</p>
+                            </div>
+                          )}
+                          {cardFields.includes('Pending') && (
+                            <div className="bg-gray-900 rounded-xl p-3 text-center">
+                              <p className="text-2xl font-bold text-amber-400">{member.kpis?.pendingDeals || 0}</p>
+                              <p className="text-xs text-gray-500">Pending</p>
+                            </div>
+                          )}
+                        </div>
+                        {(cardFields.includes('Volume') || cardFields.includes('Close Rate')) && (
+                          <div className="flex justify-between items-center text-sm">
+                            {cardFields.includes('Volume') && <span className="text-gray-400">Volume: <span className="text-white font-semibold">{formatCompact(member.kpis?.totalVolume || 0)}</span></span>}
+                            {cardFields.includes('Close Rate') && <span className={`font-semibold ${(member.kpis?.closingRate || 0) >= CLOSING_RATE_THRESHOLDS.HIGH ? 'text-emerald-400' : (member.kpis?.closingRate || 0) >= CLOSING_RATE_THRESHOLDS.MEDIUM ? 'text-amber-400' : 'text-gray-400'}`}>{member.kpis?.closingRate || 0}% closing</span>}
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {otherFields.length > 0 && (
+                      <div className="mt-3 space-y-1">
+                        {otherFields.map(field => {
+                          const value = getFieldValue(field)
+                          if (!value) return null
+                          return <p key={field} className="text-sm text-gray-400"><span className="text-gray-500">{field}:</span> {value}</p>
+                        })}
+                      </div>
+                    )}
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    member.status === 'Active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-600/30 text-gray-400'
-                  }`}>
-                    {member.status}
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  <div className="bg-gray-900 rounded-xl p-3 text-center">
-                    <p className="text-2xl font-bold text-white">{member.kpis.totalDeals}</p>
-                    <p className="text-xs text-gray-500">Total Deals</p>
-                  </div>
-                  <div className="bg-gray-900 rounded-xl p-3 text-center">
-                    <p className="text-2xl font-bold text-emerald-400">{member.kpis.closedDeals}</p>
-                    <p className="text-xs text-gray-500">Closed</p>
-                  </div>
-                  <div className="bg-gray-900 rounded-xl p-3 text-center">
-                    <p className="text-2xl font-bold text-amber-400">{member.kpis.pendingDeals}</p>
-                    <p className="text-xs text-gray-500">Pending</p>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-400">Volume: <span className="text-white font-semibold">{formatCompact(member.kpis.totalVolume)}</span></span>
-                  <span className={`font-semibold ${member.kpis.closingRate >= CLOSING_RATE_THRESHOLDS.HIGH ? 'text-emerald-400' : member.kpis.closingRate >= CLOSING_RATE_THRESHOLDS.MEDIUM ? 'text-amber-400' : 'text-gray-400'}`}>
-                    {member.kpis.closingRate}% closing
-                  </span>
-                </div>
-                <p className="text-xs text-violet-400 mt-3 opacity-60">Click to view full profile</p>
-              </div>
-            </motion.div>
-          ))}
+                </motion.div>
+              )
+            })}
+          </div>
+        )
+      ) : listFields.length === 0 ? (
+        <div className="rounded-xl border border-gray-700 p-8 text-center bg-gray-800">
+          <p className="text-gray-500 italic">No columns configured for list view</p>
         </div>
       ) : (
         /* Row/Table View */
@@ -330,50 +482,78 @@ function TeamKPIView({ onNavigate }) {
             <table className="w-full">
               <thead className="bg-gray-900 border-b border-gray-700">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Role</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Status</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase">Total</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase">Closed</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase">Pending</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Volume</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Close Rate</th>
+                  {listFields.map(field => (
+                    <th key={field} className={`px-4 py-3 text-xs font-medium text-gray-400 uppercase ${['Total', 'Closed', 'Pending'].includes(field) ? 'text-center' : ['Volume', 'Close Rate'].includes(field) ? 'text-right' : 'text-left'}`}>
+                      {field}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
-                {filteredData.map((member) => (
-                  <tr
-                    key={member.id}
-                    onClick={() => setSelectedMember(member)}
-                    className="hover:bg-gray-700/50 cursor-pointer transition-colors"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">
-                          {member.name?.charAt(0) || '?'}
-                        </div>
-                        <span className="font-medium text-white">{member.name || 'Unknown'}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 text-sm">{member.role || 'Agent'}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        member.status === 'Active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-600/30 text-gray-400'
-                      }`}>
-                        {member.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center text-white font-semibold">{member.kpis.totalDeals}</td>
-                    <td className="px-4 py-3 text-center text-emerald-400 font-semibold">{member.kpis.closedDeals}</td>
-                    <td className="px-4 py-3 text-center text-amber-400 font-semibold">{member.kpis.pendingDeals}</td>
-                    <td className="px-4 py-3 text-right text-white font-semibold">{formatCompact(member.kpis.totalVolume)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <span className={`font-semibold ${member.kpis.closingRate >= CLOSING_RATE_THRESHOLDS.HIGH ? 'text-emerald-400' : member.kpis.closingRate >= CLOSING_RATE_THRESHOLDS.MEDIUM ? 'text-amber-400' : 'text-gray-400'}`}>
-                        {member.kpis.closingRate}%
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {filteredData.map((member) => {
+                  // Helper to render a cell based on field name
+                  const renderCell = (field) => {
+                    if (field === 'Name') {
+                      return (
+                        <td key={field} className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">
+                              {member.name?.charAt(0) || '?'}
+                            </div>
+                            <span className="font-medium text-white">{member.name || 'Unknown'}</span>
+                          </div>
+                        </td>
+                      )
+                    }
+                    if (field === 'Role') {
+                      return <td key={field} className="px-4 py-3 text-gray-400 text-sm">{member.role || 'Agent'}</td>
+                    }
+                    if (field === 'Status') {
+                      return (
+                        <td key={field} className="px-4 py-3">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${member.status === 'Active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-600/30 text-gray-400'}`}>
+                            {member.status}
+                          </span>
+                        </td>
+                      )
+                    }
+                    if (field === 'Total') {
+                      return <td key={field} className="px-4 py-3 text-center text-white font-semibold">{member.kpis?.totalDeals || 0}</td>
+                    }
+                    if (field === 'Closed') {
+                      return <td key={field} className="px-4 py-3 text-center text-emerald-400 font-semibold">{member.kpis?.closedDeals || 0}</td>
+                    }
+                    if (field === 'Pending') {
+                      return <td key={field} className="px-4 py-3 text-center text-amber-400 font-semibold">{member.kpis?.pendingDeals || 0}</td>
+                    }
+                    if (field === 'Volume') {
+                      return <td key={field} className="px-4 py-3 text-right text-white font-semibold">{formatCompact(member.kpis?.totalVolume || 0)}</td>
+                    }
+                    if (field === 'Close Rate') {
+                      const rate = member.kpis?.closingRate || 0
+                      return (
+                        <td key={field} className="px-4 py-3 text-right">
+                          <span className={`font-semibold ${rate >= CLOSING_RATE_THRESHOLDS.HIGH ? 'text-emerald-400' : rate >= CLOSING_RATE_THRESHOLDS.MEDIUM ? 'text-amber-400' : 'text-gray-400'}`}>
+                            {rate}%
+                          </span>
+                        </td>
+                      )
+                    }
+                    // Generic field from allFields
+                    const value = member.allFields?.[field]
+                    return <td key={field} className="px-4 py-3 text-gray-400 text-sm">{value ?? '-'}</td>
+                  }
+
+                  return (
+                    <tr
+                      key={member.id}
+                      onClick={() => setSelectedMember(member)}
+                      className="hover:bg-gray-700/50 cursor-pointer transition-colors"
+                    >
+                      {listFields.map(field => renderCell(field))}
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -455,16 +635,26 @@ function TeamKPIView({ onNavigate }) {
 
                 {/* Expanded View - Fields based on preferences or all fields */}
                 {isExpanded ? (
+                  hasExpandedPrefs && expandedFields.length === 0 ? (
+                    <div className="mb-6">
+                      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">All Fields</h3>
+                      <div className="bg-gray-800 rounded-xl p-4 text-center">
+                        <p className="text-gray-500 italic">No fields configured for expanded view</p>
+                      </div>
+                    </div>
+                  ) : (
                   <div className="mb-6">
                     <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">All Fields</h3>
                     <div className="bg-gray-800 rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                       {selectedMember.allFields && Object.entries(isEditing ? editedFields : selectedMember.allFields)
                         .filter(([key]) => {
-                          // If expandedFields has entries, only show those; otherwise show all
-                          if (fieldPrefs.expanded?.length > 0) {
-                            return fieldPrefs.expanded.includes(key)
+                          // If user explicitly set expanded fields (even empty), respect that; otherwise show all
+                          if (hasExpandedPrefs && expandedFields.length > 0) {
+                            return expandedFields.includes(key)
                           }
-                          return true
+                          // If hasExpandedPrefs is true but length is 0, we handled it above with empty message
+                          // If hasExpandedPrefs is false (undefined), show all fields
+                          return !hasExpandedPrefs
                         })
                         .sort(([a], [b]) => a.localeCompare(b))
                         .map(([key, value]) => (
@@ -504,9 +694,17 @@ function TeamKPIView({ onNavigate }) {
                         ))}
                     </div>
                   </div>
+                  )
                 ) : (
                   /* Collapsed View - Show fields from card preferences */
-                  selectedMember.allFields && (
+                  hasCardPrefs && cardFields.length === 0 ? (
+                    <div className="mb-6">
+                      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Member Details</h3>
+                      <div className="bg-gray-800 rounded-xl p-4 text-center">
+                        <p className="text-gray-500 italic">No fields configured for card view</p>
+                      </div>
+                    </div>
+                  ) : selectedMember.allFields && (
                     <div className="mb-6">
                       <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Member Details</h3>
                       <div className="bg-gray-800 rounded-xl p-4 space-y-2">
@@ -515,12 +713,12 @@ function TeamKPIView({ onNavigate }) {
                             if (['id', 'created_time', 'last_edited_time'].includes(key)) return false
                             if (value === null || value === undefined || value === '') return false
                             // Use card preferences if available
-                            if (fieldPrefs.card?.length > 0) {
-                              return fieldPrefs.card.includes(key)
+                            if (hasCardPrefs && cardFields.length > 0) {
+                              return cardFields.includes(key)
                             }
-                            return true
+                            return !hasCardPrefs // If prefs undefined, show fields; if empty array we handled above
                           })
-                          .slice(0, fieldPrefs.card?.length > 0 ? fieldPrefs.card.length : 6)
+                          .slice(0, hasCardPrefs && cardFields.length > 0 ? cardFields.length : 6)
                           .map(([key, value]) => (
                             <div key={key} className="flex justify-between items-start py-2 border-b border-gray-700 last:border-0">
                               <span className="text-gray-400 text-sm">{key}</span>
@@ -534,7 +732,7 @@ function TeamKPIView({ onNavigate }) {
                             !['id', 'created_time', 'last_edited_time'].includes(k) &&
                             selectedMember.allFields[k] !== null && selectedMember.allFields[k] !== undefined && selectedMember.allFields[k] !== ''
                           )
-                          const shownCount = fieldPrefs.card?.length > 0 ? fieldPrefs.card.filter(f => allKeys.includes(f)).length : Math.min(6, allKeys.length)
+                          const shownCount = hasCardPrefs && cardFields.length > 0 ? cardFields.filter(f => allKeys.includes(f)).length : Math.min(6, allKeys.length)
                           const hiddenCount = allKeys.length - shownCount
                           return hiddenCount > 0 ? (
                             <p className="text-violet-400 text-xs text-center pt-2">
