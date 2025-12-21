@@ -595,110 +595,199 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
         </>
       )}
 
-      {/* Loan Status Tab - Kanban View */}
+      {/* Loan Status Tab - Kanban/Row View */}
       {pipelineTab === 'pending' && (
-        <>
-          {/* Mobile Summary */}
-          <div className="sm:hidden bg-gray-800/50 rounded-xl p-4 flex items-center justify-between">
+        <DragDropContext onDragEnd={onDragEnd}>
+          {/* Summary */}
+          <div className="bg-gray-800/50 rounded-xl p-4 flex items-center justify-between mb-4">
             <div><span className="text-2xl font-bold text-white">{deals.length}</span><span className="text-gray-400 ml-2">Active Deals</span></div>
-            <div className="text-right"><span className="text-lg font-semibold text-emerald-400">{(groupedDeals['Closed'] || []).length + (groupedDeals['Funded'] || []).length}</span><span className="text-gray-500 text-sm ml-1">Closed/Funded</span></div>
-          </div>
-
-          {/* Mobile Accordion */}
-          <div className="sm:hidden space-y-3">
-            <div className="flex justify-end">
+            <div className="flex items-center gap-4">
+              <div className="text-right"><span className="text-lg font-semibold text-emerald-400">{(groupedDeals['Closed'] || []).length + (groupedDeals['Funded'] || []).length}</span><span className="text-gray-500 text-sm ml-1">Closed/Funded</span></div>
               <button onClick={() => {
                 const columnsWithDeals = LOAN_STATUS_COLUMNS.filter(col => (groupedDeals[col.key] || []).length > 0)
                 const allExpanded = columnsWithDeals.every(col => expandedColumns[col.key])
                 const newState = {}
                 columnsWithDeals.forEach(col => { newState[col.key] = !allExpanded })
                 setExpandedColumns(newState)
-              }} className="px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl text-sm text-gray-400 hover:text-white">
+              }} className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-gray-600 transition-colors">
                 {LOAN_STATUS_COLUMNS.filter(col => (groupedDeals[col.key] || []).length > 0).every(col => expandedColumns[col.key]) ? '▲ Collapse All' : '▼ Expand All'}
               </button>
             </div>
-            {LOAN_STATUS_COLUMNS.map((col) => {
-              const colors = colorMap[col.color]
-              const columnDeals = groupedDeals[col.key] || []
-              if (columnDeals.length === 0) return null
-              return (
-                <div key={col.key} className="rounded-xl overflow-hidden shadow-lg">
-                  <button onClick={() => toggleColumn(col.key)} className={`${colors.header} w-full px-5 py-4 flex items-center justify-between`}>
-                    <div className="flex items-center gap-3">
-                      <span className="font-semibold text-white text-base">{col.label}</span>
-                      <span className="bg-white/20 px-2.5 py-1 rounded-full text-sm font-medium text-white">{columnDeals.length}</span>
-                    </div>
-                    <motion.span animate={{ rotate: expandedColumns[col.key] ? 180 : 0 }} className="text-white/80 text-lg">▼</motion.span>
-                  </button>
-                  <AnimatePresence>
-                    {expandedColumns[col.key] && (
-                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className={`${colors.bg} ${colors.border} border border-t-0`}>
-                        <div className="p-4 space-y-3">
-                          {columnDeals.map((deal) => <MobileDealCard key={deal.id} deal={deal} onSelect={setSelectedDeal} formatCurrency={formatCurrency} formatDate={formatDate} />)}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              )
-            })}
           </div>
 
-          {/* Desktop Kanban */}
-          <DragDropContext onDragEnd={onDragEnd}>
-            <div className="hidden sm:block overflow-x-auto pb-4">
-              <div className="flex gap-4 min-w-max">
+          {/* Row View with Collapsible Sections */}
+          {layoutMode === 'row' && (
+            <div className="space-y-3">
+              {LOAN_STATUS_COLUMNS.map((col) => {
+                const colors = colorMap[col.color]
+                const columnDeals = groupedDeals[col.key] || []
+                if (columnDeals.length === 0) return null
+                return (
+                  <div key={col.key} className="rounded-xl overflow-hidden border border-gray-700">
+                    <button onClick={() => toggleColumn(col.key)} className={`${colors.header} w-full px-5 py-3 flex items-center justify-between hover:brightness-110 transition-all`}>
+                      <div className="flex items-center gap-3">
+                        <motion.span animate={{ rotate: expandedColumns[col.key] ? 180 : 0 }} className="text-white/80">▼</motion.span>
+                        <span className="font-semibold text-white">{col.label}</span>
+                        <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-sm font-medium text-white">{columnDeals.length}</span>
+                      </div>
+                    </button>
+                    <AnimatePresence>
+                      {expandedColumns[col.key] && (
+                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}>
+                          <Droppable droppableId={col.key}>
+                            {(provided, snapshot) => (
+                              <div ref={provided.innerRef} {...provided.droppableProps} className={`${colors.bg} ${colors.border} border-t-0 min-h-[60px] ${snapshot.isDraggingOver ? 'ring-2 ring-blue-500/50 ring-inset' : ''}`}>
+                                {/* Row Header */}
+                                <div className="hidden sm:grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-gray-400 uppercase bg-gray-900/30">
+                                  <div className="col-span-1"></div>
+                                  <div className="col-span-3">Address</div>
+                                  <div className="col-span-2">Buyer</div>
+                                  <div className="col-span-2">Price</div>
+                                  <div className="col-span-2">Closing Date</div>
+                                  <div className="col-span-2">Agent</div>
+                                </div>
+                                {/* Draggable Rows */}
+                                <div className="divide-y divide-gray-700/50">
+                                  {columnDeals.map((deal, idx) => {
+                                    const urgency = getCloseDateUrgency(deal)
+                                    const rowBg = urgency === 'overdue' ? 'bg-red-900/20 hover:bg-red-900/30' : urgency === 'soon' ? 'bg-yellow-900/20 hover:bg-yellow-900/30' : 'hover:bg-gray-700/30'
+                                    return (
+                                      <Draggable key={deal.id} draggableId={deal.id} index={idx}>
+                                        {(provided, snapshot) => (
+                                          <div ref={provided.innerRef} {...provided.draggableProps} className={`${rowBg} px-4 py-3 grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 items-center transition-all ${snapshot.isDragging ? 'shadow-xl ring-2 ring-blue-500 bg-gray-800 rounded-lg z-50' : ''}`}>
+                                            {/* Drag Handle */}
+                                            <div {...provided.dragHandleProps} className="sm:col-span-1 flex items-center justify-center cursor-grab active:cursor-grabbing">
+                                              <span className="text-gray-500 hover:text-gray-300 text-lg">⋮⋮</span>
+                                            </div>
+                                            {/* Address */}
+                                            <div className="sm:col-span-3 cursor-pointer" onClick={() => setSelectedDeal(deal)}>
+                                              <p className="font-medium text-white truncate hover:text-blue-400">{deal.Address || 'No Address'}</p>
+                                            </div>
+                                            {/* Buyer */}
+                                            <div className="sm:col-span-2">
+                                              <p className="text-gray-400 text-sm truncate">{deal['Buyer Name'] || '-'}</p>
+                                            </div>
+                                            {/* Price */}
+                                            <div className="sm:col-span-2">
+                                              <span className="text-emerald-400 font-semibold">{formatCurrency(deal['Sales Price'])}</span>
+                                            </div>
+                                            {/* Closing Date */}
+                                            <div className="sm:col-span-2">
+                                              <span className={`text-sm ${urgency === 'overdue' ? 'text-red-400 font-medium' : urgency === 'soon' ? 'text-yellow-400' : 'text-gray-500'}`}>
+                                                {deal['Scheduled Closing'] ? formatDate(deal['Scheduled Closing']) : '-'}
+                                              </span>
+                                            </div>
+                                            {/* Agent */}
+                                            <div className="sm:col-span-2 flex items-center gap-2">
+                                              <span className="text-gray-500 text-sm truncate">{deal.Agent || '-'}</span>
+                                              {deal.Executed && <span className="bg-emerald-500/20 text-emerald-400 text-xs px-2 py-0.5 rounded-full whitespace-nowrap">Executed</span>}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </Draggable>
+                                    )
+                                  })}
+                                </div>
+                                {provided.placeholder}
+                              </div>
+                            )}
+                          </Droppable>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Card/Kanban View */}
+          {layoutMode === 'card' && (
+            <>
+              {/* Mobile Accordion */}
+              <div className="sm:hidden space-y-3">
                 {LOAN_STATUS_COLUMNS.map((col) => {
                   const colors = colorMap[col.color]
                   const columnDeals = groupedDeals[col.key] || []
+                  if (columnDeals.length === 0) return null
                   return (
-                    <div key={col.key} className="w-72 flex-shrink-0">
-                      <div className={`${colors.header} rounded-t-xl px-4 py-3 flex items-center justify-between`}>
-                        <span className="font-semibold text-white">{col.label}</span>
-                        <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm text-white">{columnDeals.length}</span>
-                      </div>
-                      <Droppable droppableId={col.key}>
-                        {(provided, snapshot) => (
-                          <div ref={provided.innerRef} {...provided.droppableProps} className={`${colors.bg} ${colors.border} border border-t-0 rounded-b-xl p-3 min-h-[400px] space-y-3 ${snapshot.isDraggingOver ? 'ring-2 ring-blue-500/50' : ''}`}>
-                            {columnDeals.length === 0 ? <p className="text-center text-gray-500 text-sm py-8">No deals</p> : columnDeals.map((deal, idx) => {
-                              const urgency = getCloseDateUrgency(deal)
-                              const cardBg = urgency === 'overdue' ? 'bg-red-900/40 border-red-500/50 hover:border-red-400' : urgency === 'soon' ? 'bg-yellow-900/30 border-yellow-500/50 hover:border-yellow-400' : 'bg-gray-800 border-gray-700 hover:border-gray-500'
-                              return (
-                                <Draggable key={deal.id} draggableId={deal.id} index={idx}>
-                                  {(provided, snapshot) => (
-                                    <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} onClick={() => setSelectedDeal(deal)} className={`${cardBg} rounded-xl p-3 border cursor-grab transition-all ${snapshot.isDragging ? 'shadow-xl ring-2 ring-blue-500 rotate-2' : ''}`}>
-                                      <p className="font-medium text-white text-sm truncate">{deal.Address || 'No Address'}</p>
-                                      {deal['Buyer Name'] && <p className="text-gray-400 text-xs mt-1 truncate">{deal['Buyer Name']}</p>}
-                                      <div className="flex items-center justify-between mt-2">
-                                        <span className="text-emerald-400 text-sm font-semibold">{formatCurrency(deal['Sales Price'])}</span>
-                                        {deal['Scheduled Closing'] && <span className="text-gray-500 text-xs">{formatDate(deal['Scheduled Closing'])}</span>}
-                                      </div>
-                                      <div className="flex items-center justify-between mt-2">
-                                        {deal.Agent && <span className="text-xs text-gray-500 truncate max-w-[120px]">{deal.Agent}</span>}
-                                        {deal.Executed && <span className="bg-emerald-500/20 text-emerald-400 text-xs px-2 py-0.5 rounded-full">Executed</span>}
-                                      </div>
-                                    </div>
-                                  )}
-                                </Draggable>
-                              )
-                            })}
-                            {provided.placeholder}
-                          </div>
+                    <div key={col.key} className="rounded-xl overflow-hidden shadow-lg">
+                      <button onClick={() => toggleColumn(col.key)} className={`${colors.header} w-full px-5 py-4 flex items-center justify-between`}>
+                        <div className="flex items-center gap-3">
+                          <span className="font-semibold text-white text-base">{col.label}</span>
+                          <span className="bg-white/20 px-2.5 py-1 rounded-full text-sm font-medium text-white">{columnDeals.length}</span>
+                        </div>
+                        <motion.span animate={{ rotate: expandedColumns[col.key] ? 180 : 0 }} className="text-white/80 text-lg">▼</motion.span>
+                      </button>
+                      <AnimatePresence>
+                        {expandedColumns[col.key] && (
+                          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className={`${colors.bg} ${colors.border} border border-t-0`}>
+                            <div className="p-4 space-y-3">
+                              {columnDeals.map((deal) => <MobileDealCard key={deal.id} deal={deal} onSelect={setSelectedDeal} formatCurrency={formatCurrency} formatDate={formatDate} />)}
+                            </div>
+                          </motion.div>
                         )}
-                      </Droppable>
+                      </AnimatePresence>
                     </div>
                   )
                 })}
               </div>
-            </div>
-          </DragDropContext>
+
+              {/* Desktop Kanban */}
+              <div className="hidden sm:block overflow-x-auto pb-4">
+                <div className="flex gap-4 min-w-max">
+                  {LOAN_STATUS_COLUMNS.map((col) => {
+                    const colors = colorMap[col.color]
+                    const columnDeals = groupedDeals[col.key] || []
+                    return (
+                      <div key={col.key} className="w-72 flex-shrink-0">
+                        <div className={`${colors.header} rounded-t-xl px-4 py-3 flex items-center justify-between`}>
+                          <span className="font-semibold text-white">{col.label}</span>
+                          <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm text-white">{columnDeals.length}</span>
+                        </div>
+                        <Droppable droppableId={col.key}>
+                          {(provided, snapshot) => (
+                            <div ref={provided.innerRef} {...provided.droppableProps} className={`${colors.bg} ${colors.border} border border-t-0 rounded-b-xl p-3 min-h-[400px] space-y-3 ${snapshot.isDraggingOver ? 'ring-2 ring-blue-500/50' : ''}`}>
+                              {columnDeals.length === 0 ? <p className="text-center text-gray-500 text-sm py-8">No deals</p> : columnDeals.map((deal, idx) => {
+                                const urgency = getCloseDateUrgency(deal)
+                                const cardBg = urgency === 'overdue' ? 'bg-red-900/40 border-red-500/50 hover:border-red-400' : urgency === 'soon' ? 'bg-yellow-900/30 border-yellow-500/50 hover:border-yellow-400' : 'bg-gray-800 border-gray-700 hover:border-gray-500'
+                                return (
+                                  <Draggable key={deal.id} draggableId={deal.id} index={idx}>
+                                    {(provided, snapshot) => (
+                                      <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} onClick={() => setSelectedDeal(deal)} className={`${cardBg} rounded-xl p-3 border cursor-grab transition-all ${snapshot.isDragging ? 'shadow-xl ring-2 ring-blue-500 rotate-2' : ''}`}>
+                                        <p className="font-medium text-white text-sm truncate">{deal.Address || 'No Address'}</p>
+                                        {deal['Buyer Name'] && <p className="text-gray-400 text-xs mt-1 truncate">{deal['Buyer Name']}</p>}
+                                        <div className="flex items-center justify-between mt-2">
+                                          <span className="text-emerald-400 text-sm font-semibold">{formatCurrency(deal['Sales Price'])}</span>
+                                          {deal['Scheduled Closing'] && <span className="text-gray-500 text-xs">{formatDate(deal['Scheduled Closing'])}</span>}
+                                        </div>
+                                        <div className="flex items-center justify-between mt-2">
+                                          {deal.Agent && <span className="text-xs text-gray-500 truncate max-w-[120px]">{deal.Agent}</span>}
+                                          {deal.Executed && <span className="bg-emerald-500/20 text-emerald-400 text-xs px-2 py-0.5 rounded-full">Executed</span>}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </Draggable>
+                                )
+                              })}
+                              {provided.placeholder}
+                            </div>
+                          )}
+                        </Droppable>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </>
+          )}
 
           {unassigned.length > 0 && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mt-4">
               <p className="text-amber-400 text-sm">⚠️ {unassigned.length} deal{unassigned.length > 1 ? 's' : ''} without Loan Status assigned</p>
             </div>
           )}
-        </>
+        </DragDropContext>
       )}
 
       {/* Deal Detail Modal */}
