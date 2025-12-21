@@ -3,6 +3,30 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Building2, ChevronDown, ChevronRight, Search, X, LayoutGrid, List, Home, MapPin } from 'lucide-react'
 import api from '../lib/api'
 
+// City to Edwards Co. mapping (same as OfficeOverview)
+const OFFICE_MAP = {
+  'El Paso': ["Edward's LLC.", "Edwards LLC", "El Paso"],
+  'Las Cruces': ["Edward's NM.", "Edwards NM", "Las Cruces", "New Mexico"],
+  'McAllen': ["Edward's RGV", "Edwards RGV", "McAllen"],
+  'San Antonio': ["San Antonio"]
+}
+
+// Determine city from Edwards Co. field
+function getCityFromProperty(prop) {
+  const officeField = prop['Edwards Co.'] || prop['Edwards Co'] || prop.Office || ''
+  const address = prop.FullAddress || prop.Address || ''
+
+  for (const [city, terms] of Object.entries(OFFICE_MAP)) {
+    if (terms.some(term =>
+      officeField.toLowerCase().includes(term.toLowerCase()) ||
+      address.toLowerCase().includes(term.toLowerCase())
+    )) {
+      return city
+    }
+  }
+  return 'Other'
+}
+
 function DivisionsView() {
   const [properties, setProperties] = useState([])
   const [loading, setLoading] = useState(true)
@@ -31,21 +55,33 @@ function DivisionsView() {
     }
   }
 
-  // Group properties by subdivision/division, then determine city
+  // Group properties by city (from Edwards Co.), then by subdivision
   const divisionsByCity = useMemo(() => {
-    const divisions = {}
+    const cityData = {}
 
-    // First pass: group properties by subdivision and collect cities
+    // Group properties by city and subdivision
     properties.forEach(prop => {
+      const city = getCityFromProperty(prop)
       const subdivision = prop.Subdivision || prop.subdivision || prop.Division || prop.division || 'Unknown'
-      const city = prop.City || prop.city || null
       const status = prop.Status || prop['Sold/Available'] || ''
 
-      if (!divisions[subdivision]) {
-        divisions[subdivision] = {
+      // Initialize city if needed
+      if (!cityData[city]) {
+        cityData[city] = {
+          name: city,
+          divisions: {},
+          totalProperties: 0,
+          totalModelHomes: 0,
+          totalActiveHomes: 0,
+          totalSoldHomes: 0
+        }
+      }
+
+      // Initialize subdivision within city if needed
+      if (!cityData[city].divisions[subdivision]) {
+        cityData[city].divisions[subdivision] = {
           name: subdivision,
           properties: [],
-          cities: new Set(),
           stats: {
             modelHomes: 0,
             activeHomes: 0,
@@ -56,67 +92,32 @@ function DivisionsView() {
         }
       }
 
-      divisions[subdivision].properties.push(prop)
-      if (city) {
-        divisions[subdivision].cities.add(city)
-      }
+      const div = cityData[city].divisions[subdivision]
+      div.properties.push(prop)
+      div.stats.total++
+      cityData[city].totalProperties++
 
-      // Update stats
-      divisions[subdivision].stats.total++
+      // Update stats based on status
       const statusLower = status.toLowerCase()
       if (statusLower.includes('model')) {
-        divisions[subdivision].stats.modelHomes++
+        div.stats.modelHomes++
+        cityData[city].totalModelHomes++
       } else if (statusLower === 'available' || statusLower === 'inventory') {
-        divisions[subdivision].stats.availableHomes++
-        divisions[subdivision].stats.activeHomes++
+        div.stats.availableHomes++
+        div.stats.activeHomes++
+        cityData[city].totalActiveHomes++
       } else if (statusLower === 'sold') {
-        divisions[subdivision].stats.soldHomes++
+        div.stats.soldHomes++
+        cityData[city].totalSoldHomes++
       } else if (!statusLower.includes('sold')) {
-        divisions[subdivision].stats.activeHomes++
+        div.stats.activeHomes++
+        cityData[city].totalActiveHomes++
       }
     })
 
-    // Second pass: assign city to each division
-    // If division has no city, inherit from divisions with matching name that have a city
-    const divisionCityMap = {}
-    Object.values(divisions).forEach(div => {
-      const cityArray = Array.from(div.cities)
-      if (cityArray.length > 0) {
-        divisionCityMap[div.name] = cityArray[0]
-      }
-    })
-
-    // Assign cities (inherit if blank)
-    Object.values(divisions).forEach(div => {
-      const cityArray = Array.from(div.cities)
-      div.city = cityArray.length > 0 ? cityArray[0] : (divisionCityMap[div.name] || 'Unknown')
-      delete div.cities
-    })
-
-    // Group divisions by city
-    const cityData = {}
-    Object.values(divisions).forEach(div => {
-      const city = div.city
-      if (!cityData[city]) {
-        cityData[city] = {
-          name: city,
-          divisions: [],
-          totalProperties: 0,
-          totalModelHomes: 0,
-          totalActiveHomes: 0,
-          totalSoldHomes: 0
-        }
-      }
-      cityData[city].divisions.push(div)
-      cityData[city].totalProperties += div.stats.total
-      cityData[city].totalModelHomes += div.stats.modelHomes
-      cityData[city].totalActiveHomes += div.stats.activeHomes
-      cityData[city].totalSoldHomes += div.stats.soldHomes
-    })
-
-    // Sort divisions within each city alphabetically
+    // Convert divisions object to sorted array for each city
     Object.values(cityData).forEach(city => {
-      city.divisions.sort((a, b) => a.name.localeCompare(b.name))
+      city.divisions = Object.values(city.divisions).sort((a, b) => a.name.localeCompare(b.name))
     })
 
     return cityData
@@ -145,12 +146,12 @@ function DivisionsView() {
     return filtered
   }, [divisionsByCity, searchTerm])
 
-  // Order cities (Unknown at end)
+  // Order cities (Other at end)
   const orderedCities = useMemo(() => {
     const cities = Object.keys(filteredByCity)
     return cities.sort((a, b) => {
-      if (a === 'Unknown') return 1
-      if (b === 'Unknown') return -1
+      if (a === 'Other') return 1
+      if (b === 'Other') return -1
       return a.localeCompare(b)
     })
   }, [filteredByCity])
