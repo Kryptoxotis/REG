@@ -229,17 +229,9 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
   const [cityFilter, setCityFilter] = useState('')
   const [prefVersion, setPrefVersion] = useState(0)
   const [isExpanded, setIsExpanded] = useState(false)
-  // Additional filters for Properties
-  const [statusFilter, setStatusFilter] = useState('')
-  const [subdivisionFilter, setSubdivisionFilter] = useState('')
-  const [bedsFilter, setBedsFilter] = useState('')
-  const [bathsFilter, setBathsFilter] = useState('')
-  const [priceMin, setPriceMin] = useState('')
-  const [priceMax, setPriceMax] = useState('')
+  // Dynamic filters - stores {fieldName: value} for any filterable field
+  const [dynamicFilters, setDynamicFilters] = useState({})
   const [showFilters, setShowFilters] = useState(false)
-  // Additional filters for Clients
-  const [sourceFilter, setSourceFilter] = useState('')
-  const [clientStatusFilter, setClientStatusFilter] = useState('')
   const [isEditing, setIsEditing] = useState(false)
   const [editedFields, setEditedFields] = useState({})
   const [saving, setSaving] = useState(false)
@@ -377,15 +369,8 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
   useEffect(() => {
     const handlePrefsChange = () => {
       setPrefVersion(v => v + 1)
-      // Reset all filters when preferences change to ensure removed filters don't persist
-      setStatusFilter('')
-      setSubdivisionFilter('')
-      setBedsFilter('')
-      setBathsFilter('')
-      setPriceMin('')
-      setPriceMax('')
-      setSourceFilter('')
-      setClientStatusFilter('')
+      // Reset all dynamic filters when preferences change
+      setDynamicFilters({})
     }
     window.addEventListener('fieldPreferencesChanged', handlePrefsChange)
     return () => window.removeEventListener('fieldPreferencesChanged', handlePrefsChange)
@@ -456,55 +441,37 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
   const safeData = data || []
   const terminatedCount = useMemo(() => { if (databaseKey !== 'TEAM_MEMBERS') return 0; return safeData.filter(item => { const status = item[config.statusField]; return status && status.toLowerCase().includes('terminated') }).length }, [safeData, databaseKey, config.statusField])
 
-  // Extract unique filter options for Properties and Clients
+  // Extract unique filter options dynamically from fieldPrefs.filters
   const filterOptions = useMemo(() => {
-    if (databaseKey === 'PROPERTIES') {
-      const statuses = [...new Set(safeData.map(i => i.Status).filter(Boolean))].sort()
-      const subdivisions = [...new Set(safeData.map(i => i.Subdivision).filter(Boolean))].sort()
-      const beds = [...new Set(safeData.map(i => i.Beds || i.Bedrooms || i.beds).filter(v => v !== null && v !== undefined))].sort((a, b) => Number(a) - Number(b))
-      const baths = [...new Set(safeData.map(i => i.Baths || i.Bathrooms || i.baths).filter(v => v !== null && v !== undefined))].sort((a, b) => Number(a) - Number(b))
-      return { statuses, subdivisions, beds, baths }
-    }
-    if (databaseKey === 'CLIENTS') {
-      const sources = [...new Set(safeData.map(i => i.Source).filter(Boolean))].sort()
-      const statuses = [...new Set(safeData.map(i => i.Status).filter(Boolean))].sort()
-      return { sources, statuses }
-    }
-    return {}
-  }, [safeData, databaseKey])
+    const options = {}
+    const filterFields = fieldPrefs.filters || []
+
+    filterFields.forEach(fieldName => {
+      // Get all unique values for this field
+      const values = [...new Set(safeData.map(item => item[fieldName]).filter(v => v !== null && v !== undefined && v !== ''))]
+
+      // Sort appropriately - numbers vs strings
+      if (values.length > 0 && typeof values[0] === 'number') {
+        values.sort((a, b) => a - b)
+      } else {
+        values.sort((a, b) => String(a).localeCompare(String(b)))
+      }
+
+      options[fieldName] = values
+    })
+
+    return options
+  }, [safeData, fieldPrefs.filters])
 
   // Count active filters
   const activeFilterCount = useMemo(() => {
-    if (databaseKey === 'PROPERTIES') {
-      let count = 0
-      if (statusFilter) count++
-      if (subdivisionFilter) count++
-      if (bedsFilter) count++
-      if (bathsFilter) count++
-      if (priceMin) count++
-      if (priceMax) count++
-      return count
-    }
-    if (databaseKey === 'CLIENTS') {
-      let count = 0
-      if (sourceFilter) count++
-      if (clientStatusFilter) count++
-      return count
-    }
-    return 0
-  }, [databaseKey, statusFilter, subdivisionFilter, bedsFilter, bathsFilter, priceMin, priceMax, sourceFilter, clientStatusFilter])
+    return Object.values(dynamicFilters).filter(v => v !== '' && v !== null && v !== undefined).length
+  }, [dynamicFilters])
 
   // Clear all filters
   const clearAllFilters = () => {
     setCityFilter('')
-    setStatusFilter('')
-    setSubdivisionFilter('')
-    setBedsFilter('')
-    setBathsFilter('')
-    setPriceMin('')
-    setPriceMax('')
-    setSourceFilter('')
-    setClientStatusFilter('')
+    setDynamicFilters({})
   }
 
   const filteredData = useMemo(() => {
@@ -521,50 +488,40 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
         return itemEdwards === edwardsCo
       })
     }
-    // Additional filters for PROPERTIES
-    if (databaseKey === 'PROPERTIES') {
-      if (statusFilter) {
-        result = result.filter(item => item.Status === statusFilter)
-      }
-      if (subdivisionFilter) {
-        result = result.filter(item => item.Subdivision === subdivisionFilter)
-      }
-      if (bedsFilter) {
+
+    // Apply dynamic filters from fieldPrefs.filters
+    Object.entries(dynamicFilters).forEach(([fieldName, filterValue]) => {
+      if (filterValue === '' || filterValue === null || filterValue === undefined) return
+
+      // Handle min/max range filters (for numeric fields like price)
+      if (fieldName.endsWith('_min')) {
+        const actualField = fieldName.replace('_min', '')
+        const min = parseFloat(filterValue)
+        if (!isNaN(min)) {
+          result = result.filter(item => {
+            const val = item[actualField]
+            return val !== null && val !== undefined && Number(val) >= min
+          })
+        }
+      } else if (fieldName.endsWith('_max')) {
+        const actualField = fieldName.replace('_max', '')
+        const max = parseFloat(filterValue)
+        if (!isNaN(max)) {
+          result = result.filter(item => {
+            const val = item[actualField]
+            return val !== null && val !== undefined && Number(val) <= max
+          })
+        }
+      } else {
+        // Standard equality filter
         result = result.filter(item => {
-          const beds = item.Beds || item.Bedrooms || item.beds
-          return beds !== null && beds !== undefined && String(beds) === String(bedsFilter)
+          const itemValue = item[fieldName]
+          // Compare as strings to handle mixed types
+          return String(itemValue) === String(filterValue)
         })
       }
-      if (bathsFilter) {
-        result = result.filter(item => {
-          const baths = item.Baths || item.Bathrooms || item.baths
-          return baths !== null && baths !== undefined && String(baths) === String(bathsFilter)
-        })
-      }
-      if (priceMin) {
-        const min = parseFloat(priceMin)
-        result = result.filter(item => {
-          const price = item['Sales Price'] || item['Sale Price'] || item.Price || 0
-          return price >= min
-        })
-      }
-      if (priceMax) {
-        const max = parseFloat(priceMax)
-        result = result.filter(item => {
-          const price = item['Sales Price'] || item['Sale Price'] || item.Price || 0
-          return price <= max
-        })
-      }
-    }
-    // Additional filters for CLIENTS
-    if (databaseKey === 'CLIENTS') {
-      if (sourceFilter) {
-        result = result.filter(item => item.Source === sourceFilter)
-      }
-      if (clientStatusFilter) {
-        result = result.filter(item => item.Status === clientStatusFilter)
-      }
-    }
+    })
+
     // Filter by search term (searches all string fields)
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
@@ -588,7 +545,7 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
     }
 
     return result
-  }, [safeData, databaseKey, showTerminated, cityFilter, statusFilter, subdivisionFilter, bedsFilter, bathsFilter, priceMin, priceMax, sourceFilter, clientStatusFilter, config.statusField, searchTerm])
+  }, [safeData, databaseKey, showTerminated, cityFilter, dynamicFilters, config.statusField, searchTerm])
 
   const formatPrice = (value) => {
     if (!value) return '-'
@@ -722,36 +679,21 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
             <button onClick={() => setLayoutMode('card')} className={`px-3 py-1.5 text-sm rounded-md transition-all ${layoutMode === 'card' ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-white'}`}>Cards</button>
             <button onClick={() => setLayoutMode('row')} className={`px-3 py-1.5 text-sm rounded-md transition-all ${layoutMode === 'row' ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-white'}`}>Rows</button>
           </div>
+          {/* City filter for Properties only */}
           {databaseKey === 'PROPERTIES' && (
-            <>
-              <select
-                value={cityFilter}
-                onChange={(e) => setCityFilter(e.target.value)}
-                className="bg-gray-700 text-gray-200 px-3 py-1.5 rounded-xl text-sm font-medium border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-              >
-                <option value="">All Cities</option>
-                {CITIES.map(city => (
-                  <option key={city} value={city}>{city}</option>
-                ))}
-              </select>
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${showFilters || activeFilterCount > 0 ? 'bg-violet-500/20 text-violet-300' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-              >
-                <Filter className="w-4 h-4" />
-                Filters {activeFilterCount > 0 && `(${activeFilterCount})`}
-              </button>
-              {activeFilterCount > 0 && (
-                <button
-                  onClick={clearAllFilters}
-                  className="px-3 py-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-xl text-sm font-medium transition-colors"
-                >
-                  Clear All
-                </button>
-              )}
-            </>
+            <select
+              value={cityFilter}
+              onChange={(e) => setCityFilter(e.target.value)}
+              className="bg-gray-700 text-gray-200 px-3 py-1.5 rounded-xl text-sm font-medium border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+            >
+              <option value="">All Cities</option>
+              {CITIES.map(city => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
           )}
-          {databaseKey === 'CLIENTS' && (
+          {/* Dynamic Filters button - shows for any database with filters configured */}
+          {fieldPrefs.filters?.length > 0 && (
             <>
               <button
                 onClick={() => setShowFilters(!showFilters)}
@@ -774,132 +716,60 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
         </div>
       </div>
 
-      {/* Clients Filter Panel - filters based on fieldPrefs.filters configuration */}
-      {databaseKey === 'CLIENTS' && showFilters && (
-        <div className="px-4 pb-4 pt-2 border-b border-gray-700 bg-gray-800/50">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {fieldPrefs.filters?.includes('Source') && (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Source</label>
-                <select
-                  value={sourceFilter}
-                  onChange={(e) => setSourceFilter(e.target.value)}
-                  className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                >
-                  <option value="">All Sources</option>
-                  {filterOptions.sources?.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {fieldPrefs.filters?.includes('Status') && (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Status</label>
-                <select
-                  value={clientStatusFilter}
-                  onChange={(e) => setClientStatusFilter(e.target.value)}
-                  className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                >
-                  <option value="">All Statuses</option>
-                  {filterOptions.statuses?.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Properties Filter Panel - filters based on fieldPrefs.filters configuration */}
-      {databaseKey === 'PROPERTIES' && showFilters && (
+      {/* Dynamic Filter Panel - renders filters based on fieldPrefs.filters */}
+      {showFilters && fieldPrefs.filters?.length > 0 && (
         <div className="px-4 pb-4 pt-2 border-b border-gray-700 bg-gray-800/50">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {fieldPrefs.filters?.includes('Status') && (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Status</label>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                >
-                  <option value="">All Statuses</option>
-                  {filterOptions.statuses?.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {fieldPrefs.filters?.includes('Subdivision') && (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Subdivision</label>
-                <select
-                  value={subdivisionFilter}
-                  onChange={(e) => setSubdivisionFilter(e.target.value)}
-                  className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                >
-                  <option value="">All Subdivisions</option>
-                  {filterOptions.subdivisions?.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {fieldPrefs.filters?.includes('Beds') && (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Beds</label>
-                <select
-                  value={bedsFilter}
-                  onChange={(e) => setBedsFilter(e.target.value)}
-                  className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                >
-                  <option value="">Any</option>
-                  {filterOptions.beds?.map(b => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {fieldPrefs.filters?.includes('Baths') && (
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Baths</label>
-                <select
-                  value={bathsFilter}
-                  onChange={(e) => setBathsFilter(e.target.value)}
-                  className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                >
-                  <option value="">Any</option>
-                  {filterOptions.baths?.map(b => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {fieldPrefs.filters?.includes('Sales Price') && (
-              <>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Min Price</label>
-                  <input
-                    type="number"
-                    placeholder="$0"
-                    value={priceMin}
-                    onChange={(e) => setPriceMin(e.target.value)}
+            {fieldPrefs.filters.map(fieldName => {
+              const options = filterOptions[fieldName] || []
+              const isNumeric = options.length > 0 && typeof options[0] === 'number'
+              const isPriceField = fieldName.toLowerCase().includes('price') || fieldName.toLowerCase().includes('value')
+
+              // For price/numeric range fields, show min/max inputs
+              if (isPriceField) {
+                return (
+                  <div key={fieldName} className="col-span-2 grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Min {fieldName}</label>
+                      <input
+                        type="number"
+                        placeholder="$0"
+                        value={dynamicFilters[`${fieldName}_min`] || ''}
+                        onChange={(e) => setDynamicFilters(prev => ({ ...prev, [`${fieldName}_min`]: e.target.value }))}
+                        className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Max {fieldName}</label>
+                      <input
+                        type="number"
+                        placeholder="No Max"
+                        value={dynamicFilters[`${fieldName}_max`] || ''}
+                        onChange={(e) => setDynamicFilters(prev => ({ ...prev, [`${fieldName}_max`]: e.target.value }))}
+                        className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                      />
+                    </div>
+                  </div>
+                )
+              }
+
+              // Standard dropdown filter for all other fields
+              return (
+                <div key={fieldName}>
+                  <label className="text-xs text-gray-500 mb-1 block">{fieldName}</label>
+                  <select
+                    value={dynamicFilters[fieldName] || ''}
+                    onChange={(e) => setDynamicFilters(prev => ({ ...prev, [fieldName]: e.target.value }))}
                     className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                  />
+                  >
+                    <option value="">All {fieldName}</option>
+                    {options.map(opt => (
+                      <option key={opt} value={opt}>{String(opt)}</option>
+                    ))}
+                  </select>
                 </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Max Price</label>
-                  <input
-                    type="number"
-                    placeholder="No Max"
-                    value={priceMax}
-                    onChange={(e) => setPriceMax(e.target.value)}
-                    className="w-full bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                  />
-                </div>
-              </>
-            )}
+              )
+            })}
           </div>
         </div>
       )}
