@@ -9,7 +9,7 @@ import Settings from '../components/Settings'
 import TeamKPIView from '../components/TeamKPIView'
 import ScheduleCalendar from '../components/ScheduleCalendar'
 import PipelineBoard from '../components/PipelineBoard'
-import ContactView from '../components/ContactView'
+import DivisionsView from '../components/DivisionsView'
 import Chat from '../components/Chat'
 import { ActivityLogger } from '../utils/activityLogger'
 import EmployeeDashboard from './EmployeeDashboard'
@@ -110,6 +110,7 @@ function AdminDashboard({ user, setUser }) {
       PROPERTIES: 'Inventory',
       PIPELINE: 'Pipeline',
       CLIENTS: 'Contact',
+      DIVISIONS: 'Divisions',
       SCHEDULE: 'Schedule',
       chat: 'Chat',
       settings: 'Settings'
@@ -136,6 +137,7 @@ function AdminDashboard({ user, setUser }) {
     { key: 'PROPERTIES', name: 'Inventory', color: 'bg-emerald-500', icon: '🏘️' },
     { key: 'PIPELINE', name: 'Pipeline', color: 'bg-blue-500', icon: '📊' },
     { key: 'CLIENTS', name: 'Contact', color: 'bg-pink-500', icon: '💼' },
+    { key: 'DIVISIONS', name: 'Divisions', color: 'bg-rose-500', icon: '🏢', indent: true },
     { key: 'SCHEDULE', name: 'Schedule', color: 'bg-amber-500', icon: '📅' }
   ]
 
@@ -208,12 +210,12 @@ function AdminDashboard({ user, setUser }) {
             variants={navItemVariants}
             whileHover={{ scale: 1.02, x: 4 }}
             whileTap={{ scale: 0.98 }}
-            className={activeView === db.key
+            className={`${activeView === db.key
               ? 'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-gray-800 text-white'
-              : 'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 transition-all'}
+              : 'w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 transition-all'} ${db.indent ? 'ml-4' : ''}`}
           >
-            <span className="text-lg">{db.icon}</span>
-            {(isMobile || !sidebarCollapsed) && <span className="text-sm font-medium">{db.name}</span>}
+            <span className={db.indent ? 'text-base' : 'text-lg'}>{db.icon}</span>
+            {(isMobile || !sidebarCollapsed) && <span className={`font-medium ${db.indent ? 'text-xs' : 'text-sm'}`}>{db.name}</span>}
           </motion.button>
         ))}
 
@@ -442,8 +444,8 @@ function AdminDashboard({ user, setUser }) {
                   <ScheduleCalendar user={user} onNavigate={handleNavClick} />
                 ) : activeView === 'PIPELINE' ? (
                   <PipelineBoard highlightedDealId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} cityFilter={selectedCity} onClearCity={() => setSelectedCity(null)} />
-                ) : activeView === 'CLIENTS' ? (
-                  <ContactView highlightedId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} onNavigate={handleDealNavigate} searchTerm={searchTerm} onClearSearch={() => setSearchTerm('')} />
+                ) : activeView === 'DIVISIONS' ? (
+                  <DivisionsView />
                 ) : (
                   <DatabaseViewer databaseKey={activeView} databaseName={databases.find(db => db.key === activeView)?.name} highlightedId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} onNavigate={handleDealNavigate} searchTerm={searchTerm} onClearSearch={() => setSearchTerm('')} />
                 )}
