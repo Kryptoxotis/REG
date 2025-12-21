@@ -62,10 +62,15 @@ function isNewItem(item) {
 }
 
 function PropertyCard({ item, config, onClick }) {
-  const status = item[config.statusField] || item.Status || item.status || ''
-  const primaryValue = item[config.primaryField] || item.Address || 'No Address'
+  // If cardFields is explicitly empty [], show nothing except a minimal placeholder
+  const cardFields = config.cardFields || []
+  const showStatus = cardFields.includes(config.statusField) || cardFields.includes('Status') || !config.hasCardPrefs
+  const showPrimary = cardFields.includes(config.primaryField) || cardFields.includes('Address') || !config.hasCardPrefs
+
+  const status = showStatus ? (item[config.statusField] || item.Status || item.status || '') : ''
+  const primaryValue = showPrimary ? (item[config.primaryField] || item.Address || 'No Address') : ''
   // Fields to show (from card preferences, excluding primary and status)
-  const displayFields = (config.cardFields || config.secondaryFields || []).filter(f => f !== config.primaryField && f !== config.statusField)
+  const displayFields = cardFields.filter(f => f !== config.primaryField && f !== config.statusField && f !== 'Address' && f !== 'Status')
 
   // Get icon for field type
   const getFieldIcon = (fieldName) => {
@@ -103,6 +108,9 @@ function PropertyCard({ item, config, onClick }) {
     return 'bg-gray-800'
   }
 
+  // If all fields are hidden, show a minimal card
+  const hasAnyContent = showPrimary || showStatus || displayFields.length > 0
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -112,35 +120,43 @@ function PropertyCard({ item, config, onClick }) {
       onClick={onClick}
     >
       <div className="p-4">
-        <div className="flex justify-between items-start mb-3">
-          <h3 className="font-semibold text-white truncate flex-1 text-sm sm:text-base flex items-center gap-1">
-            {isNewItem(item) && <span className="text-red-500 font-bold text-xl" title="Added in last 3 days">*</span>}
-            {primaryValue}
-          </h3>
-          {status && (
-            <span className={`ml-2 px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getStatusColor(status)}`}>
-              {status}
-            </span>
-          )}
-        </div>
+        {hasAnyContent ? (
+          <>
+            <div className="flex justify-between items-start mb-3">
+              {showPrimary && (
+                <h3 className="font-semibold text-white truncate flex-1 text-sm sm:text-base flex items-center gap-1">
+                  {isNewItem(item) && <span className="text-red-500 font-bold text-xl" title="Added in last 3 days">*</span>}
+                  {primaryValue}
+                </h3>
+              )}
+              {showStatus && status && (
+                <span className={`ml-2 px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getStatusColor(status)}`}>
+                  {status}
+                </span>
+              )}
+            </div>
 
-        <div className="space-y-1.5">
-          {displayFields.map(field => {
-            const value = item[field]
-            const formatted = formatValue(field, value)
-            if (!formatted) return null
-            // Price fields get special styling
-            const isPrice = field.toLowerCase().includes('price') || field.toLowerCase().includes('value')
-            const icon = getFieldIcon(field)
-            return (
-              <p key={field} className={isPrice ? "text-lg font-bold text-emerald-400 mt-2" : "text-sm text-gray-400 flex items-center gap-1.5"}>
-                {!isPrice && icon && <span className="text-gray-500 text-xs">{icon}</span>}
-                {!isPrice && !icon && <span className="text-gray-500">{field}:</span>}
-                <span className={isPrice ? '' : 'truncate'}>{formatted}</span>
-              </p>
-            )
-          })}
-        </div>
+            <div className="space-y-1.5">
+              {displayFields.map(field => {
+                const value = item[field]
+                const formatted = formatValue(field, value)
+                if (!formatted) return null
+                // Price fields get special styling
+                const isPrice = field.toLowerCase().includes('price') || field.toLowerCase().includes('value')
+                const icon = getFieldIcon(field)
+                return (
+                  <p key={field} className={isPrice ? "text-lg font-bold text-emerald-400 mt-2" : "text-sm text-gray-400 flex items-center gap-1.5"}>
+                    {!isPrice && icon && <span className="text-gray-500 text-xs">{icon}</span>}
+                    {!isPrice && !icon && <span className="text-gray-500">{field}:</span>}
+                    <span className={isPrice ? '' : 'truncate'}>{formatted}</span>
+                  </p>
+                )
+              })}
+            </div>
+          </>
+        ) : (
+          <p className="text-gray-500 text-sm italic">No fields configured</p>
+        )}
       </div>
     </motion.div>
   )
@@ -148,22 +164,43 @@ function PropertyCard({ item, config, onClick }) {
 
 function TeamMemberCard({ item, config, onClick }) {
   const [expanded, setExpanded] = useState(false)
+  const cardFields = config.cardFields || []
+
+  // Check what should be shown based on explicit preferences
+  const showPrimary = cardFields.includes(config.primaryField) || cardFields.includes('Name') || !config.hasCardPrefs
+  const showStatus = cardFields.includes(config.statusField) || cardFields.includes('Status') || !config.hasCardPrefs
+
   // Use cardFields from preferences for main grid display (excluding primary which is the title)
-  const mainFields = (config.cardFields || config.secondaryFields || []).filter(f => f !== config.primaryField && f !== config.statusField)
-  // For expanded: use expandedFields if set, otherwise show all remaining fields not in the main display
+  const mainFields = cardFields.filter(f => f !== config.primaryField && f !== config.statusField && f !== 'Name' && f !== 'Status')
+
+  // For expanded: only show if hasExpandedPrefs is true and there are fields, or if not set at all (undefined)
   const allFieldKeys = Object.keys(item).filter(k => k !== 'id' && k !== 'created_time' && k !== 'last_edited_time')
   const shownInCard = [config.primaryField, config.statusField, ...mainFields].filter(Boolean)
-  const expandedFields = config.expandedFields?.length > 0
-    ? config.expandedFields.filter(f => item[f] !== null && item[f] !== '' && item[f] !== undefined)
-    : allFieldKeys.filter(k => !shownInCard.includes(k) && item[k] !== null && item[k] !== '' && item[k] !== undefined)
+
+  // If expandedFields is explicitly set (even empty), use it. If never set, show remaining fields.
+  let expandedFields = []
+  if (config.hasExpandedPrefs) {
+    expandedFields = (config.expandedFields || []).filter(f => item[f] !== null && item[f] !== '' && item[f] !== undefined)
+  } else {
+    expandedFields = allFieldKeys.filter(k => !shownInCard.includes(k) && item[k] !== null && item[k] !== '' && item[k] !== undefined)
+  }
+
+  const hasAnyContent = showPrimary || showStatus || mainFields.length > 0
+
   return (
     <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden hover:border-gray-600 transition-colors">
       <div className="p-4 cursor-pointer hover:bg-gray-700/50" onClick={onClick}>
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="font-semibold text-white truncate flex-1">{item[config.primaryField] || 'Untitled'}</h3>
-          {config.statusField && item[config.statusField] && <span className={"ml-2 px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(item[config.statusField])}>{item[config.statusField]}</span>}
-        </div>
-        <div className="space-y-1">{mainFields.map(field => item[field] && <p key={field} className="text-sm text-gray-400 truncate"><span className="text-gray-500">{field}:</span> {String(item[field])}</p>)}</div>
+        {hasAnyContent ? (
+          <>
+            <div className="flex justify-between items-start mb-2">
+              {showPrimary && <h3 className="font-semibold text-white truncate flex-1">{item[config.primaryField] || 'Untitled'}</h3>}
+              {showStatus && config.statusField && item[config.statusField] && <span className={"ml-2 px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(item[config.statusField])}>{item[config.statusField]}</span>}
+            </div>
+            <div className="space-y-1">{mainFields.map(field => item[field] && <p key={field} className="text-sm text-gray-400 truncate"><span className="text-gray-500">{field}:</span> {String(item[field])}</p>)}</div>
+          </>
+        ) : (
+          <p className="text-gray-500 text-sm italic">No fields configured</p>
+        )}
       </div>
       {expandedFields.length > 0 && (<>
         <button onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }} className="w-full px-4 py-2 bg-gray-900 border-t border-gray-700 flex items-center justify-center gap-2 text-sm text-gray-400 hover:bg-gray-700 hover:text-white transition-colors">
@@ -176,18 +213,35 @@ function TeamMemberCard({ item, config, onClick }) {
 }
 
 function SmartCardView({ item, config, onClick }) {
-  // Use cardFields for display (fallback to secondaryFields)
-  const displayFields = (config.cardFields || config.secondaryFields || []).filter(f => f !== config.primaryField && f !== config.statusField)
+  const cardFields = config.cardFields || []
+
+  // Check what should be shown based on explicit preferences
+  const showPrimary = cardFields.includes(config.primaryField) || !config.hasCardPrefs
+  const showStatus = cardFields.includes(config.statusField) || !config.hasCardPrefs
+
+  // Use cardFields for display (excluding primary and status)
+  const displayFields = cardFields.filter(f => f !== config.primaryField && f !== config.statusField)
+
+  const hasAnyContent = showPrimary || showStatus || displayFields.length > 0
+
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gray-800 rounded-xl border border-gray-700 p-4 cursor-pointer hover:border-gray-600 transition-colors" onClick={onClick}>
-      <div className="flex justify-between items-start mb-2">
-        <h3 className="font-semibold text-white truncate flex-1 flex items-center gap-1">
-          {isNewItem(item) && <span className="text-red-500 font-bold text-lg" title="Added in last 3 days">*</span>}
-          {item[config.primaryField] || 'Untitled'}
-        </h3>
-        {config.statusField && item[config.statusField] && <span className={"ml-2 px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(item[config.statusField])}>{item[config.statusField]}</span>}
-      </div>
-      <div className="space-y-1">{displayFields.map(field => item[field] && <p key={field} className="text-sm text-gray-400 truncate"><span className="text-gray-500">{field}:</span> {String(item[field])}</p>)}</div>
+      {hasAnyContent ? (
+        <>
+          <div className="flex justify-between items-start mb-2">
+            {showPrimary && (
+              <h3 className="font-semibold text-white truncate flex-1 flex items-center gap-1">
+                {isNewItem(item) && <span className="text-red-500 font-bold text-lg" title="Added in last 3 days">*</span>}
+                {item[config.primaryField] || 'Untitled'}
+              </h3>
+            )}
+            {showStatus && config.statusField && item[config.statusField] && <span className={"ml-2 px-2 py-1 text-xs font-medium rounded-full " + getStatusColor(item[config.statusField])}>{item[config.statusField]}</span>}
+          </div>
+          <div className="space-y-1">{displayFields.map(field => item[field] && <p key={field} className="text-sm text-gray-400 truncate"><span className="text-gray-500">{field}:</span> {String(item[field])}</p>)}</div>
+        </>
+      ) : (
+        <p className="text-gray-500 text-sm italic">No fields configured</p>
+      )}
     </motion.div>
   )
 }
@@ -420,18 +474,35 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
   const fieldPrefs = useMemo(() => getFieldPreferences(databaseKey), [databaseKey, prefVersion])
 
   // Merge preferences with base config
+  // IMPORTANT: Distinguish between undefined (use defaults) vs empty array [] (show nothing)
   const config = useMemo(() => {
-    const listFields = fieldPrefs.list?.length > 0 ? fieldPrefs.list : [baseConfig.primaryField, ...baseConfig.secondaryFields]
+    // Check if user has explicitly set preferences (array exists, even if empty)
+    const hasListPrefs = Array.isArray(fieldPrefs.list)
+    const hasCardPrefs = Array.isArray(fieldPrefs.card)
+    const hasExpandedPrefs = Array.isArray(fieldPrefs.expanded)
+
+    // If user set list to empty [], show nothing. If undefined, use defaults.
+    const listFields = hasListPrefs ? fieldPrefs.list : [baseConfig.primaryField, ...baseConfig.secondaryFields]
     const primaryField = listFields[0] || baseConfig.primaryField
     const secondaryFields = listFields.slice(1)
+
+    // Same for card fields
+    const cardFields = hasCardPrefs ? fieldPrefs.card : [baseConfig.primaryField, ...baseConfig.secondaryFields, baseConfig.statusField].filter(Boolean)
+
+    // Same for expanded fields
+    const expandedFields = hasExpandedPrefs ? fieldPrefs.expanded : []
 
     return {
       ...baseConfig,
       primaryField,
       secondaryFields,
       tableColumns: listFields,
-      cardFields: fieldPrefs.card?.length > 0 ? fieldPrefs.card : [baseConfig.primaryField, ...baseConfig.secondaryFields, baseConfig.statusField].filter(Boolean),
-      expandedFields: fieldPrefs.expanded || []
+      cardFields,
+      expandedFields,
+      // Flags to check if user explicitly configured (vs using defaults)
+      hasListPrefs,
+      hasCardPrefs,
+      hasExpandedPrefs
     }
   }, [baseConfig, fieldPrefs, databaseKey])
 
@@ -555,7 +626,17 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
   }
 
   const renderTableView = () => {
-    const columns = config.tableColumns || [config.primaryField, ...config.secondaryFields]
+    const columns = config.tableColumns || []
+
+    // If no columns configured, show a message
+    if (columns.length === 0) {
+      return (
+        <div className="rounded-xl border border-gray-700 p-8 text-center">
+          <p className="text-gray-500 italic">No columns configured for list view</p>
+        </div>
+      )
+    }
+
     return (
       <div className="overflow-x-auto rounded-xl border border-gray-700 shadow-lg">
         <table className="min-w-full">
@@ -842,10 +923,11 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
                     {Object.entries(isEditing ? editedFields : selectedItem)
                       .filter(([key]) => {
                         if (['id', 'created_time', 'last_edited_time'].includes(key)) return false
-                        // If expandedFields has entries, only show those; otherwise show all
-                        if (config.expandedFields?.length > 0) {
+                        // If user explicitly set expandedFields (even to empty), respect it
+                        if (config.hasExpandedPrefs) {
                           return config.expandedFields.includes(key)
                         }
+                        // If not explicitly set, show all fields
                         return true
                       })
                       .sort(([a], [b]) => a.localeCompare(b))
