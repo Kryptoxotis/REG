@@ -22,7 +22,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
   const [error, setError] = useState(null)
   const [selectedDeal, setSelectedDeal] = useState(null)
   const [viewMode, setViewMode] = useState('monthly')
-  const [layoutMode, setLayoutMode] = useState('card') // 'card' or 'row'
+  const [layoutMode, setLayoutMode] = useState('row') // 'card' or 'row'
   const [pipelineTab, setPipelineTab] = useState('pending')
   const [expandedColumns, setExpandedColumns] = useState({})
   const [searchTerm, setSearchTerm] = useState('')
