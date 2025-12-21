@@ -354,6 +354,74 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     } finally { setIsMovingToPending(false) }
   }
 
+  // Delete from Submitted (remove pipeline entry without affecting original property)
+  const [isDeletingSubmitted, setIsDeletingSubmitted] = useState(false)
+  const deleteFromSubmitted = async () => {
+    if (!selectedDeal || isDeletingSubmitted) return
+    if (!confirm('Are you sure you want to delete this from Submitted? This cannot be undone.')) return
+
+    setIsDeletingSubmitted(true)
+    try {
+      await api.delete(`/api/databases/pipeline/${selectedDeal.id}`)
+
+      await api.post('/api/databases/actions', {
+        action: 'log-activity',
+        logAction: `Deleted from Submitted: ${getAddress(selectedDeal) || 'Unknown'}`,
+        dealAddress: getAddress(selectedDeal) || 'Unknown Address',
+        entityType: 'Deal',
+        actionType: 'Delete from Submitted'
+      })
+
+      setSelectedDeal(null)
+      fetchDeals()
+    } catch (err) {
+      console.error('Failed to delete from submitted:', err)
+      alert(err.response?.data?.error || 'Failed to delete')
+    } finally { setIsDeletingSubmitted(false) }
+  }
+
+  // Swap address - update the property link on this submitted deal
+  const [isSwappingAddress, setIsSwappingAddress] = useState(false)
+  const [showAddressSwap, setShowAddressSwap] = useState(false)
+  const [properties, setProperties] = useState([])
+
+  const fetchProperties = async () => {
+    try {
+      const response = await api.get('/api/databases/properties')
+      const propsData = response.data?.data || response.data || []
+      setProperties(Array.isArray(propsData) ? propsData : [])
+    } catch (err) {
+      console.error('Failed to fetch properties:', err)
+    }
+  }
+
+  const swapAddress = async (newPropertyId, newAddress) => {
+    if (!selectedDeal || isSwappingAddress) return
+
+    setIsSwappingAddress(true)
+    try {
+      await api.patch(`/api/databases/pipeline/${selectedDeal.id}`, {
+        Address: newAddress,
+        propertyId: newPropertyId
+      })
+
+      await api.post('/api/databases/actions', {
+        action: 'log-activity',
+        logAction: `Swapped address to: ${newAddress}`,
+        dealAddress: newAddress,
+        entityType: 'Deal',
+        actionType: 'Swap Address'
+      })
+
+      setShowAddressSwap(false)
+      setSelectedDeal(null)
+      fetchDeals()
+    } catch (err) {
+      console.error('Failed to swap address:', err)
+      alert(err.response?.data?.error || 'Failed to swap address')
+    } finally { setIsSwappingAddress(false) }
+  }
+
   const isThisMonth = (deal) => {
     const dateFields = [deal['Scheduled Closing'], deal['Closed Date'], deal.Executed]
     const now = new Date()
@@ -805,6 +873,14 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
           isChangingStatus={isChangingStatus}
           sendBackToProperties={sendBackToProperties}
           isSendingBack={isSendingBack}
+          deleteFromSubmitted={deleteFromSubmitted}
+          isDeletingSubmitted={isDeletingSubmitted}
+          showAddressSwap={showAddressSwap}
+          setShowAddressSwap={setShowAddressSwap}
+          properties={properties}
+          fetchProperties={fetchProperties}
+          swapAddress={swapAddress}
+          isSwappingAddress={isSwappingAddress}
         />
       )}
     </div>

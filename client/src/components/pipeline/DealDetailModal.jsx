@@ -18,7 +18,17 @@ function DealDetailModal({
   changeStatus,
   isChangingStatus,
   sendBackToProperties,
-  isSendingBack
+  isSendingBack,
+  // Delete from Submitted props
+  deleteFromSubmitted,
+  isDeletingSubmitted,
+  // Swap address props
+  showAddressSwap,
+  setShowAddressSwap,
+  properties,
+  fetchProperties,
+  swapAddress,
+  isSwappingAddress
 }) {
   if (!selectedDeal) return null
 
@@ -71,8 +81,8 @@ function DealDetailModal({
               <DetailRow label="Mortgage Company" value={selectedDeal['Mortgage Company']} />
             </div>
 
-            {/* Move to Pending section - show for Submitted deals in Submitted tab */}
-            {pipelineTab === 'submitted' && selectedDeal['Loan Status'] === 'Submitted' && (
+            {/* Move to Pending section - show for deals in Submitted tab (those without Loan Status or with 'Submitted') */}
+            {pipelineTab === 'submitted' && (!selectedDeal['Loan Status'] || selectedDeal['Loan Status'] === 'Submitted') && (
               <div className="mt-4 p-4 bg-gray-800/50 rounded-xl border border-blue-500/30">
                 <h3 className="text-sm font-semibold text-blue-400 mb-3">Complete Contract Submission</h3>
                 <p className="text-xs text-gray-400 mb-3">Fill out the full contract details. This will lock the address and archive the property.</p>
@@ -352,6 +362,66 @@ function DealDetailModal({
               </div>
             )}
 
+            {/* Swap Address & Delete options - only for Submitted tab */}
+            {pipelineTab === 'submitted' && (!selectedDeal['Loan Status'] || selectedDeal['Loan Status'] === 'Submitted') && (
+              <div className="mt-4 p-3 bg-gray-800/50 rounded-xl border border-gray-700">
+                <h3 className="text-sm font-semibold text-gray-300 mb-3">Other Actions</h3>
+
+                {/* Swap Address */}
+                {!showAddressSwap ? (
+                  <button
+                    onClick={() => { setShowAddressSwap(true); fetchProperties(); }}
+                    className="w-full py-2 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/50 text-violet-400 rounded-lg text-sm font-medium transition-colors mb-2"
+                  >
+                    🔄 Swap Address from Inventory
+                  </button>
+                ) : (
+                  <div className="mb-3 p-3 bg-gray-900 rounded-lg border border-violet-500/30">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-violet-400 font-medium">Select new property:</span>
+                      <button
+                        onClick={() => setShowAddressSwap(false)}
+                        className="text-gray-500 hover:text-white text-xs"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    <div className="max-h-40 overflow-y-auto space-y-1">
+                      {properties.length === 0 ? (
+                        <p className="text-gray-500 text-xs text-center py-2">Loading properties...</p>
+                      ) : (
+                        properties.map(prop => {
+                          const addr = prop.Address || prop.address || 'No Address'
+                          return (
+                            <button
+                              key={prop.id}
+                              onClick={() => swapAddress(prop.id, addr)}
+                              disabled={isSwappingAddress}
+                              className="w-full text-left px-2 py-1.5 bg-gray-800 hover:bg-gray-700 rounded text-xs text-gray-300 transition-colors disabled:opacity-50"
+                            >
+                              {isSwappingAddress ? 'Swapping...' : addr}
+                            </button>
+                          )
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Delete from Submitted */}
+                <button
+                  onClick={deleteFromSubmitted}
+                  disabled={isDeletingSubmitted}
+                  className="w-full py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/50 text-red-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  {isDeletingSubmitted ? 'Deleting...' : '🗑️ Delete from Submitted'}
+                </button>
+                <p className="text-xs text-gray-600 mt-1 text-center">
+                  Removes this entry (does not affect original property)
+                </p>
+              </div>
+            )}
+
             {/* Change Status section - only show on Loan Status tab for non-Submitted deals */}
             {pipelineTab === 'pending' && selectedDeal['Loan Status'] !== 'Submitted' && (
               <div className="mt-4 p-3 bg-gray-800/50 rounded-xl border border-gray-700">
@@ -448,7 +518,15 @@ DealDetailModal.propTypes = {
   changeStatus: PropTypes.func,
   isChangingStatus: PropTypes.bool,
   sendBackToProperties: PropTypes.func,
-  isSendingBack: PropTypes.bool
+  isSendingBack: PropTypes.bool,
+  deleteFromSubmitted: PropTypes.func,
+  isDeletingSubmitted: PropTypes.bool,
+  showAddressSwap: PropTypes.bool,
+  setShowAddressSwap: PropTypes.func,
+  properties: PropTypes.array,
+  fetchProperties: PropTypes.func,
+  swapAddress: PropTypes.func,
+  isSwappingAddress: PropTypes.bool
 }
 
 export default DealDetailModal

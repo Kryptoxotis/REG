@@ -106,9 +106,9 @@ function AdminDashboard({ user, setUser }) {
     const viewNames = {
       overview: 'Dashboard Overview',
       TEAM_MEMBERS: 'Team Members',
-      PROPERTIES: 'Properties',
+      PROPERTIES: 'Inventory',
       PIPELINE: 'Pipeline',
-      CLIENTS: 'Clients',
+      CLIENTS: 'Contact',
       SCHEDULE: 'Schedule',
       chat: 'Chat',
       settings: 'Settings'
@@ -132,9 +132,9 @@ function AdminDashboard({ user, setUser }) {
 
   const databases = [
     { key: 'TEAM_MEMBERS', name: 'Team Members', color: 'bg-violet-500', icon: '👥' },
-    { key: 'PROPERTIES', name: 'Properties', color: 'bg-emerald-500', icon: '🏘️' },
+    { key: 'PROPERTIES', name: 'Inventory', color: 'bg-emerald-500', icon: '🏘️' },
     { key: 'PIPELINE', name: 'Pipeline', color: 'bg-blue-500', icon: '📊' },
-    { key: 'CLIENTS', name: 'Clients', color: 'bg-pink-500', icon: '💼' },
+    { key: 'CLIENTS', name: 'Contact', color: 'bg-pink-500', icon: '💼' },
     { key: 'SCHEDULE', name: 'Schedule', color: 'bg-amber-500', icon: '📅' }
   ]
 

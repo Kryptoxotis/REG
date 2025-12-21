@@ -35,7 +35,7 @@ function EmployeeDashboard({ user, setUser }) {
     { id: 'profile', label: 'Profile', icon: '👤' },
     { id: 'pipeline', label: 'Pipeline', icon: '📈' },
     { id: 'schedule', label: 'Schedule', icon: '📅' },
-    { id: 'properties', label: 'Properties', icon: '🏠' },
+    { id: 'properties', label: 'Inventory', icon: '🏠' },
     { id: 'chat', label: 'Chat', icon: '💬' },
   ]
 
