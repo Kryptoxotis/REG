@@ -245,7 +245,7 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
   const [saving, setSaving] = useState(false)
   // Move to Submitted state (for Properties)
   const [showMoveToSubmitted, setShowMoveToSubmitted] = useState(false)
-  const [layoutMode, setLayoutMode] = useState('card') // 'card' or 'row'
+  const [layoutMode, setLayoutMode] = useState('row') // 'card' or 'row'
   const [moveToSubmittedForm, setMoveToSubmittedForm] = useState({ foreman: '', subdivision: '', agentAssist: '', buyerName: '' })
   const [isMovingToSubmitted, setIsMovingToSubmitted] = useState(false)
   const [teamMembers, setTeamMembers] = useState([])
