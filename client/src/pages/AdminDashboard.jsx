@@ -137,7 +137,7 @@ function AdminDashboard({ user, setUser }) {
     { key: 'PROPERTIES', name: 'Inventory', color: 'bg-emerald-500', icon: '🏘️' },
     { key: 'PIPELINE', name: 'Pipeline', color: 'bg-blue-500', icon: '📊' },
     { key: 'CLIENTS', name: 'Contact', color: 'bg-pink-500', icon: '💼' },
-    { key: 'DIVISIONS', name: 'Divisions', color: 'bg-rose-500', icon: '🏢', indent: true },
+    { key: 'DIVISIONS', name: 'Divisions', color: 'bg-rose-500', icon: '🏢' },
     { key: 'SCHEDULE', name: 'Schedule', color: 'bg-amber-500', icon: '📅' }
   ]
 
