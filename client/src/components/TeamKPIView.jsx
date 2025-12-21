@@ -34,11 +34,13 @@ function TeamKPIView({ onNavigate }) {
   const hasListPrefs = Array.isArray(fieldPrefs.list)
   const hasCardPrefs = Array.isArray(fieldPrefs.card)
   const hasExpandedPrefs = Array.isArray(fieldPrefs.expanded)
+  const hasFiltersPrefs = Array.isArray(fieldPrefs.filters)
 
   // Get the fields to display based on preferences
   const listFields = hasListPrefs ? fieldPrefs.list : ['Name', 'Role', 'Status', 'Total', 'Closed', 'Pending', 'Volume', 'Close Rate']
   const cardFields = hasCardPrefs ? fieldPrefs.card : ['Name', 'Role', 'Status', 'Total', 'Closed', 'Pending', 'Volume', 'Close Rate']
   const expandedFields = hasExpandedPrefs ? fieldPrefs.expanded : []
+  const filterFields = hasFiltersPrefs ? fieldPrefs.filters : ['Status', 'Role', 'City']
 
   // Listen for preference changes
   useEffect(() => {
@@ -133,10 +135,9 @@ function TeamKPIView({ onNavigate }) {
 
   const terminatedCount = useMemo(() => data.filter(m => m.status?.toLowerCase() === 'terminated').length, [data])
 
-  // Extract unique filter options dynamically from fieldPrefs.filters
+  // Extract unique filter options dynamically from filterFields
   const filterOptions = useMemo(() => {
     const options = {}
-    const filterFields = fieldPrefs.filters || []
 
     filterFields.forEach(fieldName => {
       // Map field name to data property
@@ -158,7 +159,7 @@ function TeamKPIView({ onNavigate }) {
     })
 
     return options
-  }, [data, fieldPrefs.filters])
+  }, [data, filterFields])
 
   const hasActiveFilters = Object.values(dynamicFilters).some(v => v !== '' && v !== null && v !== undefined)
 
@@ -304,7 +305,7 @@ function TeamKPIView({ onNavigate }) {
             </button>
           </div>
           {/* Filters Button - only show if filters are configured */}
-          {fieldPrefs.filters?.length > 0 && (
+          {filterFields.length > 0 && (
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`p-2.5 rounded-xl border transition-colors ${showFilters || hasActiveFilters ? 'bg-violet-600 border-violet-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'}`}
