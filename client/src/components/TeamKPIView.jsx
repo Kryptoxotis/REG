@@ -23,7 +23,7 @@ function TeamKPIView({ onNavigate }) {
   const [editedFields, setEditedFields] = useState({})
   const [saving, setSaving] = useState(false)
   const [prefVersion, setPrefVersion] = useState(0)
-  const [layoutMode, setLayoutMode] = useState('card') // 'card' or 'row'
+  const [layoutMode, setLayoutMode] = useState('row') // 'card' or 'row'
 
   // Get field preferences for Team Members
   const fieldPrefs = useMemo(() => getFieldPreferences('TEAM_MEMBERS'), [prefVersion])
