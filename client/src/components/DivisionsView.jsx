@@ -71,20 +71,35 @@ function DivisionsView() {
           totalItems: 0,
           totalModelHomes: 0,
           totalActiveHomes: 0,
-          totalSoldHomes: 0
+          totalSoldHomes: 0,
+          totalUnits: 0,
+          totalVolume: 0
         }
       }
 
       if (!cityData[city].divisions[subdivision]) {
         cityData[city].divisions[subdivision] = {
           name: subdivision,
-          stats: { modelHomes: 0, activeHomes: 0, soldHomes: 0, total: 0 }
+          stats: { modelHomes: 0, activeHomes: 0, soldHomes: 0, total: 0, units: 0, volume: 0 }
         }
       }
 
       const div = cityData[city].divisions[subdivision]
       div.stats.total++
       cityData[city].totalItems++
+
+      // Count units and volume
+      div.stats.units++
+      cityData[city].totalUnits++
+
+      // Get price/volume from various possible fields
+      const price = parseFloat(
+        item['Sale Price'] || item['SalePrice'] || item['Price'] ||
+        item['Loan Amount'] || item['LoanAmount'] || item['Contract Price'] ||
+        item['Base Price'] || item['Total Price'] || 0
+      ) || 0
+      div.stats.volume += price
+      cityData[city].totalVolume += price
 
       const statusLower = status.toLowerCase()
       if (dataSource === 'properties') {
@@ -314,11 +329,13 @@ function DivisionsView() {
                     >
                       <div className="border-t border-gray-700/50">
                         {/* Table Header */}
-                        <div className="grid grid-cols-4 gap-2 px-3 py-2 bg-gray-900/50 text-[10px] text-gray-500 uppercase tracking-wider">
-                          <div>Subdivision</div>
-                          <div className="text-center">Model Homes</div>
-                          <div className="text-center">Active Homes</div>
-                          <div className="text-center">Sold</div>
+                        <div className="grid grid-cols-6 gap-2 px-3 py-2 bg-gray-900/50 text-[10px] text-gray-500 uppercase tracking-wider">
+                          <div className="col-span-2 sm:col-span-1">Subdivision</div>
+                          <div className="text-center hidden sm:block">Model</div>
+                          <div className="text-center hidden sm:block">Active</div>
+                          <div className="text-center hidden sm:block">Sold</div>
+                          <div className="text-center">Units</div>
+                          <div className="text-right">Volume</div>
                         </div>
 
                         {/* Table Rows */}
@@ -326,22 +343,36 @@ function DivisionsView() {
                           {cityData.divisions.map((division) => (
                             <div
                               key={division.name}
-                              className="grid grid-cols-4 gap-2 px-3 py-2 hover:bg-gray-700/20 transition-colors"
+                              className="grid grid-cols-6 gap-2 px-3 py-2 hover:bg-gray-700/20 transition-colors"
                             >
-                              <div className="text-sm text-white truncate">{division.name}</div>
-                              <div className="text-center">
+                              <div className="col-span-2 sm:col-span-1 text-sm text-white truncate">{division.name}</div>
+                              <div className="text-center hidden sm:block">
                                 <span className="text-sm font-medium text-emerald-400">
                                   {division.stats.modelHomes}
                                 </span>
                               </div>
-                              <div className="text-center">
+                              <div className="text-center hidden sm:block">
                                 <span className="text-sm font-medium text-blue-400">
                                   {division.stats.activeHomes}
                                 </span>
                               </div>
-                              <div className="text-center">
+                              <div className="text-center hidden sm:block">
                                 <span className="text-sm font-medium text-violet-400">
                                   {division.stats.soldHomes}
+                                </span>
+                              </div>
+                              <div className="text-center">
+                                <span className="text-sm font-medium text-amber-400">
+                                  {division.stats.units}
+                                </span>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-sm font-medium text-cyan-400">
+                                  ${division.stats.volume >= 1000000
+                                    ? (division.stats.volume / 1000000).toFixed(1) + 'M'
+                                    : division.stats.volume >= 1000
+                                      ? (division.stats.volume / 1000).toFixed(0) + 'K'
+                                      : division.stats.volume.toFixed(0)}
                                 </span>
                               </div>
                             </div>
@@ -349,21 +380,35 @@ function DivisionsView() {
                         </div>
 
                         {/* Totals Row */}
-                        <div className="grid grid-cols-4 gap-2 px-3 py-2 bg-gray-900/30 border-t border-gray-700/50">
-                          <div className="text-xs font-medium text-gray-400">Total</div>
-                          <div className="text-center">
+                        <div className="grid grid-cols-6 gap-2 px-3 py-2 bg-gray-900/30 border-t border-gray-700/50">
+                          <div className="col-span-2 sm:col-span-1 text-xs font-medium text-gray-400">Total</div>
+                          <div className="text-center hidden sm:block">
                             <span className="text-xs font-bold text-emerald-400">
                               {cityData.totalModelHomes}
                             </span>
                           </div>
-                          <div className="text-center">
+                          <div className="text-center hidden sm:block">
                             <span className="text-xs font-bold text-blue-400">
                               {cityData.totalActiveHomes}
                             </span>
                           </div>
-                          <div className="text-center">
+                          <div className="text-center hidden sm:block">
                             <span className="text-xs font-bold text-violet-400">
                               {cityData.totalSoldHomes}
+                            </span>
+                          </div>
+                          <div className="text-center">
+                            <span className="text-xs font-bold text-amber-400">
+                              {cityData.totalUnits}
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-xs font-bold text-cyan-400">
+                              ${cityData.totalVolume >= 1000000
+                                ? (cityData.totalVolume / 1000000).toFixed(1) + 'M'
+                                : cityData.totalVolume >= 1000
+                                  ? (cityData.totalVolume / 1000).toFixed(0) + 'K'
+                                  : cityData.totalVolume.toFixed(0)}
                             </span>
                           </div>
                         </div>
