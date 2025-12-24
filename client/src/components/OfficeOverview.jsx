@@ -8,7 +8,6 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [expandedOffice, setExpandedOffice] = useState(null)
-  const [expandedDeals, setExpandedDeals] = useState([]) // Deals for expanded office
   const [properties, setProperties] = useState([]) // All properties for subdivision stats
   const [loadingProperties, setLoadingProperties] = useState(false)
 
@@ -52,29 +51,15 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
     'San Antonio': ["San Antonio"]
   }
 
-  // Fetch deals and properties for expanded office (admin only)
-  const fetchDealsForOffice = async (officeName) => {
+  // Fetch inventory properties for expanded office
+  const fetchInventoryForOffice = async (officeName) => {
     setLoadingProperties(true)
     try {
-      // Fetch both pipeline deals and properties in parallel
-      const [pipelineRes, propertiesRes] = await Promise.all([
-        api.get('/api/databases/PIPELINE', { timeout: 15000 }),
-        api.get('/api/databases/PROPERTIES', { timeout: 15000 })
-      ])
-
-      const deals = Array.isArray(pipelineRes.data) ? pipelineRes.data : []
-      const props = Array.isArray(propertiesRes.data) ? propertiesRes.data : []
+      // Fetch inventory (PROPERTIES) only
+      const response = await api.get('/api/databases/PROPERTIES', { timeout: 15000 })
+      const props = Array.isArray(response.data) ? response.data : []
 
       const matchTerms = officeMap[officeName] || [officeName]
-
-      const filteredDeals = deals.filter(deal => {
-        const officeField = deal['Edwards Co.'] || deal['Edwards Co'] || deal.Office || ''
-        const address = deal.Address || deal['Property Address'] || ''
-        return matchTerms.some(term =>
-          officeField.toLowerCase().includes(term.toLowerCase()) ||
-          address.toLowerCase().includes(term.toLowerCase())
-        )
-      })
 
       // Filter properties by office/city
       const filteredProps = props.filter(prop => {
@@ -88,11 +73,9 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
         )
       })
 
-      setExpandedDeals(filteredDeals)
       setProperties(filteredProps)
     } catch (err) {
-      console.error('Error fetching deals:', err)
-      setExpandedDeals([])
+      console.error('Error fetching inventory:', err)
       setProperties([])
     } finally {
       setLoadingProperties(false)
@@ -148,11 +131,10 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
       // Toggle expand
       if (expandedOffice === officeName) {
         setExpandedOffice(null)
-        setExpandedDeals([])
         setProperties([])
       } else {
         setExpandedOffice(officeName)
-        fetchDealsForOffice(officeName)
+        fetchInventoryForOffice(officeName)
       }
     }
   }
@@ -250,7 +232,7 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
       >
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-white">Office Overview</h2>
-          <p className="text-sm text-gray-400">Pipeline metrics by office location</p>
+          <p className="text-sm text-gray-400">Inventory metrics by office location</p>
         </div>
         <motion.button
           whileHover={{ scale: 1.02 }}
@@ -319,7 +301,7 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
                     <div>
                       <h3 className="text-lg font-bold text-white">{officeName}</h3>
                       <p className="text-sm text-white/80">
-                        {stats.active + stats.pending + stats.sold + stats.executed} total deals
+                        {stats.active + stats.pending + stats.sold + stats.executed} total properties
                       </p>
                     </div>
                   </div>
@@ -413,48 +395,12 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
                           )}
                         </div>
 
-                        {/* Pipeline Deals Section */}
-                        <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                          <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">
-                            Pipeline Deals ({expandedDeals.length})
-                          </p>
-                          {loadingProperties ? (
-                            <p className="text-gray-500 text-sm py-4 text-center">Loading...</p>
-                          ) : expandedDeals.length === 0 ? (
-                            <p className="text-gray-500 text-sm py-2 text-center">No pipeline deals</p>
-                          ) : (
-                            expandedDeals.slice(0, 5).map(deal => (
-                              <div
-                                key={deal.id}
-                                className="bg-gray-900/50 rounded-lg p-3 border border-gray-700/50"
-                              >
-                                <p className="text-white text-sm font-medium truncate">
-                                  {deal.Address || deal['Property Address'] || 'No Address'}
-                                </p>
-                                <div className="flex items-center justify-between mt-1">
-                                  <span className="text-xs text-gray-400">
-                                    {deal['Loan Status'] || 'No Status'}
-                                  </span>
-                                  <span className="text-xs text-emerald-400 font-medium">
-                                    {deal['Sales Price'] ? formatCurrency(deal['Sales Price']) : '-'}
-                                  </span>
-                                </div>
-                              </div>
-                            ))
-                          )}
-                          {expandedDeals.length > 5 && (
-                            <p className="text-xs text-gray-500 text-center pt-1">
-                              +{expandedDeals.length - 5} more deals
-                            </p>
-                          )}
-                        </div>
-
                         {/* View Divisions Button */}
                         {onNavigate && (
                           <motion.button
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            onClick={() => onNavigate('DIVISIONS', { city: office.name })}
+                            onClick={() => onNavigate('DIVISIONS', { city: officeName })}
                             className="w-full mt-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm font-medium transition-colors"
                           >
                             View Divisions →
@@ -482,7 +428,7 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
               <div>
                 <h3 className="font-semibold text-gray-300">Other Locations</h3>
                 <p className="text-xs text-gray-500">
-                  Deals not matched to primary offices
+                  Properties not matched to primary offices
                 </p>
               </div>
             </div>
