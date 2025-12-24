@@ -118,7 +118,7 @@ function AdminDashboard({ user, setUser }) {
       PROPERTIES: 'Inventory',
       PIPELINE: 'Pipeline',
       CLIENTS: 'Contact',
-      DIVISIONS: 'Divisions',
+      DIVISIONS: 'Subdivisions',
       SCHEDULE: 'Schedule',
       chat: 'Chat',
       settings: 'Settings'
@@ -133,7 +133,7 @@ function AdminDashboard({ user, setUser }) {
     setSearchTerm(searchValue || '')
   }
 
-  // Navigate to Divisions with city filter
+  // Navigate to Subdivisions with city filter
   const handleCitySelect = (city) => {
     setSelectedDivisionCity(city)
     setActiveView('DIVISIONS')
@@ -145,7 +145,7 @@ function AdminDashboard({ user, setUser }) {
     { key: 'PROPERTIES', name: 'Inventory', color: 'bg-emerald-500', icon: '🏘️' },
     { key: 'PIPELINE', name: 'Pipeline', color: 'bg-blue-500', icon: '📊' },
     { key: 'CLIENTS', name: 'Contact', color: 'bg-pink-500', icon: '💼' },
-    { key: 'DIVISIONS', name: 'Divisions', color: 'bg-rose-500', icon: '🏢' },
+    { key: 'DIVISIONS', name: 'Subdivisions', color: 'bg-rose-500', icon: '🏢' },
     { key: 'SCHEDULE', name: 'Schedule', color: 'bg-amber-500', icon: '📅' }
   ]
 

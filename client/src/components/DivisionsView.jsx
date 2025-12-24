@@ -211,7 +211,7 @@ function DivisionsView({ initialCity, onClearCity }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Building2 className="w-5 h-5 text-rose-500" />
-            <h2 className="text-lg font-semibold text-white">Divisions</h2>
+            <h2 className="text-lg font-semibold text-white">Subdivisions</h2>
           </div>
           <button
             onClick={fetchData}
@@ -270,7 +270,7 @@ function DivisionsView({ initialCity, onClearCity }) {
         </div>
 
         <p className="text-xs text-gray-500">
-          {orderedCities.length} cities · {totalDivisions} divisions · {totalItems} {dataSource === 'properties' ? 'properties' : 'deals'}
+          {orderedCities.length} cities · {totalDivisions} subdivisions · {totalItems} {dataSource === 'properties' ? 'properties' : 'deals'}
         </p>
       </div>
 
@@ -324,7 +324,7 @@ function DivisionsView({ initialCity, onClearCity }) {
                   </div>
                 </button>
 
-                {/* Divisions Table */}
+                {/* Subdivisions Table */}
                 <AnimatePresence>
                   {isExpanded && (
                     <motion.div
