@@ -20,6 +20,7 @@ function AdminDashboard({ user, setUser }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [highlightedDealId, setHighlightedDealId] = useState(null)
   const [selectedCity, setSelectedCity] = useState(null)
+  const [selectedDivisionCity, setSelectedDivisionCity] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [previewEmployeeView, setPreviewEmployeeView] = useState(false)
   const toast = useToast()
@@ -59,7 +60,7 @@ function AdminDashboard({ user, setUser }) {
     }
   }
 
-  const handleNavClick = async (view) => {
+  const handleNavClick = async (view, options = {}) => {
     // Verify permissions against database before navigation
     try {
       const response = await api.get('/api/auth/verify-permissions')
@@ -102,6 +103,13 @@ function AdminDashboard({ user, setUser }) {
     setHighlightedDealId(null) // Clear highlight when navigating normally
     setSelectedCity(null) // Clear city filter when navigating normally
     setSearchTerm('') // Clear search when navigating normally
+
+    // Handle division city selection from OfficeOverview
+    if (view === 'DIVISIONS' && options.city) {
+      setSelectedDivisionCity(options.city)
+    } else {
+      setSelectedDivisionCity(null)
+    }
 
     // Log navigation
     const viewNames = {
@@ -445,7 +453,7 @@ function AdminDashboard({ user, setUser }) {
                 ) : activeView === 'PIPELINE' ? (
                   <PipelineBoard highlightedDealId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} cityFilter={selectedCity} onClearCity={() => setSelectedCity(null)} />
                 ) : activeView === 'DIVISIONS' ? (
-                  <DivisionsView />
+                  <DivisionsView initialCity={selectedDivisionCity} onClearCity={() => setSelectedDivisionCity(null)} />
                 ) : (
                   <DatabaseViewer databaseKey={activeView} databaseName={databases.find(db => db.key === activeView)?.name} highlightedId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} onNavigate={handleDealNavigate} searchTerm={searchTerm} onClearSearch={() => setSearchTerm('')} />
                 )}

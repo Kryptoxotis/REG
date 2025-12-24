@@ -26,7 +26,7 @@ function getCityFromItem(item) {
   return 'Other'
 }
 
-function DivisionsView() {
+function DivisionsView({ initialCity, onClearCity }) {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -37,6 +37,13 @@ function DivisionsView() {
   useEffect(() => {
     fetchData()
   }, [dataSource])
+
+  // Auto-expand city when navigating from OfficeOverview
+  useEffect(() => {
+    if (initialCity) {
+      setExpandedCities(prev => ({ ...prev, [initialCity]: true }))
+    }
+  }, [initialCity])
 
   const fetchData = async () => {
     setLoading(true)

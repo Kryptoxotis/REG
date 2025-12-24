@@ -449,15 +449,15 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
                           )}
                         </div>
 
-                        {/* View Pipeline Button */}
+                        {/* View Divisions Button */}
                         {onNavigate && (
                           <motion.button
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            onClick={() => onNavigate('PIPELINE')}
+                            onClick={() => onNavigate('DIVISIONS', { city: office.name })}
                             className="w-full mt-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm font-medium transition-colors"
                           >
-                            View Full Pipeline →
+                            View Divisions →
                           </motion.button>
                         )}
                       </div>
