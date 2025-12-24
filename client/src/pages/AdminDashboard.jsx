@@ -133,10 +133,10 @@ function AdminDashboard({ user, setUser }) {
     setSearchTerm(searchValue || '')
   }
 
-  // Navigate to Pipeline with city filter
+  // Navigate to Divisions with city filter
   const handleCitySelect = (city) => {
-    setSelectedCity(city)
-    setActiveView('PIPELINE')
+    setSelectedDivisionCity(city)
+    setActiveView('DIVISIONS')
     setMobileMenuOpen(false)
   }
 
