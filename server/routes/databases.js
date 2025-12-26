@@ -63,18 +63,39 @@ router.get('/team-kpis', requireAuth, async (req, res) => {
     // Fetch pipeline data
     const pipelineData = await queryDatabase(DATABASE_IDS.PIPELINE)
 
+    // Pre-process pipeline data: format once and index by agent name (O(m) instead of O(n*m))
+    const formattedPipelineDeals = pipelineData.map(deal => formatPage(deal))
+    const pipelineByAgent = new Map()
+
+    for (const deal of formattedPipelineDeals) {
+      const agent = (deal.Agent || deal.agent || '').toLowerCase().trim()
+      if (agent) {
+        if (!pipelineByAgent.has(agent)) {
+          pipelineByAgent.set(agent, [])
+        }
+        pipelineByAgent.get(agent).push(deal)
+      }
+    }
+
     // Process each team member and calculate their KPIs
     const teamKPIs = teamMembers.map(member => {
       const formatted = formatPage(member)
       const memberName = formatted.Name || formatted.name || ''
+      const memberNameLower = memberName.toLowerCase().trim()
 
-      // Find all pipeline deals for this team member
-      const memberDeals = pipelineData.filter(deal => {
-        const dealFormatted = formatPage(deal)
-        const agent = dealFormatted.Agent || dealFormatted.agent || ''
-        return agent.toLowerCase().includes(memberName.toLowerCase()) ||
-               memberName.toLowerCase().includes(agent.toLowerCase())
-      }).map(deal => formatPage(deal))
+      // Find all pipeline deals for this team member using pre-built index
+      // Check exact match first, then partial matches
+      let memberDeals = pipelineByAgent.get(memberNameLower) || []
+
+      // Also check for partial matches (agent name contains member name or vice versa)
+      if (memberNameLower) {
+        for (const [agentName, deals] of pipelineByAgent.entries()) {
+          if (agentName !== memberNameLower &&
+              (agentName.includes(memberNameLower) || memberNameLower.includes(agentName))) {
+            memberDeals = [...memberDeals, ...deals]
+          }
+        }
+      }
 
       // Calculate KPIs
       const closedStatuses = ['closed', 'sold', 'completed', 'won']

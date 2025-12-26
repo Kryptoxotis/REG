@@ -82,21 +82,39 @@ export async function moveToPipeline(req, res) {
   try {
     await deletePage(propertyId)
   } catch (deleteErr) {
-    // CRITICAL: Log for manual cleanup - record exists in both databases
-    logger.error('CRITICAL: Failed to delete property after pipeline creation. Duplicate exists!', {
+    // Rollback: Delete the newly created pipeline entry to prevent duplicates
+    logger.warn('Property deletion failed, attempting rollback of pipeline creation', {
       propertyId,
       newPipelineId: result.id,
       address,
       error: deleteErr.message
     })
-    // Return success but warn about the duplicate
-    return res.json({
-      success: true,
-      data: formatPage(result),
-      warning: 'Property was not archived. Please manually remove from Properties to avoid duplicates.',
-      requiresManualCleanup: true,
-      duplicatePropertyId: propertyId
-    })
+
+    try {
+      await deletePage(result.id)
+      logger.info('Rollback successful - pipeline entry deleted', { pipelineId: result.id })
+      return res.status(500).json({
+        error: 'Failed to complete move - property could not be archived',
+        details: 'Transaction rolled back. Please try again.',
+        rollbackSuccessful: true
+      })
+    } catch (rollbackErr) {
+      // CRITICAL: Rollback failed - now we have duplicates
+      logger.error('CRITICAL: Rollback failed! Duplicate exists in both databases', {
+        propertyId,
+        newPipelineId: result.id,
+        address,
+        deleteError: deleteErr.message,
+        rollbackError: rollbackErr.message
+      })
+      return res.status(500).json({
+        error: 'Transaction failed and rollback unsuccessful',
+        warning: 'Duplicate record exists. Please manually remove from Pipeline.',
+        requiresManualCleanup: true,
+        duplicatePipelineId: result.id,
+        propertyId
+      })
+    }
   }
 
   return res.json({ success: true, data: formatPage(result) })

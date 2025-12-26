@@ -40,7 +40,7 @@ function Settings() {
       await api.patch('/api/databases/schedule', {
         action: 'update-settings',
         scheduleOpenDay
-      }, { headers })
+      })
       setScheduleSaved(true)
       setTimeout(() => setScheduleSaved(false), 3000)
     } catch (err) {
