@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, ChevronUp, Users, Building2, TrendingUp, UserCheck, Calendar, X, Filter, ChevronRight, Eye, EyeOff, RefreshCw, AlertCircle, Maximize2, Minimize2, Edit3, Save, XCircle } from 'lucide-react'
 import api from '../lib/api'
-import { useDatabase } from '../hooks/useApi'
+import { useDatabase, useTeamMembers } from '../hooks/useApi'
 import { useToast } from './Toast'
 import { getFieldPreferences } from './FieldSettings'
 import { ActivityLogger } from '../utils/activityLogger'
@@ -294,21 +294,15 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
   const [layoutMode, setLayoutMode] = useState('row') // 'card' or 'row'
   const [moveToSubmittedForm, setMoveToSubmittedForm] = useState({ foreman: '', subdivision: '', agentAssist: '', buyerName: '' })
   const [isMovingToSubmitted, setIsMovingToSubmitted] = useState(false)
-  const [teamMembers, setTeamMembers] = useState([])
+  // Use React Query hook for team members (cached across components)
+  const { data: teamMembersData } = useTeamMembers()
 
-  // Fetch team members for agent dropdown (for Properties move to submitted)
-  useEffect(() => {
-    if (databaseKey === 'PROPERTIES') {
-      api.get('/api/databases/TEAM_MEMBERS')
-        .then(res => {
-          // Handle paginated response format { data: [...], pagination: {...} }
-          const membersData = res.data?.data || res.data || []
-          const members = Array.isArray(membersData) ? membersData : []
-          setTeamMembers(members.filter(m => m.Status === 'Active' || m.status === 'Active'))
-        })
-        .catch(err => console.error('Failed to fetch team members:', err))
-    }
-  }, [databaseKey])
+  // Filter to active members only (derived state from cached data)
+  const teamMembers = useMemo(() => {
+    if (databaseKey !== 'PROPERTIES') return []
+    const members = Array.isArray(teamMembersData) ? teamMembersData : []
+    return members.filter(m => m.Status === 'Active' || m.status === 'Active')
+  }, [databaseKey, teamMembersData])
 
   // Database key to API path mapping
   const DB_KEY_TO_API = {
