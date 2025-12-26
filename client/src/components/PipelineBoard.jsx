@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import api from '../lib/api'
 import { useToast } from './Toast'
-import { useTeamMembers } from '../hooks/useApi'
+import { useTeamMembers, usePipeline, useClosedDeals } from '../hooks/useApi'
 import {
   LOAN_STATUS_COLUMNS,
   colorMap,
@@ -20,9 +20,6 @@ import PipelineFilters from './pipeline/PipelineFilters'
 
 function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClearCity, user, isEmployee }) {
   const toast = useToast()
-  const [deals, setDeals] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
   const [selectedDeal, setSelectedDeal] = useState(null)
   const [viewMode, setViewMode] = useState('monthly')
   const [layoutMode, setLayoutMode] = useState('row') // 'card' or 'row'
@@ -58,7 +55,35 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
   const [isMovingToSubmitted, setIsMovingToSubmitted] = useState(false)
   const [isMovingToPending, setIsMovingToPending] = useState(false)
 
-  useEffect(() => { fetchDeals() }, [pipelineTab])
+  // Use React Query hooks for cached data
+  const { data: pipelineData, isLoading: pipelineLoading, error: pipelineError, refetch: refetchPipeline } = usePipeline()
+  const { data: closedDealsData, isLoading: closedLoading, error: closedError, refetch: refetchClosedDeals } = useClosedDeals()
+
+  // Derive deals from cached data based on active tab
+  const deals = useMemo(() => {
+    if (pipelineTab === 'closed-deals') {
+      return Array.isArray(closedDealsData) ? closedDealsData : []
+    }
+    const rawData = Array.isArray(pipelineData) ? pipelineData : []
+    // Filter Submitted tab to show deals with NO Loan Status (just submitted from Properties)
+    if (pipelineTab === 'submitted') {
+      return rawData.filter(deal => !deal['Loan Status'] || deal['Loan Status'] === '')
+    }
+    // Filter Pending tab to show deals WITH a Loan Status (in active loan process)
+    return rawData.filter(deal => deal['Loan Status'] && deal['Loan Status'] !== '')
+  }, [pipelineTab, pipelineData, closedDealsData])
+
+  const loading = pipelineTab === 'closed-deals' ? closedLoading : pipelineLoading
+  const error = pipelineTab === 'closed-deals' ? closedError?.message : pipelineError?.message
+
+  // Refetch function for after mutations
+  const fetchDeals = useCallback(() => {
+    if (pipelineTab === 'closed-deals') {
+      refetchClosedDeals()
+    } else {
+      refetchPipeline()
+    }
+  }, [pipelineTab, refetchPipeline, refetchClosedDeals])
 
   useEffect(() => {
     if (highlightedDealId && deals.length > 0) {
@@ -69,36 +94,6 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       }
     }
   }, [highlightedDealId, deals, onClearHighlight])
-
-  async function fetchDeals() {
-    setLoading(true)
-    setError(null)
-    try {
-      // Submitted and Pending both pull from PIPELINE, just filtered differently
-      // Submitted = PIPELINE items with Loan Status 'Submitted'
-      // Pending = PIPELINE items with other Loan Status values
-      const dbMap = { 'submitted': 'PIPELINE', 'pending': 'PIPELINE', 'closed-deals': 'CLOSED_DEALS' }
-      const database = dbMap[pipelineTab] || 'PIPELINE'
-      // HttpOnly cookies handle auth automatically via withCredentials
-      const response = await api.get(`/api/databases/${database}`)
-      // Handle paginated response format { data: [...], pagination: {...} }
-      const rawData = response.data?.data || response.data || []
-      let data = Array.isArray(rawData) ? rawData : []
-
-      // Filter Submitted tab to show deals with NO Loan Status (just submitted from Properties)
-      if (pipelineTab === 'submitted') {
-        data = data.filter(deal => !deal['Loan Status'] || deal['Loan Status'] === '')
-      }
-      // Filter Pending tab to show deals WITH a Loan Status (in active loan process)
-      if (pipelineTab === 'pending') {
-        data = data.filter(deal => deal['Loan Status'] && deal['Loan Status'] !== '')
-      }
-
-      setDeals(data)
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to fetch data')
-    } finally { setLoading(false) }
-  }
 
   const moveToPipeline = async () => {
     if (!selectedDeal) return
