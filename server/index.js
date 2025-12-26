@@ -22,9 +22,14 @@ if (missing.length > 0) {
   process.exit(1)
 }
 
-// Warn about recommended env vars that have defaults
+// FRONTEND_URL is required in production for CORS security
 if (!process.env.FRONTEND_URL) {
-  logger.warn('FRONTEND_URL not set, using default localhost URL')
+  if (process.env.NODE_ENV === 'production') {
+    logger.error('FRONTEND_URL is required in production for CORS security')
+    process.exit(1)
+  } else {
+    logger.warn('FRONTEND_URL not set, using localhost URLs for development')
+  }
 }
 
 const app = express()
@@ -50,12 +55,15 @@ const apiLimiter = rateLimit({
 })
 
 // Allowed origins for CORS and CSRF validation
-const ALLOWED_ORIGINS = [
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:5175',
-  process.env.FRONTEND_URL
-].filter(Boolean)
+// In production, only allow explicit FRONTEND_URL; in development, allow localhost
+const ALLOWED_ORIGINS = process.env.NODE_ENV === 'production'
+  ? [process.env.FRONTEND_URL].filter(Boolean)
+  : [
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:5175',
+      process.env.FRONTEND_URL
+    ].filter(Boolean)
 
 // Middleware
 app.use(cors({
