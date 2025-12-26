@@ -7,6 +7,32 @@ const SALT_ROUNDS = 10
 
 const router = express.Router()
 
+// Password policy validation
+function validatePassword(password) {
+  const errors = []
+
+  if (password.length < 8) {
+    errors.push('Password must be at least 8 characters')
+  }
+  if (!/[A-Z]/.test(password)) {
+    errors.push('Password must contain at least one uppercase letter')
+  }
+  if (!/[a-z]/.test(password)) {
+    errors.push('Password must contain at least one lowercase letter')
+  }
+  if (!/[0-9]/.test(password)) {
+    errors.push('Password must contain at least one number')
+  }
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    errors.push('Password must contain at least one special character (!@#$%^&*(),.?":{}|<>)')
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors
+  }
+}
+
 // Helper: Find user by email in Notion
 async function findUserByEmail(email) {
   const normalizedEmail = email.toLowerCase().trim()
@@ -133,16 +159,25 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid password' })
     }
 
-    // Store user in session
-    req.session.user = {
+    // Regenerate session to prevent session fixation attacks
+    const userData = {
       id: user.id,
       email: user.email,
       role: user.role?.toLowerCase() === 'admin' ? 'admin' : 'employee',
       fullName: user.name
     }
 
-    return res.json({
-      user: req.session.user
+    req.session.regenerate((err) => {
+      if (err) {
+        logger.error('Session regeneration failed', { error: err.message })
+        return res.status(500).json({ error: 'Login failed - session error' })
+      }
+
+      req.session.user = userData
+
+      return res.json({
+        user: req.session.user
+      })
     })
   } catch (error) {
     logger.error('Login error', { error: error.message })
@@ -163,8 +198,13 @@ router.post('/create-password', async (req, res) => {
       return res.status(400).json({ error: 'Passwords do not match' })
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' })
+    // Validate password strength
+    const passwordValidation = validatePassword(password)
+    if (!passwordValidation.valid) {
+      return res.status(400).json({
+        error: 'Password does not meet requirements',
+        details: passwordValidation.errors
+      })
     }
 
     const user = await findUserByEmail(email)
@@ -198,17 +238,26 @@ router.post('/create-password', async (req, res) => {
       }
     })
 
-    // Auto-login after password creation
-    req.session.user = {
+    // Regenerate session to prevent session fixation attacks
+    const userData = {
       id: user.id,
       email: user.email,
       role: user.role?.toLowerCase() === 'admin' ? 'admin' : 'employee',
       fullName: user.name
     }
 
-    return res.json({
-      message: 'Password created successfully',
-      user: req.session.user
+    req.session.regenerate((err) => {
+      if (err) {
+        logger.error('Session regeneration failed', { error: err.message })
+        return res.status(500).json({ error: 'Account activation failed - session error' })
+      }
+
+      req.session.user = userData
+
+      return res.json({
+        message: 'Password created successfully',
+        user: req.session.user
+      })
     })
 
   } catch (error) {
@@ -288,8 +337,8 @@ router.get('/verify-permissions', async (req, res) => {
 
   } catch (error) {
     logger.error('Permission verification error', { error: error.message })
-    // On error, don't force logout - just report error
-    res.status(500).json({ error: 'Permission check failed', valid: true })
+    // Return 503 to signal temporary failure - client should retry
+    res.status(503).json({ error: 'Permission check failed', retry: true })
   }
 })
 

@@ -46,7 +46,11 @@ export function useStatsOverview() {
 export function useDatabase(databaseKey, options = {}) {
   return useQuery({
     queryKey: ['database', databaseKey],
-    queryFn: () => api.get(`/api/databases/${databaseKey}`),
+    queryFn: async () => {
+      const response = await api.get(`/api/databases/${databaseKey}`)
+      // Handle paginated response format { data, pagination }
+      return response.data || response
+    },
     enabled: !!databaseKey,
     ...options
   })
@@ -62,7 +66,10 @@ export function useDatabaseRefresh(databaseKey) {
 export function usePipeline() {
   return useQuery({
     queryKey: ['pipeline'],
-    queryFn: () => api.get('/api/databases/PIPELINE'),
+    queryFn: async () => {
+      const response = await api.get('/api/databases/PIPELINE')
+      return response.data || response
+    },
     staleTime: 30 * 1000
   })
 }
@@ -70,7 +77,10 @@ export function usePipeline() {
 export function useProperties() {
   return useQuery({
     queryKey: ['properties'],
-    queryFn: () => api.get('/api/databases/PROPERTIES'),
+    queryFn: async () => {
+      const response = await api.get('/api/databases/PROPERTIES')
+      return response.data || response
+    },
     staleTime: 30 * 1000
   })
 }
@@ -78,7 +88,10 @@ export function useProperties() {
 export function useClosedDeals() {
   return useQuery({
     queryKey: ['closed-deals'],
-    queryFn: () => api.get('/api/databases/CLOSED_DEALS'),
+    queryFn: async () => {
+      const response = await api.get('/api/databases/CLOSED_DEALS')
+      return response.data || response
+    },
     staleTime: 60 * 1000 // Closed deals change less frequently
   })
 }
@@ -88,7 +101,10 @@ export function useClosedDeals() {
 export function useTeamMembers() {
   return useQuery({
     queryKey: ['team-members'],
-    queryFn: () => api.get('/api/databases/TEAM_MEMBERS'),
+    queryFn: async () => {
+      const response = await api.get('/api/databases/TEAM_MEMBERS')
+      return response.data || response
+    },
     staleTime: 2 * 60 * 1000 // Team data is more stable
   })
 }
@@ -98,7 +114,10 @@ export function useTeamMembers() {
 export function useClients() {
   return useQuery({
     queryKey: ['clients'],
-    queryFn: () => api.get('/api/databases/CLIENTS'),
+    queryFn: async () => {
+      const response = await api.get('/api/databases/CLIENTS')
+      return response.data || response
+    },
     staleTime: 60 * 1000
   })
 }
@@ -108,7 +127,10 @@ export function useClients() {
 export function useSchedule() {
   return useQuery({
     queryKey: ['schedule'],
-    queryFn: () => api.get('/api/databases/SCHEDULE'),
+    queryFn: async () => {
+      const response = await api.get('/api/databases/SCHEDULE')
+      return response.data || response
+    },
     staleTime: 30 * 1000
   })
 }
@@ -118,7 +140,10 @@ export function useSchedule() {
 export function useActivityLog() {
   return useQuery({
     queryKey: ['activity-log'],
-    queryFn: () => api.get('/api/databases/ACTIVITY_LOG'),
+    queryFn: async () => {
+      const response = await api.get('/api/databases/ACTIVITY_LOG')
+      return response.data || response
+    },
     staleTime: 30 * 1000
   })
 }

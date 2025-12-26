@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import api from '../lib/api'
+import { useToast } from './Toast'
+import { useTeamMembers } from '../hooks/useApi'
 import {
   LOAN_STATUS_COLUMNS,
   colorMap,
@@ -17,6 +19,7 @@ import DealDetailModal from './pipeline/DealDetailModal'
 import PipelineFilters from './pipeline/PipelineFilters'
 
 function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClearCity, user, isEmployee }) {
+  const toast = useToast()
   const [deals, setDeals] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -44,7 +47,11 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     submittedBy: '', agentRole: '', streetAddress: '', city: '', state: '', zipCode: '',
     lot: '', block: '', floorPlan: ''
   })
-  const [teamMembers, setTeamMembers] = useState([])
+  const { data: teamMembersData } = useTeamMembers()
+  const teamMembers = useMemo(() => {
+    const members = Array.isArray(teamMembersData) ? teamMembersData : []
+    return members.filter(m => m.Status === 'Active' || m.status === 'Active')
+  }, [teamMembersData])
   const [isMoving, setIsMoving] = useState(false)
   const [isChangingStatus, setIsChangingStatus] = useState(false)
   const [isSendingBack, setIsSendingBack] = useState(false)
@@ -52,20 +59,6 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
   const [isMovingToPending, setIsMovingToPending] = useState(false)
 
   useEffect(() => { fetchDeals() }, [pipelineTab])
-
-  useEffect(() => {
-    const fetchTeamMembers = async () => {
-      try {
-        // HttpOnly cookies handle auth automatically via withCredentials
-        const response = await api.get('/api/databases/TEAM_MEMBERS')
-        const members = Array.isArray(response.data) ? response.data : []
-        setTeamMembers(members.filter(m => m.Status === 'Active' || m.status === 'Active'))
-      } catch (err) {
-        console.error('Failed to fetch team members:', err)
-      }
-    }
-    fetchTeamMembers()
-  }, [])
 
   useEffect(() => {
     if (highlightedDealId && deals.length > 0) {
@@ -88,7 +81,9 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       const database = dbMap[pipelineTab] || 'PIPELINE'
       // HttpOnly cookies handle auth automatically via withCredentials
       const response = await api.get(`/api/databases/${database}`)
-      let data = Array.isArray(response.data) ? response.data : []
+      // Handle paginated response format { data: [...], pagination: {...} }
+      const rawData = response.data?.data || response.data || []
+      let data = Array.isArray(rawData) ? rawData : []
 
       // Filter Submitted tab to show deals with NO Loan Status (just submitted from Properties)
       if (pipelineTab === 'submitted') {
@@ -107,10 +102,10 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
   const moveToPipeline = async () => {
     if (!selectedDeal) return
-    if (!moveForm.agent) { alert('Agent is required'); return }
-    if (!moveForm.buyerName) { alert('Buyer Name is required'); return }
-    if (!moveForm.buyerEmail) { alert('Buyer Email is required'); return }
-    if (!moveForm.buyerPhone) { alert('Buyer Phone is required'); return }
+    if (!moveForm.agent) { toast.error('Agent is required'); return }
+    if (!moveForm.buyerName) { toast.error('Buyer Name is required'); return }
+    if (!moveForm.buyerEmail) { toast.error('Buyer Email is required'); return }
+    if (!moveForm.buyerPhone) { toast.error('Buyer Phone is required'); return }
 
     setIsMoving(true)
     try {
@@ -147,7 +142,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       fetchDeals()
     } catch (err) {
       console.error('Failed to move property:', err.response?.data || err)
-      alert(`Failed to move property: ${err.response?.data?.details || err.response?.data?.error || err.message}`)
+      toast.error(`Failed to move property: ${err.response?.data?.details || err.response?.data?.error || err.message}`)
     } finally { setIsMoving(false) }
   }
 
@@ -245,14 +240,14 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       setSelectedDeal(null)
     } catch (err) {
       console.error('Failed to send back to properties:', err)
-      alert('Failed to send back to Properties')
+      toast.error('Failed to send back to Properties')
     } finally { setIsSendingBack(false) }
   }
 
   // Move Property to Submitted (first Pipeline stage, keeps Property linked)
   const moveToSubmitted = async () => {
     if (!selectedDeal || isMovingToSubmitted) return
-    if (!moveForm.buyerName) { alert('Buyer Name is required'); return }
+    if (!moveForm.buyerName) { toast.error('Buyer Name is required'); return }
 
     setIsMovingToSubmitted(true)
     try {
@@ -283,17 +278,17 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       fetchDeals()
     } catch (err) {
       console.error('Failed to move to submitted:', err)
-      alert(err.response?.data?.error || 'Failed to move to Submitted')
+      toast.error(err.response?.data?.error || 'Failed to move to Submitted')
     } finally { setIsMovingToSubmitted(false) }
   }
 
   // Move Submitted deal to Pending (full form, archives Property, locks address)
   const moveToPending = async () => {
     if (!selectedDeal || isMovingToPending) return
-    if (!moveForm.agent) { alert('Agent is required'); return }
-    if (!moveForm.buyerName) { alert('Buyer Name is required'); return }
-    if (!moveForm.buyerEmail) { alert('Buyer Email is required'); return }
-    if (!moveForm.buyerPhone) { alert('Buyer Phone is required'); return }
+    if (!moveForm.agent) { toast.error('Agent is required'); return }
+    if (!moveForm.buyerName) { toast.error('Buyer Name is required'); return }
+    if (!moveForm.buyerEmail) { toast.error('Buyer Email is required'); return }
+    if (!moveForm.buyerPhone) { toast.error('Buyer Phone is required'); return }
 
     setIsMovingToPending(true)
     try {
@@ -350,7 +345,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       fetchDeals()
     } catch (err) {
       console.error('Failed to move to pending:', err)
-      alert(err.response?.data?.error || 'Failed to move to Pending')
+      toast.error(err.response?.data?.error || 'Failed to move to Pending')
     } finally { setIsMovingToPending(false) }
   }
 
@@ -376,7 +371,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       fetchDeals()
     } catch (err) {
       console.error('Failed to delete from submitted:', err)
-      alert(err.response?.data?.error || 'Failed to delete')
+      toast.error(err.response?.data?.error || 'Failed to delete')
     } finally { setIsDeletingSubmitted(false) }
   }
 
@@ -418,7 +413,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       fetchDeals()
     } catch (err) {
       console.error('Failed to swap address:', err)
-      alert(err.response?.data?.error || 'Failed to swap address')
+      toast.error(err.response?.data?.error || 'Failed to swap address')
     } finally { setIsSwappingAddress(false) }
   }
 
@@ -458,21 +453,23 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     return !dateFields.some(d => d?.start)
   }
 
-  const uniqueAgents = [...new Set(deals.map(d => d.Agent).filter(Boolean))].sort()
-  const uniqueLoanTypes = [...new Set(deals.map(d => d['Loan Type']).filter(Boolean))].sort()
-  const uniqueAssistingAgents = [...new Set(deals.map(d => d['Assisting Agent']).filter(Boolean))].sort()
-  const uniqueLONames = [...new Set(deals.map(d => d['LO Name']).filter(Boolean))].sort()
-  const uniqueMortgageCompanies = [...new Set(deals.map(d => d['Mortgage Company']).filter(Boolean))].sort()
-  const uniqueRealtorPartners = [...new Set(deals.map(d => d['Realtor Partner']).filter(Boolean))].sort()
+  // Memoize unique filter options to prevent recalculation on every render
+  const uniqueAgents = useMemo(() => [...new Set(deals.map(d => d.Agent).filter(Boolean))].sort(), [deals])
+  const uniqueLoanTypes = useMemo(() => [...new Set(deals.map(d => d['Loan Type']).filter(Boolean))].sort(), [deals])
+  const uniqueAssistingAgents = useMemo(() => [...new Set(deals.map(d => d['Assisting Agent']).filter(Boolean))].sort(), [deals])
+  const uniqueLONames = useMemo(() => [...new Set(deals.map(d => d['LO Name']).filter(Boolean))].sort(), [deals])
+  const uniqueMortgageCompanies = useMemo(() => [...new Set(deals.map(d => d['Mortgage Company']).filter(Boolean))].sort(), [deals])
+  const uniqueRealtorPartners = useMemo(() => [...new Set(deals.map(d => d['Realtor Partner']).filter(Boolean))].sort(), [deals])
 
-  const filteredDeals = deals.filter(deal => {
+  // Memoize filtered deals to prevent recalculation on every render
+  const filteredDeals = useMemo(() => deals.filter(deal => {
     if (viewMode === 'monthly' && !isThisMonth(deal)) return false
     if (viewMode === 'weekly' && !isThisWeek(deal)) return false
     if (pipelineTab === 'pending') {
       const loanStatus = deal['Loan Status'] || ''
       if (loanStatus === 'Closed' || loanStatus === 'Funded' || loanStatus === 'Loan Complete / Transfer') return false
     }
-        if (cityFilter) {
+    if (cityFilter) {
       const edwardsCo = CITY_TO_EDWARDS[cityFilter]
       const dealOffice = deal.Office || deal['Edwards Co'] || deal['Edwards Co.'] || ''
       if (edwardsCo && dealOffice !== edwardsCo) return false
@@ -502,7 +499,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       if (!dealAgent.includes(userNameLower) && !userNameLower.includes(dealAgent)) return false
     }
     return true
-  })
+  }), [deals, viewMode, pipelineTab, cityFilter, searchTerm, filters, isEmployee, employeeName])
 
   const clearFilters = () => {
     setSearchTerm('')
@@ -514,12 +511,13 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
   const hasActiveFilters = searchTerm || cityFilter || Object.values(filters).some(v => v)
 
-  const groupedDeals = LOAN_STATUS_COLUMNS.reduce((acc, col) => {
+  // Memoize grouped deals to prevent recalculation on every render
+  const groupedDeals = useMemo(() => LOAN_STATUS_COLUMNS.reduce((acc, col) => {
     acc[col.key] = filteredDeals.filter(deal => (deal['Loan Status'] || '') === col.key)
     return acc
-  }, {})
+  }, {}), [filteredDeals])
 
-  const unassigned = filteredDeals.filter(deal => !deal['Loan Status'])
+  const unassigned = useMemo(() => filteredDeals.filter(deal => !deal['Loan Status']), [filteredDeals])
   const toggleColumn = (key) => setExpandedColumns(prev => ({ ...prev, [key]: !prev[key] }))
 
   if (loading) {

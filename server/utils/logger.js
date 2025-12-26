@@ -1,4 +1,8 @@
 import winston from 'winston'
+import fs from 'fs'
+
+// Ensure logs directory exists before creating transports
+fs.mkdirSync('logs', { recursive: true })
 
 // Structured logging configuration
 const logger = winston.createLogger({

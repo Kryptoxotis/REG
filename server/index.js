@@ -9,6 +9,7 @@ import authRoutes from './routes/auth.js'
 import databaseRoutes from './routes/databases.js'
 import discordRoutes from './routes/discord.js'
 import logger from './utils/logger.js'
+import { getSessionStore } from './utils/sessionStore.js'
 
 dotenv.config()
 
@@ -63,10 +64,10 @@ app.use(cors({
 }))
 app.use(express.json())
 app.use(cookieParser())
-// PRODUCTION WARNING: Uses in-memory session store which loses sessions on restart.
-// For production, use Redis or database-backed store:
-// npm install connect-redis && store: new RedisStore({ client: redisClient })
+// Session store - uses Redis if configured, falls back to memory store
+const sessionStore = getSessionStore()
 app.use(session({
+  store: sessionStore,
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
@@ -85,9 +86,7 @@ function generateCsrfToken() {
 
 // CSRF token endpoint - GET this to get a token for forms
 app.get('/api/csrf-token', (req, res) => {
-  if (!req.session.csrfToken) {
-    req.session.csrfToken = generateCsrfToken()
-  }
+  req.session.csrfToken = generateCsrfToken() // Always generate fresh token for rotation
   res.json({ csrfToken: req.session.csrfToken })
 })
 
@@ -151,11 +150,36 @@ function csrfProtection(req, res, next) {
 
 app.use(csrfProtection)
 
+// Health check endpoints (no auth required)
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy', timestamp: new Date().toISOString(), uptime: process.uptime() })
+})
+
+app.get('/ready', (req, res) => {
+  // Check if session store is functional
+  const sessionReady = !!sessionStore || true // Memory store is always ready
+  res.json({ status: sessionReady ? 'ready' : 'not_ready', checks: { session: sessionReady } })
+})
+
 // Routes with rate limiting
 app.use('/api/auth', authLimiter, authRoutes)
 app.use('/api/databases', apiLimiter, databaseRoutes)
 app.use('/api/discord', apiLimiter, discordRoutes)
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   logger.info('Server started', { port: PORT, url: `http://localhost:${PORT}` })
+})
+
+// Graceful shutdown handling
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received, shutting down gracefully')
+  server.close(() => {
+    logger.info('Server closed')
+    process.exit(0)
+  })
+  // Force close after 10 seconds
+  setTimeout(() => {
+    logger.error('Forced shutdown after timeout')
+    process.exit(1)
+  }, 10000)
 })

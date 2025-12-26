@@ -3,8 +3,19 @@ import validator from 'validator'
 import { queryDatabase, getDatabaseInfo, formatPage, DATABASE_IDS, updatePage, createPage, deletePage } from '../utils/notion.js'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
 import logger from '../utils/logger.js'
+import { actionHandlers } from './handlers/index.js'
 
 const router = express.Router()
+
+// Notion page ID validation (UUID format with or without hyphens)
+function isValidPageId(pageId) {
+  if (!pageId || typeof pageId !== 'string') return false
+  // UUID with hyphens: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  // UUID without hyphens: 32 hex characters
+  const uuidWithHyphens = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  const uuidWithoutHyphens = /^[0-9a-f]{32}$/i
+  return uuidWithHyphens.test(pageId) || uuidWithoutHyphens.test(pageId)
+}
 
 // In-memory cache for stats endpoint (60 second TTL)
 const statsCache = { data: null, expires: 0 }
@@ -353,11 +364,27 @@ router.get('/:databaseKey', requireAuth, async (req, res) => {
       return res.status(404).json({ error: `Database not found: ${databaseKey}` })
     }
 
-    const results = await queryDatabase(databaseId)
-    logger.info(`${upperKey}: fetched ${results.length} items`)
-    const formatted = results.map(formatPage)
+    // Pagination params with sensible defaults
+    const limit = Math.min(parseInt(req.query.limit) || 100, 500) // Default 100, max 500
+    const offset = parseInt(req.query.offset) || 0
 
-    res.json(formatted)
+    const allResults = await queryDatabase(databaseId)
+    const total = allResults.length
+
+    // Apply pagination
+    const paginatedResults = allResults.slice(offset, offset + limit)
+    logger.info(`${upperKey}: fetched ${paginatedResults.length} of ${total} items (offset: ${offset}, limit: ${limit})`)
+    const formatted = paginatedResults.map(formatPage)
+
+    res.json({
+      data: formatted,
+      pagination: {
+        total,
+        limit,
+        offset,
+        hasMore: offset + limit < total
+      }
+    })
   } catch (error) {
     logger.error(`Error fetching ${databaseKey}:`, error.message)
     res.status(500).json({ error: `Failed to fetch ${databaseKey}: ${error.message}` })
@@ -396,6 +423,11 @@ router.put('/:databaseKey/:pageId', requireAuth, requireAdmin, async (req, res) 
   try {
     const { databaseKey, pageId } = req.params
     const { properties } = req.body
+
+    // Validate pageId format
+    if (!isValidPageId(pageId)) {
+      return res.status(400).json({ error: 'Invalid page ID format' })
+    }
 
     if (!properties) {
       return res.status(400).json({ error: 'Properties required' })
@@ -462,6 +494,11 @@ router.delete('/:databaseKey/:pageId', requireAuth, requireAdmin, async (req, re
   try {
     const { pageId } = req.params
 
+    // Validate pageId format
+    if (!isValidPageId(pageId)) {
+      return res.status(400).json({ error: 'Invalid page ID format' })
+    }
+
     await deletePage(pageId)
     res.json({ success: true, message: 'Record archived' })
   } catch (error) {
@@ -475,6 +512,11 @@ router.patch('/pipeline/:pageId/status', requireAuth, async (req, res) => {
   try {
     const { pageId } = req.params
     const { loanStatus } = req.body
+
+    // Validate pageId format
+    if (!isValidPageId(pageId)) {
+      return res.status(400).json({ error: 'Invalid page ID format' })
+    }
 
     if (!loanStatus) {
       return res.status(400).json({ error: 'loanStatus required' })
@@ -525,340 +567,18 @@ router.post('/activity-log', requireAuth, async (req, res) => {
 
 // ============================================================
 // CONSOLIDATED ACTIONS ENDPOINT
-// Handles: move-to-pipeline, update-status, log-activity,
-//          move-to-closed, send-back-to-properties
+// Handlers split into separate files in ./handlers/
 // ============================================================
 router.post('/actions', requireAuth, async (req, res) => {
   try {
     const { action } = req.body
+    const handler = actionHandlers[action]
 
-    switch (action) {
-      case 'move-to-pipeline': {
-        const {
-          propertyId, address, salesPrice, edwardsCo, agent, buyerName,
-          buyerEmail, buyerPhone, assistingAgent, brokerName, loName,
-          loEmail, loPhone, loanAmount, loanType, realtorPartner,
-          realtorEmail, realtorPhone, notes, closedDate, executeDate
-        } = req.body
-
-        // Validate required fields
-        if (!propertyId || !address || !agent || !buyerName || !buyerEmail || !buyerPhone) {
-          return res.status(400).json({
-            error: 'Missing required fields',
-            details: 'propertyId, address, agent, buyerName, buyerEmail, and buyerPhone are required'
-          })
-        }
-
-        // Validate email format using validator.js
-        if (!validator.isEmail(buyerEmail)) {
-          return res.status(400).json({ error: 'Invalid buyer email format' })
-        }
-        if (loEmail && !validator.isEmail(loEmail)) {
-          return res.status(400).json({ error: 'Invalid LO email format' })
-        }
-        if (realtorEmail && !validator.isEmail(realtorEmail)) {
-          return res.status(400).json({ error: 'Invalid realtor email format' })
-        }
-
-        // Validate phone format - must have 10-15 digits with optional formatting
-        const phoneDigits = buyerPhone.replace(/\D/g, '')
-        if (phoneDigits.length < 10 || phoneDigits.length > 15) {
-          return res.status(400).json({ error: 'Phone must have 10-15 digits' })
-        }
-        // Only allow digits and common phone formatting chars
-        if (!/^[\d\s\-\(\)\+\.]+$/.test(buyerPhone)) {
-          return res.status(400).json({ error: 'Invalid phone format - use digits, spaces, dashes, parentheses, or plus' })
-        }
-
-        // Create pipeline entry
-        const pipelineProps = {
-          'Address': { title: [{ text: { content: address } }] },
-          'Sales Price': { number: parseFloat(salesPrice) || 0 },
-          'Edwards Co.': edwardsCo ? { select: { name: edwardsCo } } : undefined,
-          'Agent': { rich_text: [{ text: { content: agent } }] },
-          'Buyer Name': { rich_text: [{ text: { content: buyerName } }] },
-          'Buyer Email': { email: buyerEmail },
-          'Buyer Phone': { phone_number: buyerPhone },
-          'Assisting Agent': assistingAgent ? { rich_text: [{ text: { content: assistingAgent } }] } : undefined,
-          'Broker Name': brokerName ? { rich_text: [{ text: { content: brokerName } }] } : undefined,
-          'LO Name': loName ? { rich_text: [{ text: { content: loName } }] } : undefined,
-          'LO Email': loEmail ? { email: loEmail } : undefined,
-          'LO Phone': loPhone ? { phone_number: loPhone } : undefined,
-          'Loan Amount': loanAmount ? { number: parseFloat(loanAmount) } : undefined,
-          'Loan Type': loanType ? { select: { name: loanType } } : undefined,
-          'Realtor Partner': realtorPartner ? { rich_text: [{ text: { content: realtorPartner } }] } : undefined,
-          'Realtor Email': realtorEmail ? { email: realtorEmail } : undefined,
-          'Realtor Phone': realtorPhone ? { phone_number: realtorPhone } : undefined,
-          'Notes': notes ? { rich_text: [{ text: { content: notes } }] } : undefined,
-          'Scheduled Closing': closedDate ? { date: { start: closedDate } } : undefined,
-          'Execute Date': executeDate ? { date: { start: executeDate } } : undefined,
-          'Loan Status': { select: { name: 'Loan Application Received' } },
-          'Executed': { checkbox: true }
-        }
-
-        Object.keys(pipelineProps).forEach(key =>
-          pipelineProps[key] === undefined && delete pipelineProps[key]
-        )
-
-        const result = await createPage(DATABASE_IDS.PIPELINE, pipelineProps)
-        await deletePage(propertyId) // Archive from Properties
-
-        return res.json({ success: true, data: formatPage(result) })
-      }
-
-      case 'update-status': {
-        const { dealId, loanStatus } = req.body
-        if (!dealId || !loanStatus) {
-          return res.status(400).json({ error: 'dealId and loanStatus required' })
-        }
-
-        const properties = {
-          'Loan Status': { select: { name: loanStatus } }
-        }
-        const result = await updatePage(dealId, properties)
-        return res.json({ success: true, data: formatPage(result) })
-      }
-
-      case 'log-activity': {
-        const { logAction, dealAddress, oldStatus, newStatus, entityType, actionType } = req.body
-        const user = req.session.user?.fullName || req.session.user?.email || 'Unknown'
-
-        if (!logAction) {
-          return res.status(400).json({ error: 'logAction required' })
-        }
-
-        // Server-side validation for entity and action types
-        const ALLOWED_ENTITY_TYPES = ['Team Member', 'Property', 'Pipeline', 'Client', 'Schedule', 'System', 'Deal']
-        const ALLOWED_ACTION_TYPES = ['View', 'Edit', 'Create', 'Delete', 'Login', 'Logout', 'Navigate', 'Move to Submitted', 'Move to Pending', 'Moved Stage', 'Sent Back to Properties']
-
-        if (entityType && !ALLOWED_ENTITY_TYPES.includes(entityType)) {
-          return res.status(400).json({ error: 'Invalid entity type' })
-        }
-        if (actionType && !ALLOWED_ACTION_TYPES.includes(actionType)) {
-          return res.status(400).json({ error: 'Invalid action type' })
-        }
-
-        // Sanitize and limit string lengths
-        const sanitize = (str, maxLen = 500) => {
-          if (!str) return str
-          return String(str).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '').substring(0, maxLen).trim()
-        }
-
-        const properties = {
-          'Action': { title: [{ text: { content: sanitize(logAction) } }] },
-          'User': { rich_text: [{ text: { content: sanitize(user) } }] },
-          'Deal Address': dealAddress ? { rich_text: [{ text: { content: sanitize(dealAddress) } }] } : undefined,
-          'Old Status': oldStatus ? { rich_text: [{ text: { content: sanitize(oldStatus) } }] } : undefined,
-          'New Status': newStatus ? { rich_text: [{ text: { content: sanitize(newStatus) } }] } : undefined,
-          'Entity Type': entityType ? { rich_text: [{ text: { content: entityType } }] } : undefined,
-          'Action Type': actionType ? { rich_text: [{ text: { content: actionType } }] } : undefined,
-          'Date': { date: { start: new Date().toISOString() } }
-        }
-
-        Object.keys(properties).forEach(key =>
-          properties[key] === undefined && delete properties[key]
-        )
-
-        const result = await createPage(DATABASE_IDS.ACTIVITY_LOG, properties)
-        return res.json({ success: true, data: formatPage(result) })
-      }
-
-      case 'move-to-closed': {
-        const { dealId, address, closeDate, finalSalePrice, agent, buyerName, commission, edwardsCo } = req.body
-
-        if (!dealId || !address) {
-          return res.status(400).json({ error: 'dealId and address required' })
-        }
-
-        const closedDealProps = {
-          'Property Address': { title: [{ text: { content: address } }] },
-          'Edwards Co.': edwardsCo ? { select: { name: edwardsCo } } : undefined,
-          'Close Date': closeDate ? { date: { start: closeDate } } : undefined,
-          'Final Sale Price': finalSalePrice ? { number: parseFloat(finalSalePrice) } : undefined,
-          'Agent': agent ? { rich_text: [{ text: { content: agent } }] } : undefined,
-          'Buyer Name': buyerName ? { rich_text: [{ text: { content: buyerName } }] } : undefined,
-          'Commission': commission ? { number: parseFloat(commission) } : undefined
-        }
-
-        Object.keys(closedDealProps).forEach(key =>
-          closedDealProps[key] === undefined && delete closedDealProps[key]
-        )
-
-        const result = await createPage(DATABASE_IDS.CLOSED_DEALS, closedDealProps)
-        await deletePage(dealId) // Archive from Pipeline
-
-        return res.json({ success: true, data: formatPage(result) })
-      }
-
-      case 'send-back-to-properties': {
-        const { dealId, address, salesPrice, status, edwardsCo } = req.body
-
-        if (!dealId || !address) {
-          return res.status(400).json({ error: 'dealId and address required' })
-        }
-
-        const propertyProps = {
-          'Address': { title: [{ text: { content: address } }] },
-          'Edwards Co.': edwardsCo ? { select: { name: edwardsCo } } : undefined,
-          'Price': salesPrice ? { number: parseFloat(salesPrice) } : undefined,
-          'Status': status ? { select: { name: status } } : { select: { name: 'Available' } }
-        }
-
-        Object.keys(propertyProps).forEach(key =>
-          propertyProps[key] === undefined && delete propertyProps[key]
-        )
-
-        const result = await createPage(DATABASE_IDS.PROPERTIES, propertyProps)
-        await deletePage(dealId) // Archive from Pipeline
-
-        return res.json({ success: true, data: formatPage(result) })
-      }
-
-      // ============================================================
-      // PIPELINE RESTRUCTURE: Properties → Submitted → Pending → Closed
-      // ============================================================
-
-      case 'move-to-submitted': {
-        // Properties → Submitted (first Pipeline stage)
-        // Creates Pipeline record linked to Property, does NOT delete Property yet
-        const { propertyId, address, salesPrice, foreman, subdivision, agentAssist, buyerName } = req.body
-
-        if (!propertyId || !address) {
-          return res.status(400).json({ error: 'propertyId and address required' })
-        }
-        if (!buyerName) {
-          return res.status(400).json({ error: 'Buyer Name is required' })
-        }
-
-        // Create Pipeline record with status "Submitted" and link to Property
-        const pipelineProps = {
-          'Address': { title: [{ text: { content: address } }] },
-          'Loan Status': { select: { name: 'Submitted' } },
-          'Buyer Name': { rich_text: [{ text: { content: buyerName } }] },
-          'Sales Price': salesPrice ? { number: parseFloat(salesPrice) } : undefined,
-          'Foreman': foreman ? { rich_text: [{ text: { content: foreman } }] } : undefined,
-          'Subdivision': subdivision ? { rich_text: [{ text: { content: subdivision } }] } : undefined,
-          'Agent Assist': agentAssist ? { rich_text: [{ text: { content: agentAssist } }] } : undefined,
-          // Store Property ID for dynamic address linking
-          'Linked Property': { rich_text: [{ text: { content: propertyId } }] },
-          'Address Locked': { checkbox: false }
-        }
-
-        Object.keys(pipelineProps).forEach(key =>
-          pipelineProps[key] === undefined && delete pipelineProps[key]
-        )
-
-        const result = await createPage(DATABASE_IDS.PIPELINE, pipelineProps)
-        // Do NOT delete Property - it stays linked until move to Pending
-
-        return res.json({ success: true, data: formatPage(result) })
-      }
-
-      case 'move-to-pending': {
-        // Submitted → Pending (full form, archives Property, locks address)
-        const {
-          dealId, propertyId,
-          submittedBy, agentRole, streetAddress, city, state, zipCode,
-          lot, block, subdivision, floorPlan,
-          agent, buyerName, buyerEmail, buyerPhone,
-          assistingAgent, brokerName, loName, loEmail, loPhone,
-          loanAmount, loanType, realtorPartner, realtorEmail, realtorPhone, notes
-        } = req.body
-
-        if (!dealId) {
-          return res.status(400).json({ error: 'dealId is required' })
-        }
-
-        // Validate required fields (replaces Tally form)
-        const requiredFields = { agent, buyerName, buyerEmail, buyerPhone, streetAddress, city, state, zipCode, subdivision, floorPlan }
-        const missingFields = Object.entries(requiredFields)
-          .filter(([key, value]) => !value)
-          .map(([key]) => key)
-
-        if (missingFields.length > 0) {
-          return res.status(400).json({
-            error: 'Missing required fields',
-            details: `Required: ${missingFields.join(', ')}`
-          })
-        }
-
-        // Validate email format
-        if (!validator.isEmail(buyerEmail)) {
-          return res.status(400).json({ error: 'Invalid buyer email format' })
-        }
-        if (loEmail && !validator.isEmail(loEmail)) {
-          return res.status(400).json({ error: 'Invalid LO email format' })
-        }
-        if (realtorEmail && !validator.isEmail(realtorEmail)) {
-          return res.status(400).json({ error: 'Invalid realtor email format' })
-        }
-
-        // Validate phone format
-        const phoneDigits = buyerPhone.replace(/\D/g, '')
-        if (phoneDigits.length < 10 || phoneDigits.length > 15) {
-          return res.status(400).json({ error: 'Phone must have 10-15 digits' })
-        }
-
-        // Build full address
-        const fullAddress = streetAddress
-
-        // Update Pipeline record with all form data and lock address
-        const pipelineProps = {
-          'Address': { title: [{ text: { content: fullAddress } }] },
-          'Loan Status': { select: { name: 'Loan Application Received' } }, // Move to first Pending status
-          'Submitted By': submittedBy ? { rich_text: [{ text: { content: submittedBy } }] } : undefined,
-          'Agent Role': agentRole ? { rich_text: [{ text: { content: agentRole } }] } : undefined,
-          'City': city ? { select: { name: city } } : undefined,
-          'State': state ? { select: { name: state } } : undefined,
-          'ZIP Code': zipCode ? { rich_text: [{ text: { content: zipCode } }] } : undefined,
-          'Lot': lot ? { rich_text: [{ text: { content: lot } }] } : undefined,
-          'Block': block ? { rich_text: [{ text: { content: block } }] } : undefined,
-          'Subdivision': subdivision ? { rich_text: [{ text: { content: subdivision } }] } : undefined,
-          'Floor Plan': floorPlan ? { rich_text: [{ text: { content: floorPlan } }] } : undefined,
-          'Agent': { rich_text: [{ text: { content: agent } }] },
-          'Buyer Name': { rich_text: [{ text: { content: buyerName } }] },
-          'Buyer Email': { email: buyerEmail },
-          'Buyer Phone': { phone_number: buyerPhone },
-          'Assisting Agent': assistingAgent ? { rich_text: [{ text: { content: assistingAgent } }] } : undefined,
-          'Broker Name': brokerName ? { rich_text: [{ text: { content: brokerName } }] } : undefined,
-          'LO Name': loName ? { rich_text: [{ text: { content: loName } }] } : undefined,
-          'LO Email': loEmail ? { email: loEmail } : undefined,
-          'LO Phone': loPhone ? { phone_number: loPhone } : undefined,
-          'Loan Amount': loanAmount ? { number: parseFloat(loanAmount) } : undefined,
-          'Loan Type': loanType ? { select: { name: loanType } } : undefined,
-          'Realtor Partner': realtorPartner ? { rich_text: [{ text: { content: realtorPartner } }] } : undefined,
-          'Realtor Email': realtorEmail ? { email: realtorEmail } : undefined,
-          'Realtor Phone': realtorPhone ? { phone_number: realtorPhone } : undefined,
-          'Notes': notes ? { rich_text: [{ text: { content: notes } }] } : undefined,
-          // Lock address and clear Property link
-          'Address Locked': { checkbox: true },
-          'Linked Property': { rich_text: [] }, // Clear the link
-          'Executed': { checkbox: true }
-        }
-
-        Object.keys(pipelineProps).forEach(key =>
-          pipelineProps[key] === undefined && delete pipelineProps[key]
-        )
-
-        // Update the Pipeline record
-        const result = await updatePage(dealId, pipelineProps)
-
-        // Delete the Property record (address is now locked on Pipeline)
-        if (propertyId) {
-          try {
-            await deletePage(propertyId)
-          } catch (deleteErr) {
-            logger.warn('Could not delete linked property:', deleteErr.message)
-            // Continue anyway - the Pipeline record is updated
-          }
-        }
-
-        return res.json({ success: true, data: formatPage(result) })
-      }
-
-      default:
-        return res.status(400).json({ error: `Unknown action: ${action}` })
+    if (!handler) {
+      return res.status(400).json({ error: `Unknown action: ${action}` })
     }
+
+    await handler(req, res)
   } catch (error) {
     logger.error(`Action ${req.body.action} failed:`, error)
     res.status(500).json({
@@ -873,6 +593,11 @@ router.post('/properties/:pageId/move-to-pipeline', requireAuth, async (req, res
   try {
     const { pageId } = req.params
     const { address, closedDate, executeDate, edwardsCo, salesPrice, agent, buyerName, loanStatus } = req.body
+
+    // Validate pageId format
+    if (!isValidPageId(pageId)) {
+      return res.status(400).json({ error: 'Invalid page ID format' })
+    }
 
     if (!address) {
       return res.status(400).json({ error: 'Address required' })
@@ -892,10 +617,33 @@ router.post('/properties/:pageId/move-to-pipeline', requireAuth, async (req, res
     }
     Object.keys(pipelineProps).forEach(key => pipelineProps[key] === undefined && delete pipelineProps[key])
 
-    const pipelineDeal = await createPage(DATABASE_IDS.PIPELINE, pipelineProps)
+    // Create pipeline entry first
+    let pipelineDeal
+    try {
+      pipelineDeal = await createPage(DATABASE_IDS.PIPELINE, pipelineProps)
+    } catch (createErr) {
+      logger.error('Failed to create pipeline entry:', { error: createErr.message, pageId, address })
+      return res.status(500).json({ error: 'Failed to create pipeline entry', details: createErr.message })
+    }
 
-    // Archive (delete) from Properties database
-    await deletePage(pageId)
+    // Only delete property if create succeeded
+    try {
+      await deletePage(pageId)
+    } catch (deleteErr) {
+      logger.error('CRITICAL: Failed to delete property after pipeline creation. Duplicate exists!', {
+        propertyId: pageId,
+        newPipelineId: pipelineDeal.id,
+        address,
+        error: deleteErr.message
+      })
+      return res.json({
+        success: true,
+        pipelineDeal: formatPage(pipelineDeal),
+        warning: 'Property was not archived. Please manually remove to avoid duplicates.',
+        requiresManualCleanup: true,
+        duplicatePropertyId: pageId
+      })
+    }
 
     res.json({ success: true, pipelineDeal: formatPage(pipelineDeal) })
   } catch (error) {
@@ -909,6 +657,11 @@ router.post('/pipeline/:pageId/move-to-closed', requireAuth, async (req, res) =>
   try {
     const { pageId } = req.params
     const { address, edwardsCo, closeDate, finalSalePrice, agent, buyerName, commission } = req.body
+
+    // Validate pageId format
+    if (!isValidPageId(pageId)) {
+      return res.status(400).json({ error: 'Invalid page ID format' })
+    }
 
     if (!address) {
       return res.status(400).json({ error: 'Address required' })
@@ -926,10 +679,33 @@ router.post('/pipeline/:pageId/move-to-closed', requireAuth, async (req, res) =>
     }
     Object.keys(closedDealProps).forEach(key => closedDealProps[key] === undefined && delete closedDealProps[key])
 
-    const closedDeal = await createPage(DATABASE_IDS.CLOSED_DEALS, closedDealProps)
+    // Create closed deal entry first
+    let closedDeal
+    try {
+      closedDeal = await createPage(DATABASE_IDS.CLOSED_DEALS, closedDealProps)
+    } catch (createErr) {
+      logger.error('Failed to create closed deal entry:', { error: createErr.message, pageId, address })
+      return res.status(500).json({ error: 'Failed to create closed deal entry', details: createErr.message })
+    }
 
-    // Archive (delete) from Pipeline database
-    await deletePage(pageId)
+    // Only delete from pipeline if create succeeded
+    try {
+      await deletePage(pageId)
+    } catch (deleteErr) {
+      logger.error('CRITICAL: Failed to delete deal after closing. Duplicate exists!', {
+        dealId: pageId,
+        newClosedDealId: closedDeal.id,
+        address,
+        error: deleteErr.message
+      })
+      return res.json({
+        success: true,
+        closedDeal: formatPage(closedDeal),
+        warning: 'Deal was not archived from Pipeline. Please manually remove to avoid duplicates.',
+        requiresManualCleanup: true,
+        duplicateDealId: pageId
+      })
+    }
 
     res.json({ success: true, closedDeal: formatPage(closedDeal) })
   } catch (error) {

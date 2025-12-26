@@ -120,7 +120,9 @@ function EmployeeDashboard({ user, setUser }) {
       // Get all team members and find current user
       const res = await api.get('/api/databases/TEAM_MEMBERS')
       if (!isMounted) return
-      const members = Array.isArray(res.data) ? res.data : []
+      // Handle paginated response format { data: [...], pagination: {...} }
+      const membersData = res.data?.data || res.data || []
+      const members = Array.isArray(membersData) ? membersData : []
       const myProfile = members.find(m =>
         m.Email?.toLowerCase() === user?.email?.toLowerCase() ||
         m.email?.toLowerCase() === user?.email?.toLowerCase()
@@ -184,8 +186,11 @@ function EmployeeDashboard({ user, setUser }) {
         api.get('/api/databases/CLOSED_DEALS')
       ])
       if (!isMounted) return
-      const pipelineDeals = Array.isArray(pipelineRes.data) ? pipelineRes.data : []
-      const closedDeals = Array.isArray(closedRes.data) ? closedRes.data : []
+      // Handle paginated response format { data: [...], pagination: {...} }
+      const pipelineData = pipelineRes.data?.data || pipelineRes.data || []
+      const closedData = closedRes.data?.data || closedRes.data || []
+      const pipelineDeals = Array.isArray(pipelineData) ? pipelineData : []
+      const closedDeals = Array.isArray(closedData) ? closedData : []
 
       // Get user's name for matching
       const userName = profile?.Name || user?.fullName || user?.name || ''
@@ -227,7 +232,9 @@ function EmployeeDashboard({ user, setUser }) {
     try {
       const res = await api.get('/api/databases/PROPERTIES')
       if (!isMounted) return
-      setPropertiesData(Array.isArray(res.data) ? res.data : [])
+      // Handle paginated response format { data: [...], pagination: {...} }
+      const propsData = res.data?.data || res.data || []
+      setPropertiesData(Array.isArray(propsData) ? propsData : [])
     } catch (err) {
       if (!isMounted) return
       console.error('Properties fetch error:', err)

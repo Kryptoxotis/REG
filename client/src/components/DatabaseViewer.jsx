@@ -301,7 +301,9 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
     if (databaseKey === 'PROPERTIES') {
       api.get('/api/databases/TEAM_MEMBERS')
         .then(res => {
-          const members = Array.isArray(res.data) ? res.data : []
+          // Handle paginated response format { data: [...], pagination: {...} }
+          const membersData = res.data?.data || res.data || []
+          const members = Array.isArray(membersData) ? membersData : []
           setTeamMembers(members.filter(m => m.Status === 'Active' || m.status === 'Active'))
         })
         .catch(err => console.error('Failed to fetch team members:', err))

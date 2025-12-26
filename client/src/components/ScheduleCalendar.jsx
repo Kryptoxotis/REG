@@ -60,9 +60,12 @@ function ScheduleCalendar({ user, onNavigate }) {
         api.get('/api/databases/schedule'),
         api.get('/api/databases/PROPERTIES')
       ])
-      setScheduleData(Array.isArray(scheduleRes.data) ? scheduleRes.data : [])
+      // Handle paginated response format { data: [...], pagination: {...} }
+      const scheduleItems = scheduleRes.data?.data || scheduleRes.data || []
+      const propsItems = propertiesRes.data?.data || propertiesRes.data || []
+      setScheduleData(Array.isArray(scheduleItems) ? scheduleItems : [])
       // Filter properties to only show Model Homes (Status = "Model Home")
-      const allProperties = Array.isArray(propertiesRes.data) ? propertiesRes.data : []
+      const allProperties = Array.isArray(propsItems) ? propsItems : []
       const modelHomesList = allProperties.filter(p =>
         p.Status === 'Model Home' || p.Status === 'Model' ||
         p.status === 'Model Home' || p.status === 'Model'

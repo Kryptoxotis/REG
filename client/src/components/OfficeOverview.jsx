@@ -57,7 +57,9 @@ function OfficeOverview({ onNavigate, onCitySelect, readOnly = false }) {
     try {
       // Fetch inventory (PROPERTIES) only
       const response = await api.get('/api/databases/PROPERTIES', { timeout: 15000 })
-      const props = Array.isArray(response.data) ? response.data : []
+      // Handle paginated response format { data: [...], pagination: {...} }
+      const propsData = response.data?.data || response.data || []
+      const props = Array.isArray(propsData) ? propsData : []
 
       const matchTerms = officeMap[officeName] || [officeName]
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import api from '../lib/api'
 
@@ -138,9 +138,75 @@ function DetailModal({ item, onClose, onUpdate, databaseKey }) {
   const config = fieldConfig[databaseKey] || {}
   const style = dbStyles[databaseKey] || { icon: '📋', gradient: 'from-gray-500 to-gray-600', light: 'gray' }
 
+  // Focus trap ref
+  const modalRef = useRef(null)
+  const previousActiveElement = useRef(null)
+
   useEffect(() => {
     if (item) setFormData({ ...item })
   }, [item])
+
+  // Focus trap implementation for accessibility
+  useEffect(() => {
+    if (!item) return
+
+    // Store the previously focused element to restore on close
+    previousActiveElement.current = document.activeElement
+
+    // Get all focusable elements within the modal
+    const getFocusableElements = () => {
+      if (!modalRef.current) return []
+      return modalRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+    }
+
+    // Focus the first focusable element
+    const focusableElements = getFocusableElements()
+    if (focusableElements.length > 0) {
+      focusableElements[0].focus()
+    }
+
+    // Handle keydown for focus trapping and escape to close
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose()
+        return
+      }
+
+      if (e.key !== 'Tab') return
+
+      const focusableElements = getFocusableElements()
+      if (focusableElements.length === 0) return
+
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+
+      // Shift + Tab: move focus backwards
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          e.preventDefault()
+          lastElement.focus()
+        }
+      } else {
+        // Tab: move focus forwards
+        if (document.activeElement === lastElement) {
+          e.preventDefault()
+          firstElement.focus()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+
+    // Cleanup: restore focus and remove listener
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      if (previousActiveElement.current) {
+        previousActiveElement.current.focus()
+      }
+    }
+  }, [item, onClose])
 
   const handleChange = (key, value) => setFormData(prev => ({ ...prev, [key]: value }))
 
@@ -221,6 +287,10 @@ function DetailModal({ item, onClose, onUpdate, databaseKey }) {
         className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-end sm:items-center justify-center sm:p-4"
       >
         <motion.div
+          ref={modalRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
           initial={{ opacity: 0, y: '100%' }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: '100%' }}
@@ -272,6 +342,7 @@ function DetailModal({ item, onClose, onUpdate, databaseKey }) {
                 </motion.button>
               </div>
               <motion.h2
+                id="modal-title"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 }}

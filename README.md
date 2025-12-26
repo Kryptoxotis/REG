@@ -1,55 +1,26 @@
 # REG Dashboard
 
-A web dashboard integrating with Notion databases, featuring role-based authentication (Admin vs Employee).
+A real estate CRM dashboard integrating with Notion databases, featuring role-based authentication, pipeline management, and team KPI tracking.
 
 ## Features
 
-- **Authentication**: Login system using Notion database
+- **Authentication**: Secure login with bcrypt password hashing and session management
 - **Role-Based Access**: Admin and Employee dashboards with different permissions
-- **Database Integration**: View and manage 8 Notion databases
-- **Responsive Design**: Works on desktop, tablet, and mobile
+- **Pipeline Management**: Track deals through submission, pending, and closed stages
+- **Team KPIs**: View team member performance metrics
+- **Database Integration**: View and manage multiple Notion databases
+- **Responsive Design**: Works on desktop, tablet, and mobile (PWA-ready)
 
 ## Prerequisites
 
 - Node.js v22+ installed
 - Notion account with API access
 - Notion API key
+- (Optional) Upstash Redis for production session storage
 
 ## Quick Start
 
-### 1. Create Users Database in Notion
-
-Before running the app, you need to create a "Users" database in Notion:
-
-1. Go to Notion and create a new database
-2. Add the following properties:
-   - **Full Name** (Title type)
-   - **Email** (Email type)
-   - **Password** (Text type) - Store plain text passwords for testing
-   - **Role** (Select type) - Add options: "admin" and "employee"
-
-3. Add at least one user:
-   - Full Name: Admin User
-   - Email: admin@example.com
-   - Password: admin123
-   - Role: admin
-
-4. Copy the database ID from the URL:
-   - The URL looks like: `https://www.notion.so/xxxxxx?v=yyyy`
-   - The `xxxxxx` part is your database ID
-
-5. Update `server/routes/auth.js`:
-   - Replace `REPLACE_WITH_YOUR_USERS_DATABASE_ID` with your actual database ID
-
-### 2. Grant Notion Permissions
-
-1. Go to Notion → Settings → Integrations
-2. Find your integration (or create one at https://www.notion.so/my-integrations)
-3. Connect the integration to:
-   - Your Users database
-   - All 8 existing databases you want to display
-
-### 3. Install Dependencies
+### 1. Install Dependencies
 
 ```bash
 # Install root dependencies
@@ -61,17 +32,28 @@ npm install
 cd ..
 ```
 
-### 4. Configure Environment
+### 2. Configure Environment
 
-The `.env` file is already created with your Notion API key. If needed, update:
+Create a `.env` file in the root directory:
 
-```
+```env
+# Required
 NOTION_API_KEY=your_notion_api_key
-SESSION_SECRET=your_secret_key
+SESSION_SECRET=your_secure_random_string_min_32_chars
+
+# Optional - Frontend URL for CORS
+FRONTEND_URL=http://localhost:5173
+
+# Optional - Redis for production sessions
+UPSTASH_REDIS_REST_URL=your_upstash_url
+UPSTASH_REDIS_REST_TOKEN=your_upstash_token
+
+# Optional - Production mode
+NODE_ENV=development
 PORT=3000
 ```
 
-### 5. Run the Application
+### 3. Run the Application
 
 ```bash
 # Start both server and client
@@ -88,84 +70,171 @@ npm run server
 cd client && npm run dev
 ```
 
-### 6. Access the Dashboard
+### 4. Access the Dashboard
 
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:3000
-
-## Default Login Credentials
-
-After creating your Users database, use:
-- **Email**: admin@example.com (or whatever you added)
-- **Password**: admin123 (or whatever you added)
 
 ## Project Structure
 
 ```
 REG/
-├── client/                 # React frontend
+├── client/                 # React frontend (Vite)
 │   ├── src/
 │   │   ├── components/     # Reusable components
+│   │   │   ├── pipeline/   # Pipeline-specific components
+│   │   │   ├── Toast.jsx   # Toast notification system
+│   │   │   └── ...
+│   │   ├── hooks/          # Custom React hooks
 │   │   ├── pages/          # Page components
-│   │   ├── utils/          # Utility functions
+│   │   ├── lib/            # Utilities and API client
 │   │   └── App.jsx         # Main app component
-│   └── index.html
+│   ├── vitest.config.js    # Vitest test configuration
+│   └── package.json
 ├── server/                 # Express backend
-│   ├── routes/             # API routes
-│   ├── utils/              # Server utilities
+│   ├── routes/
+│   │   ├── auth.js         # Authentication routes
+│   │   ├── databases.js    # Database CRUD routes
+│   │   └── discord.js      # Discord integration
+│   ├── middleware/         # Express middleware
+│   ├── utils/
+│   │   ├── notion.js       # Notion API client
+│   │   ├── logger.js       # Winston logger
+│   │   └── sessionStore.js # Redis session store
+│   ├── __tests__/          # Jest tests
 │   └── index.js            # Server entry point
-├── tasks/                  # Project documentation
+├── jest.config.js          # Jest test configuration
 ├── .env                    # Environment variables
 └── package.json
 ```
 
-## Integrated Databases
+## Testing
 
-1. **Availability Schedule** - Team member availability
-2. **Directory** - Forms and sheets
-3. **Team Scoreboard** - Sales performance
-4. **Model Homes** - Model home availability
-5. **Seller Inquiries** - Seller inquiry responses
-6. **Mortgage Calculator** - Mortgage calculations
-7. **Status Report** - Construction tracking
-8. **Master Calendar** - Master calendar/scheduling
+### Server Tests (Jest)
+
+```bash
+# Run all server tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+### Client Tests (Vitest)
+
+```bash
+cd client
+
+# Run all client tests
+npm test
+
+# Run tests with UI
+npm run test:ui
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+## API Endpoints
+
+### Authentication
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/check-email` | Check user status by email |
+| POST | `/api/auth/login` | Login with email/password |
+| POST | `/api/auth/create-password` | Create password for pending users |
+| GET | `/api/auth/check` | Check authentication status |
+| GET | `/api/auth/verify-permissions` | Verify user permissions |
+| POST | `/api/auth/logout` | Logout current session |
+
+### Databases
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/databases/:key` | Get database records (paginated) |
+| GET | `/api/databases/stats` | Get dashboard statistics |
+| GET | `/api/databases/team-kpis` | Get team KPI data |
+| PUT | `/api/databases/:key/:pageId` | Update a record |
+| DELETE | `/api/databases/:key/:pageId` | Delete (archive) a record |
+| POST | `/api/databases/actions` | Perform database actions |
+
+### Pagination
+
+Database endpoints support pagination via query parameters:
+
+```
+GET /api/databases/PIPELINE?limit=50&offset=0
+```
+
+Response format:
+```json
+{
+  "data": [...],
+  "pagination": {
+    "total": 150,
+    "limit": 50,
+    "offset": 0,
+    "hasMore": true
+  }
+}
+```
+
+## Security Features
+
+- **Password Policy**: Minimum 8 characters with uppercase, lowercase, number, and special character
+- **Session Fixation Protection**: Sessions are regenerated on login
+- **CSRF Protection**: SameSite cookies + Origin validation
+- **Rate Limiting**: 10 auth attempts per 15 minutes, 100 API requests per minute
+- **Input Validation**: UUID validation for page IDs, field whitelisting for updates
+- **Secure Sessions**: HttpOnly cookies, optional Redis session store for production
+
+## Production Deployment
+
+### Environment Variables
+
+```env
+NODE_ENV=production
+SESSION_SECRET=<secure-random-string-64-chars>
+FRONTEND_URL=https://your-domain.com
+UPSTASH_REDIS_REST_URL=<your-upstash-url>
+UPSTASH_REDIS_REST_TOKEN=<your-upstash-token>
+```
+
+### Checklist
+
+- [ ] Set `NODE_ENV=production`
+- [ ] Use a secure `SESSION_SECRET` (64+ random characters)
+- [ ] Configure Redis for session storage
+- [ ] Set up HTTPS
+- [ ] Configure proper CORS origins in `FRONTEND_URL`
+- [ ] Set up proper logging/monitoring
 
 ## User Roles
 
 ### Admin
 - Full access to all databases
-- View detailed records from all databases
-- See overview statistics
-- Navigate between all database views
+- View and edit detailed records
+- Access to admin dashboard with all views
+- Manage team members and pipeline
 
 ### Employee
 - Limited dashboard view
-- See overview statistics
-- Quick links to common tasks
-- Cannot access detailed database records
+- View personal statistics and KPIs
+- Access to assigned deals only
+- Cannot access admin-only features
 
 ## Tech Stack
 
-- **Frontend**: React, Vite, Tailwind CSS, React Router
-- **Backend**: Node.js, Express
+- **Frontend**: React 19, Vite, Tailwind CSS, React Query, Framer Motion
+- **Backend**: Node.js, Express 5
 - **Database**: Notion API
-- **Authentication**: Express Sessions
-
-## Development
-
-### Adding New Databases
-
-1. Add the database ID to `server/utils/notion.js` in `DATABASE_IDS`
-2. Update the databases array in `client/src/pages/AdminDashboard.jsx`
-3. Grant Notion integration access to the new database
-
-### Security Notes
-
-- Passwords are stored in plain text in Notion (for development)
-- In production, implement proper password hashing (bcrypt)
-- Use HTTPS in production
-- Update `SESSION_SECRET` to a secure random string
-- Enable secure cookies in production
+- **Authentication**: Express Sessions, bcrypt
+- **Session Store**: Upstash Redis (production) / Memory (development)
+- **Testing**: Jest (server), Vitest (client)
 
 ## Troubleshooting
 
@@ -174,19 +243,15 @@ REG/
 - Verify database IDs in `server/utils/notion.js`
 - Check Notion API key in `.env`
 
-### "Invalid credentials"
-- Verify Users database exists in Notion
-- Check database ID in `server/routes/auth.js`
-- Ensure user exists with correct email/password
+### "Invalid password" or login issues
+- Passwords must meet the new policy (8+ chars, uppercase, lowercase, number, special char)
+- For legacy plaintext passwords, users need to reset via admin
 
-### "Not authenticated"
-- Clear browser cookies
-- Check session configuration in `server/index.js`
+### Session issues in production
+- Ensure Redis is configured with `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`
+- Check that `SESSION_SECRET` is set and consistent across restarts
 
-## Next Steps
-
-- Set up GitHub MCP server for version control
-- Deploy to production
-- Add more features (data editing, filtering, search)
-- Implement password hashing
-- Add email notifications
+### Rate limiting errors
+- Auth endpoints: 10 attempts per 15 minutes
+- API endpoints: 100 requests per minute
+- Wait for the window to reset or adjust limits in `server/index.js`
