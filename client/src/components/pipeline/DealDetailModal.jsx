@@ -28,7 +28,10 @@ function DealDetailModal({
   properties,
   fetchProperties,
   swapAddress,
-  isSwappingAddress
+  isSwappingAddress,
+  // Closed Date props
+  updateClosedDate,
+  isUpdatingClosedDate
 }) {
   if (!selectedDeal) return null
 
@@ -465,6 +468,35 @@ function DealDetailModal({
                     Returns deal to Presale/Properties
                   </p>
                 </div>
+
+                {/* Edit Closed Date */}
+                {updateClosedDate && (
+                  <div className="mt-4 pt-3 border-t border-gray-700">
+                    <h4 className="text-xs font-semibold text-gray-400 mb-2">Closed Date</h4>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={selectedDeal['Closed Date']?.start || selectedDeal['Closed Date'] || ''}
+                        onChange={(e) => updateClosedDate(e.target.value)}
+                        disabled={isUpdatingClosedDate}
+                        className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:border-blue-500 focus:outline-none disabled:opacity-50"
+                      />
+                      {(selectedDeal['Closed Date']?.start || selectedDeal['Closed Date']) && (
+                        <button
+                          onClick={() => updateClosedDate(null)}
+                          disabled={isUpdatingClosedDate}
+                          className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm transition-colors disabled:opacity-50"
+                          title="Clear date"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    {isUpdatingClosedDate && (
+                      <p className="text-xs text-blue-400 mt-1">Updating...</p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -526,7 +558,9 @@ DealDetailModal.propTypes = {
   properties: PropTypes.array,
   fetchProperties: PropTypes.func,
   swapAddress: PropTypes.func,
-  isSwappingAddress: PropTypes.bool
+  isSwappingAddress: PropTypes.bool,
+  updateClosedDate: PropTypes.func,
+  isUpdatingClosedDate: PropTypes.bool
 }
 
 export default DealDetailModal

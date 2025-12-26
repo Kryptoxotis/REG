@@ -375,6 +375,31 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
   const [showAddressSwap, setShowAddressSwap] = useState(false)
   const [properties, setProperties] = useState([])
 
+  // Update Closed Date on a pending deal
+  const [isUpdatingClosedDate, setIsUpdatingClosedDate] = useState(false)
+  const updateClosedDate = async (newDate) => {
+    if (!selectedDeal || isUpdatingClosedDate) return
+
+    setIsUpdatingClosedDate(true)
+    try {
+      await api.patch(`/api/databases/pipeline/${selectedDeal.id}`, {
+        'Closed Date': newDate || null
+      })
+
+      // Update local state
+      setSelectedDeal(prev => ({
+        ...prev,
+        'Closed Date': newDate ? { start: newDate } : null
+      }))
+
+      toast.success(newDate ? 'Closed Date updated' : 'Closed Date cleared')
+      fetchDeals()
+    } catch (err) {
+      console.error('Failed to update closed date:', err)
+      toast.error(err.response?.data?.error || 'Failed to update Closed Date')
+    } finally { setIsUpdatingClosedDate(false) }
+  }
+
   const fetchProperties = async () => {
     try {
       const response = await api.get('/api/databases/properties')
@@ -874,6 +899,8 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
           fetchProperties={fetchProperties}
           swapAddress={swapAddress}
           isSwappingAddress={isSwappingAddress}
+          updateClosedDate={updateClosedDate}
+          isUpdatingClosedDate={isUpdatingClosedDate}
         />
       )}
     </div>

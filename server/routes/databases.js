@@ -24,7 +24,7 @@ const statsCache = { data: null, expires: 0 }
 // Only these fields can be updated via the API (prevents system field tampering)
 const EDITABLE_FIELDS = {
   TEAM_MEMBERS: ['Phone', 'Email', 'Address', 'Notes', 'Name', 'Role', 'Status'],
-  PIPELINE: ['Status', 'Agent', 'Notes', 'Scheduled Closing', 'Sales Price'],
+  PIPELINE: ['Status', 'Agent', 'Notes', 'Scheduled Closing', 'Sales Price', 'Closed Date'],
   PROPERTIES: ['Status', 'Notes', 'Price', 'Address'],
   CLIENTS: ['Name', 'Email', 'Phone', 'Notes', 'Status'],
   SCHEDULE: ['Date', 'Time', 'Notes', 'Status', 'Attendees'],

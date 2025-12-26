@@ -8,7 +8,8 @@ const MobileDealCard = memo(function MobileDealCard({ deal, onSelect, formatCurr
   const address = deal.Address || 'No Address'
   const buyer = deal['Buyer Name'] || ''
   const price = deal['Sales Price']
-  const closingDate = deal['Scheduled Closing']
+  const scheduledClosing = deal['Scheduled Closing']
+  const closedDate = deal['Closed Date']
   const executed = deal.Executed
   const urgency = getCloseDateUrgency(deal)
 
@@ -33,8 +34,11 @@ const MobileDealCard = memo(function MobileDealCard({ deal, onSelect, formatCurr
         </div>
         <div className="text-right flex-shrink-0">
           <p className="text-emerald-400 font-bold text-lg">{formatCurrency(price)}</p>
-          {closingDate && (
-            <p className="text-gray-500 text-sm mt-1">{formatDate(closingDate)}</p>
+          {closedDate && (
+            <p className="text-blue-400 text-sm mt-1">Closed: {formatDate(closedDate)}</p>
+          )}
+          {!closedDate && scheduledClosing && (
+            <p className="text-gray-500 text-sm mt-1">{formatDate(scheduledClosing)}</p>
           )}
         </div>
       </div>
