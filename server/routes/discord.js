@@ -49,8 +49,15 @@ async function getDiscordClient() {
         GatewayIntentBits.GuildMembers
       ]
     })
-    await discordClient.login(DISCORD_BOT_TOKEN)
-    logger.info('Discord bot connected')
+    try {
+      await discordClient.login(DISCORD_BOT_TOKEN)
+      logger.info('Discord bot connected')
+    } catch (error) {
+      // Reset client so next call will retry
+      discordClient = null
+      logger.error('Discord bot login failed', { error: error.message })
+      throw new Error('Failed to connect to Discord. Please try again later.')
+    }
   }
   return discordClient
 }
