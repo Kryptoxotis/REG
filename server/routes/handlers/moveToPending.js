@@ -1,5 +1,6 @@
 import validator from 'validator'
 import { updatePage, deletePage, formatPage } from '../../utils/notion.js'
+import { validatePageId } from '../../utils/validation.js'
 import logger from '../../utils/logger.js'
 
 export async function moveToPending(req, res) {
@@ -13,8 +14,18 @@ export async function moveToPending(req, res) {
     loanAmount, loanType, realtorPartner, realtorEmail, realtorPhone, notes
   } = req.body
 
-  if (!dealId) {
-    return res.status(400).json({ error: 'dealId is required' })
+  // Validate dealId format (UUID)
+  const dealIdCheck = validatePageId(dealId, 'dealId')
+  if (!dealIdCheck.valid) {
+    return res.status(400).json({ error: dealIdCheck.error })
+  }
+
+  // Validate propertyId if provided
+  if (propertyId) {
+    const propertyIdCheck = validatePageId(propertyId, 'propertyId')
+    if (!propertyIdCheck.valid) {
+      return res.status(400).json({ error: propertyIdCheck.error })
+    }
   }
 
   // Validate required fields (replaces Tally form)

@@ -1,5 +1,6 @@
 import validator from 'validator'
 import { createPage, deletePage, formatPage, DATABASE_IDS } from '../../utils/notion.js'
+import { validatePageId } from '../../utils/validation.js'
 import logger from '../../utils/logger.js'
 
 export async function moveToPipeline(req, res) {
@@ -10,11 +11,17 @@ export async function moveToPipeline(req, res) {
     realtorEmail, realtorPhone, notes, closedDate, executeDate
   } = req.body
 
+  // Validate propertyId format (UUID)
+  const propertyIdCheck = validatePageId(propertyId, 'propertyId')
+  if (!propertyIdCheck.valid) {
+    return res.status(400).json({ error: propertyIdCheck.error })
+  }
+
   // Validate required fields
-  if (!propertyId || !address || !agent || !buyerName || !buyerEmail || !buyerPhone) {
+  if (!address || !agent || !buyerName || !buyerEmail || !buyerPhone) {
     return res.status(400).json({
       error: 'Missing required fields',
-      details: 'propertyId, address, agent, buyerName, buyerEmail, and buyerPhone are required'
+      details: 'address, agent, buyerName, buyerEmail, and buyerPhone are required'
     })
   }
 

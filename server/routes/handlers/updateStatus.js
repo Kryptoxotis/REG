@@ -1,9 +1,16 @@
 import { updatePage, formatPage } from '../../utils/notion.js'
+import { validatePageId } from '../../utils/validation.js'
 
 export async function updateStatus(req, res) {
   const { dealId, loanStatus } = req.body
-  if (!dealId || !loanStatus) {
-    return res.status(400).json({ error: 'dealId and loanStatus required' })
+
+  const dealIdCheck = validatePageId(dealId, 'dealId')
+  if (!dealIdCheck.valid) {
+    return res.status(400).json({ error: dealIdCheck.error })
+  }
+
+  if (!loanStatus) {
+    return res.status(400).json({ error: 'loanStatus required' })
   }
 
   const properties = {

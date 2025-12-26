@@ -1,12 +1,18 @@
 import { createPage, formatPage, DATABASE_IDS } from '../../utils/notion.js'
+import { validatePageId } from '../../utils/validation.js'
 
 export async function moveToSubmitted(req, res) {
   // Properties → Submitted (first Pipeline stage)
   // Creates Pipeline record linked to Property, does NOT delete Property yet
   const { propertyId, address, salesPrice, foreman, subdivision, agentAssist, buyerName } = req.body
 
-  if (!propertyId || !address) {
-    return res.status(400).json({ error: 'propertyId and address required' })
+  const propertyIdCheck = validatePageId(propertyId, 'propertyId')
+  if (!propertyIdCheck.valid) {
+    return res.status(400).json({ error: propertyIdCheck.error })
+  }
+
+  if (!address) {
+    return res.status(400).json({ error: 'address required' })
   }
   if (!buyerName) {
     return res.status(400).json({ error: 'Buyer Name is required' })

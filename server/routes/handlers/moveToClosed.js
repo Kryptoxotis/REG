@@ -1,11 +1,17 @@
 import { createPage, deletePage, formatPage, DATABASE_IDS } from '../../utils/notion.js'
+import { validatePageId } from '../../utils/validation.js'
 import logger from '../../utils/logger.js'
 
 export async function moveToClosed(req, res) {
   const { dealId, address, closeDate, finalSalePrice, agent, buyerName, commission, edwardsCo } = req.body
 
-  if (!dealId || !address) {
-    return res.status(400).json({ error: 'dealId and address required' })
+  const dealIdCheck = validatePageId(dealId, 'dealId')
+  if (!dealIdCheck.valid) {
+    return res.status(400).json({ error: dealIdCheck.error })
+  }
+
+  if (!address) {
+    return res.status(400).json({ error: 'address required' })
   }
 
   const closedDealProps = {
