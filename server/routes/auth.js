@@ -33,31 +33,35 @@ function validatePassword(password) {
   }
 }
 
-// Helper: Find user by email in Notion
+// Helper: Find user by email in Notion using server-side filter (O(1) vs O(n))
 async function findUserByEmail(email) {
   const normalizedEmail = email.toLowerCase().trim()
 
-  // Query all team members and filter by email
-  const results = await queryDatabase(DATABASE_IDS.TEAM_MEMBERS)
-
-  for (const page of results) {
-    const formatted = formatPage(page)
-    const eraEmail = formatted['Email - ERA']?.toLowerCase().trim()
-    const personalEmail = formatted['Email - Personal']?.toLowerCase().trim()
-
-    if (eraEmail === normalizedEmail || personalEmail === normalizedEmail) {
-      return {
-        id: page.id,
-        name: formatted['Name'] || '',
-        email: eraEmail || personalEmail,
-        status: formatted['Stauts'] || null, // Note: typo in Notion field name
-        password: formatted['Password'] || '',
-        role: formatted['View'] || 'Employee'
-      }
-    }
+  // Use Notion filter to search by email - avoids fetching all team members
+  const emailFilter = {
+    or: [
+      { property: 'Email - ERA', email: { equals: normalizedEmail } },
+      { property: 'Email - Personal', email: { equals: normalizedEmail } }
+    ]
   }
 
-  return null
+  const results = await queryDatabase(DATABASE_IDS.TEAM_MEMBERS, emailFilter, [], 1)
+
+  if (results.length === 0) {
+    return null
+  }
+
+  const page = results[0]
+  const formatted = formatPage(page)
+
+  return {
+    id: page.id,
+    name: formatted['Name'] || '',
+    email: formatted['Email - ERA']?.toLowerCase().trim() || formatted['Email - Personal']?.toLowerCase().trim(),
+    status: formatted['Stauts'] || null, // Note: typo in Notion field name
+    password: formatted['Password'] || '',
+    role: formatted['View'] || 'Employee'
+  }
 }
 
 // Check email endpoint - returns user status

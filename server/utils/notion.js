@@ -34,7 +34,7 @@ export async function queryDatabase(databaseId, filter = {}, sorts = [], maxPage
       const response = await axios.post(
         `https://api.notion.com/v1/databases/${databaseId}/query`,
         {
-          filter: filter.value ? filter : undefined,
+          filter: Object.keys(filter).length > 0 ? filter : undefined,
           sorts: sorts.length > 0 ? sorts : undefined,
           start_cursor: startCursor,
           page_size: 100
