@@ -6,6 +6,54 @@ dotenv.config()
 const NOTION_API_KEY = process.env.NOTION_API_KEY
 const NOTION_VERSION = '2022-06-28'
 
+// Request timeout in milliseconds (30 seconds)
+const REQUEST_TIMEOUT = 30000
+
+// Rate limit retry configuration
+const MAX_RETRIES = 3
+const BASE_DELAY_MS = 1000 // Start with 1 second delay
+
+// Axios instance with timeout
+const notionAxios = axios.create({
+  timeout: REQUEST_TIMEOUT,
+  headers: {
+    'Authorization': `Bearer ${NOTION_API_KEY}`,
+    'Notion-Version': NOTION_VERSION,
+    'Content-Type': 'application/json'
+  }
+})
+
+// Helper: Execute request with rate limit retry and exponential backoff
+async function withRetry(requestFn, retries = MAX_RETRIES) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await requestFn()
+    } catch (error) {
+      const isRateLimited = error.response?.status === 429
+      const isLastAttempt = attempt === retries
+
+      if (isRateLimited && !isLastAttempt) {
+        // Get retry-after header or use exponential backoff
+        const retryAfter = error.response?.headers?.['retry-after']
+        const delayMs = retryAfter
+          ? parseInt(retryAfter, 10) * 1000
+          : BASE_DELAY_MS * Math.pow(2, attempt)
+
+        console.warn(`Notion rate limited, retrying in ${delayMs}ms (attempt ${attempt + 1}/${retries})`)
+        await new Promise(resolve => setTimeout(resolve, delayMs))
+        continue
+      }
+
+      // Add timeout-specific error message
+      if (error.code === 'ECONNABORTED') {
+        error.message = `Request timeout after ${REQUEST_TIMEOUT}ms: ${error.message}`
+      }
+
+      throw error
+    }
+  }
+}
+
 // Database IDs - New consolidated 5-database structure
 export const DATABASE_IDS = {
   TEAM_MEMBERS: '2bb746b9-e0e8-815b-a4de-d2d5aa5ef4e5',
@@ -31,21 +79,16 @@ export async function queryDatabase(databaseId, filter = {}, sorts = [], maxPage
 
     while (hasMore && pageNum < maxPages) {
       pageNum++
-      const response = await axios.post(
-        `https://api.notion.com/v1/databases/${databaseId}/query`,
-        {
-          filter: Object.keys(filter).length > 0 ? filter : undefined,
-          sorts: sorts.length > 0 ? sorts : undefined,
-          start_cursor: startCursor,
-          page_size: 100
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${NOTION_API_KEY}`,
-            'Notion-Version': NOTION_VERSION,
-            'Content-Type': 'application/json'
+      const response = await withRetry(() =>
+        notionAxios.post(
+          `https://api.notion.com/v1/databases/${databaseId}/query`,
+          {
+            filter: Object.keys(filter).length > 0 ? filter : undefined,
+            sorts: sorts.length > 0 ? sorts : undefined,
+            start_cursor: startCursor,
+            page_size: 100
           }
-        }
+        )
       )
 
       const pageResults = response.data.results.length
@@ -70,14 +113,8 @@ export async function queryDatabase(databaseId, filter = {}, sorts = [], maxPage
 // Get database info
 export async function getDatabaseInfo(databaseId) {
   try {
-    const response = await axios.get(
-      `https://api.notion.com/v1/databases/${databaseId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${NOTION_API_KEY}`,
-          'Notion-Version': NOTION_VERSION
-        }
-      }
+    const response = await withRetry(() =>
+      notionAxios.get(`https://api.notion.com/v1/databases/${databaseId}`)
     )
     return response.data
   } catch (error) {
@@ -147,16 +184,8 @@ export function formatPage(page) {
 // Update a page in Notion
 export async function updatePage(pageId, properties) {
   try {
-    const response = await axios.patch(
-      `https://api.notion.com/v1/pages/${pageId}`,
-      { properties },
-      {
-        headers: {
-          'Authorization': `Bearer ${NOTION_API_KEY}`,
-          'Notion-Version': NOTION_VERSION,
-          'Content-Type': 'application/json'
-        }
-      }
+    const response = await withRetry(() =>
+      notionAxios.patch(`https://api.notion.com/v1/pages/${pageId}`, { properties })
     )
     return response.data
   } catch (error) {
@@ -168,19 +197,11 @@ export async function updatePage(pageId, properties) {
 // Create a new page in Notion database
 export async function createPage(databaseId, properties) {
   try {
-    const response = await axios.post(
-      'https://api.notion.com/v1/pages',
-      {
+    const response = await withRetry(() =>
+      notionAxios.post('https://api.notion.com/v1/pages', {
         parent: { database_id: databaseId },
         properties
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${NOTION_API_KEY}`,
-          'Notion-Version': NOTION_VERSION,
-          'Content-Type': 'application/json'
-        }
-      }
+      })
     )
     return response.data
   } catch (error) {
@@ -192,16 +213,8 @@ export async function createPage(databaseId, properties) {
 // Archive (delete) a page in Notion
 export async function deletePage(pageId) {
   try {
-    const response = await axios.patch(
-      `https://api.notion.com/v1/pages/${pageId}`,
-      { archived: true },
-      {
-        headers: {
-          'Authorization': `Bearer ${NOTION_API_KEY}`,
-          'Notion-Version': NOTION_VERSION,
-          'Content-Type': 'application/json'
-        }
-      }
+    const response = await withRetry(() =>
+      notionAxios.patch(`https://api.notion.com/v1/pages/${pageId}`, { archived: true })
     )
     return response.data
   } catch (error) {
