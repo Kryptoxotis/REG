@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import api from '../lib/api'
 import { useToast } from './Toast'
-import { useTeamMembers, usePipeline, useClosedDeals } from '../hooks/useApi'
+import { useTeamMembers, useProperties, useClosedDeals } from '../hooks/useApi'
 import {
   LOAN_STATUS_COLUMNS,
   colorMap,
@@ -56,7 +56,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
   const [isMovingToPending, setIsMovingToPending] = useState(false)
 
   // Use React Query hooks for cached data
-  const { data: pipelineData, isLoading: pipelineLoading, error: pipelineError, refetch: refetchPipeline } = usePipeline()
+  const { data: propertiesData, isLoading: propertiesLoading, error: propertiesError, refetch: refetchProperties } = useProperties()
   const { data: closedDealsData, isLoading: closedLoading, error: closedError, refetch: refetchClosedDeals } = useClosedDeals()
 
   // Derive deals from cached data based on active tab
@@ -65,7 +65,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     if (pipelineTab === 'closed-deals') {
       return Array.isArray(closedDealsData) ? closedDealsData : []
     }
-    const rawData = Array.isArray(pipelineData) ? pipelineData : []
+    const rawData = Array.isArray(propertiesData) ? propertiesData : []
     // Filter Submitted tab to show deals with Notion Status = "Pending"
     if (pipelineTab === 'submitted') {
       return rawData.filter(deal => {
@@ -78,19 +78,19 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       const status = (deal.Status || deal.status || '').toLowerCase().trim()
       return status === 'sold'
     })
-  }, [pipelineTab, pipelineData, closedDealsData])
+  }, [pipelineTab, propertiesData, closedDealsData])
 
-  const loading = pipelineTab === 'closed-deals' ? closedLoading : pipelineLoading
-  const error = pipelineTab === 'closed-deals' ? closedError?.message : pipelineError?.message
+  const loading = pipelineTab === 'closed-deals' ? closedLoading : propertiesLoading
+  const error = pipelineTab === 'closed-deals' ? closedError?.message : propertiesError?.message
 
   // Refetch function for after mutations
   const fetchDeals = useCallback(() => {
     if (pipelineTab === 'closed-deals') {
       refetchClosedDeals()
     } else {
-      refetchPipeline()
+      refetchProperties()
     }
-  }, [pipelineTab, refetchPipeline, refetchClosedDeals])
+  }, [pipelineTab, refetchProperties, refetchClosedDeals])
 
   useEffect(() => {
     if (highlightedDealId && deals.length > 0) {
@@ -359,7 +359,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
     setIsDeletingSubmitted(true)
     try {
-      await api.delete(`/api/databases/pipeline/${selectedDeal.id}`)
+      await api.delete(`/api/databases/properties/${selectedDeal.id}`)
 
       await api.post('/api/databases/actions', {
         action: 'log-activity',
@@ -389,7 +389,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
     setIsUpdatingClosedDate(true)
     try {
-      await api.patch(`/api/databases/pipeline/${selectedDeal.id}`, {
+      await api.patch(`/api/databases/properties/${selectedDeal.id}`, {
         'Closed Date': newDate || null
       })
 
@@ -422,7 +422,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
     setIsSwappingAddress(true)
     try {
-      await api.patch(`/api/databases/pipeline/${selectedDeal.id}`, {
+      await api.patch(`/api/databases/properties/${selectedDeal.id}`, {
         Address: newAddress,
         propertyId: newPropertyId
       })

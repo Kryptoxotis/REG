@@ -11,14 +11,22 @@ function requireEnv(name) {
   return value
 }
 
+// Helper to get optional env var (returns null if missing)
+function optionalEnv(name) {
+  return process.env[name] || null
+}
+
 export const DATABASE_IDS = {
+  // Required for auth
   TEAM_MEMBERS: requireEnv('NOTION_DB_TEAM_MEMBERS'),
+  // Required for main features
   PROPERTIES: requireEnv('NOTION_DB_PROPERTIES'),
-  PIPELINE: requireEnv('NOTION_DB_PIPELINE'),
-  CLIENTS: requireEnv('NOTION_DB_CLIENTS'),
-  SCHEDULE: requireEnv('NOTION_DB_SCHEDULE'),
-  ACTIVITY_LOG: requireEnv('NOTION_DB_ACTIVITY_LOG'),
-  CLOSED_DEALS: requireEnv('NOTION_DB_CLOSED_DEALS')
+  // Optional - only needed if these features are used
+  PIPELINE: optionalEnv('NOTION_DB_PIPELINE'),
+  CLIENTS: optionalEnv('NOTION_DB_CLIENTS'),
+  SCHEDULE: optionalEnv('NOTION_DB_SCHEDULE'),
+  ACTIVITY_LOG: optionalEnv('NOTION_DB_ACTIVITY_LOG'),
+  CLOSED_DEALS: optionalEnv('NOTION_DB_CLOSED_DEALS')
 }
 
 export const NOTION_VERSION = '2022-06-28'
