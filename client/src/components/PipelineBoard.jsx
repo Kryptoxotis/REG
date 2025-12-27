@@ -872,8 +872,8 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
             <>
               {/* Mobile Accordion */}
               <div className="sm:hidden space-y-3">
-                {/* Unassigned Section for Mobile - only on Submitted tab */}
-                {pipelineTab === 'submitted' && unassigned.length > 0 && (
+                {/* Unassigned Section for Mobile */}
+                {unassigned.length > 0 && (
                   <div className="rounded-xl overflow-hidden shadow-lg">
                     <button onClick={() => toggleColumn('unassigned')} className="bg-amber-600 w-full px-5 py-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -924,8 +924,8 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
               {/* Desktop Kanban */}
               <div className="hidden sm:block overflow-x-auto pb-4">
                 <div className="flex gap-4 min-w-max">
-                  {/* Unassigned Column for Desktop - only on Submitted tab */}
-                  {pipelineTab === 'submitted' && unassigned.length > 0 && (
+                  {/* Unassigned Column for Desktop */}
+                  {unassigned.length > 0 && (
                     <div className="w-72 flex-shrink-0">
                       <div className="bg-amber-600 rounded-t-xl px-4 py-3 flex items-center justify-between">
                         <span className="font-semibold text-white">Unassigned</span>
