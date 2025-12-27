@@ -57,6 +57,93 @@ async function moveToSubmitted(data) {
   return { success: true, propertyId: response.data.id, message: 'Property submitted successfully' }
 }
 
+// Remove from Submitted - sets Status back to Available and clears buyer info
+async function removeFromSubmitted(data) {
+  console.log('removeFromSubmitted called with:', JSON.stringify(data))
+  const { propertyId } = data
+
+  if (!propertyId) throw new Error('Property ID is required')
+  if (!isValidUUID(propertyId)) throw new Error('Invalid property ID format')
+
+  // Set Status back to Available and clear all buyer-related fields
+  const properties = {
+    'Status': { select: { name: 'Available' } },
+    'Buyer Name': { rich_text: [] },
+    'Assisting Agent': { rich_text: [] },
+    'Submitted Date': { date: null },
+    'Notes': { rich_text: [] }
+  }
+
+  const response = await axios.patch(
+    `https://api.notion.com/v1/pages/${propertyId}`,
+    { properties },
+    {
+      headers: {
+        'Authorization': `Bearer ${NOTION_API_KEY}`,
+        'Notion-Version': NOTION_VERSION,
+        'Content-Type': 'application/json'
+      }
+    }
+  )
+
+  return { success: true, propertyId: response.data.id, message: 'Property removed from Submitted' }
+}
+
+// Swap address - move buyer info to new property, reset old property to Available
+async function swapAddress(data) {
+  console.log('swapAddress called with:', JSON.stringify(data))
+  const { oldPropertyId, newPropertyId, buyerName, agentAssist, notes } = data
+
+  if (!oldPropertyId) throw new Error('Old property ID is required')
+  if (!newPropertyId) throw new Error('New property ID is required')
+  if (!isValidUUID(oldPropertyId)) throw new Error('Invalid old property ID format')
+  if (!isValidUUID(newPropertyId)) throw new Error('Invalid new property ID format')
+
+  // 1. Update NEW property with buyer info and set Status to Pending
+  const newPropertyData = {
+    'Status': { select: { name: 'Pending' } },
+    'Submitted Date': { date: { start: new Date().toISOString().split('T')[0] } }
+  }
+  if (buyerName) newPropertyData['Buyer Name'] = { rich_text: [{ type: 'text', text: { content: buyerName } }] }
+  if (agentAssist) newPropertyData['Assisting Agent'] = { rich_text: [{ type: 'text', text: { content: agentAssist } }] }
+  if (notes) newPropertyData['Notes'] = { rich_text: [{ type: 'text', text: { content: notes } }] }
+
+  await axios.patch(
+    `https://api.notion.com/v1/pages/${newPropertyId}`,
+    { properties: newPropertyData },
+    {
+      headers: {
+        'Authorization': `Bearer ${NOTION_API_KEY}`,
+        'Notion-Version': NOTION_VERSION,
+        'Content-Type': 'application/json'
+      }
+    }
+  )
+
+  // 2. Reset OLD property to Available and clear buyer info
+  const oldPropertyData = {
+    'Status': { select: { name: 'Available' } },
+    'Buyer Name': { rich_text: [] },
+    'Assisting Agent': { rich_text: [] },
+    'Submitted Date': { date: null },
+    'Notes': { rich_text: [] }
+  }
+
+  await axios.patch(
+    `https://api.notion.com/v1/pages/${oldPropertyId}`,
+    { properties: oldPropertyData },
+    {
+      headers: {
+        'Authorization': `Bearer ${NOTION_API_KEY}`,
+        'Notion-Version': NOTION_VERSION,
+        'Content-Type': 'application/json'
+      }
+    }
+  )
+
+  return { success: true, message: 'Address swapped successfully' }
+}
+
 // Move from Submitted to Pending (full form, copies address, archives Property)
 async function moveToPending(data) {
   console.log('moveToPending called with:', JSON.stringify(data))
@@ -304,21 +391,25 @@ async function sendBackToProperties(data) {
   return { success: true, propertyId: response.data.id, message: 'Deal sent back to Properties successfully' }
 }
 
-// Update loan status in Pipeline
+// Update loan status in Pipeline (or clear it if null)
 async function updateStatus(data) {
   const { dealId, loanStatus } = data
 
   if (!dealId) throw new Error('Deal ID is required')
   if (!isValidUUID(dealId)) throw new Error('Invalid deal ID format')
-  if (!loanStatus) throw new Error('Loan status is required')
+
+  // Build properties - if loanStatus is null/empty, clear the field
+  const properties = {}
+  if (loanStatus) {
+    properties['Loan Status'] = { select: { name: loanStatus } }
+  } else {
+    // Clear the Loan Status field (set to null for unassigned)
+    properties['Loan Status'] = { select: null }
+  }
 
   const response = await axios.patch(
     `https://api.notion.com/v1/pages/${dealId}`,
-    {
-      properties: {
-        'Loan Status': { select: { name: loanStatus } }
-      }
-    },
+    { properties },
     {
       headers: {
         'Authorization': `Bearer ${NOTION_API_KEY}`,
@@ -453,6 +544,12 @@ export default async function handler(req, res) {
     switch (action) {
       case 'move-to-submitted':
         result = await moveToSubmitted(data)
+        break
+      case 'remove-from-submitted':
+        result = await removeFromSubmitted(data)
+        break
+      case 'swap-address':
+        result = await swapAddress(data)
         break
       case 'move-to-pending':
         result = await moveToPending(data)

@@ -158,7 +158,8 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     const { destination, source, draggableId } = result
     if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) return
 
-    const newLoanStatus = destination.droppableId
+    // If dropping to 'unassigned', clear the Loan Status (set to null/empty)
+    const newLoanStatus = destination.droppableId === 'unassigned' ? null : destination.droppableId
     const deal = deals.find(d => d.id === draggableId)
     if (!deal) return
 
@@ -357,29 +358,34 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
     } finally { setIsMovingToPending(false) }
   }
 
-  // Delete from Submitted (remove pipeline entry without affecting original property)
+  // Delete from Submitted - sets Status back to Available (doesn't actually delete)
   const [isDeletingSubmitted, setIsDeletingSubmitted] = useState(false)
   const deleteFromSubmitted = async () => {
     if (!selectedDeal || isDeletingSubmitted) return
-    if (!confirm('Are you sure you want to delete this from Submitted? This cannot be undone.')) return
+    if (!confirm('Remove from Submitted? This will set the property back to Available.')) return
 
     setIsDeletingSubmitted(true)
     try {
-      await api.delete(`/api/databases/properties/${selectedDeal.id}`)
+      // Change Status from Pending to Available and clear buyer info
+      await api.post('/api/databases/actions', {
+        action: 'remove-from-submitted',
+        propertyId: selectedDeal.id
+      })
 
       await api.post('/api/databases/actions', {
         action: 'log-activity',
-        logAction: `Deleted from Submitted: ${getAddress(selectedDeal) || 'Unknown'}`,
+        logAction: `Removed from Submitted: ${getAddress(selectedDeal) || 'Unknown'}`,
         dealAddress: getAddress(selectedDeal) || 'Unknown Address',
         entityType: 'Deal',
-        actionType: 'Delete from Submitted'
+        actionType: 'Remove from Submitted'
       })
 
+      toast.success('Property removed from Submitted')
       setSelectedDeal(null)
       fetchDeals()
     } catch (err) {
-      console.error('Failed to delete from submitted:', err)
-      toast.error(err.response?.data?.error || 'Failed to delete')
+      console.error('Failed to remove from submitted:', err)
+      toast.error(err.response?.data?.error || 'Failed to remove')
     } finally { setIsDeletingSubmitted(false) }
   }
 
@@ -428,19 +434,30 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
     setIsSwappingAddress(true)
     try {
-      await api.patch(`/api/databases/properties/${selectedDeal.id}`, {
-        Address: newAddress,
-        propertyId: newPropertyId
+      // Extract buyer info from current deal
+      const buyerName = selectedDeal['Buyer Name'] || ''
+      const agentAssist = selectedDeal['Assisting Agent'] || ''
+      const notes = selectedDeal['Notes'] || ''
+
+      // Swap: move buyer info to new property, reset old property to Available
+      await api.post('/api/databases/actions', {
+        action: 'swap-address',
+        oldPropertyId: selectedDeal.id,
+        newPropertyId: newPropertyId,
+        buyerName,
+        agentAssist,
+        notes
       })
 
       await api.post('/api/databases/actions', {
         action: 'log-activity',
-        logAction: `Swapped address to: ${newAddress}`,
+        logAction: `Swapped address from ${selectedDeal.Address} to: ${newAddress}`,
         dealAddress: newAddress,
         entityType: 'Deal',
         actionType: 'Swap Address'
       })
 
+      toast.success(`Address swapped to: ${newAddress}`)
       setShowAddressSwap(false)
       setSelectedDeal(null)
       fetchDeals()
