@@ -711,8 +711,8 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
           {/* Row View with Collapsible Sections */}
           {layoutMode === 'row' && (
             <div className="space-y-3">
-              {/* Unassigned Section - only show on Submitted tab for deals without Loan Status */}
-              {pipelineTab === 'submitted' && unassigned.length > 0 && (
+              {/* Unassigned Section - shows deals without Loan Status at top for assignment */}
+              {unassigned.length > 0 && (
                 <div className="rounded-xl overflow-hidden border border-amber-500/50">
                   <button onClick={() => toggleColumn('unassigned')} className="bg-amber-600 w-full px-5 py-3 flex items-center justify-between hover:brightness-110 transition-all">
                     <div className="flex items-center gap-3">
