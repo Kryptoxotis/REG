@@ -61,7 +61,7 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
 
   // Derive deals from cached data based on active tab
   // Dashboard section mapping: "Submitted" = Notion Status "Pending", "Pending" = Notion Status "Sold"
-  const deals = useMemo(() => {
+  const derivedDeals = useMemo(() => {
     if (pipelineTab === 'closed-deals') {
       return Array.isArray(closedDealsData) ? closedDealsData : []
     }
@@ -79,6 +79,12 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
       return status === 'sold'
     })
   }, [pipelineTab, propertiesData, closedDealsData])
+
+  // Local state for optimistic UI updates
+  const [deals, setDeals] = useState([])
+  useEffect(() => {
+    setDeals(derivedDeals)
+  }, [derivedDeals])
 
   const loading = pipelineTab === 'closed-deals' ? closedLoading : propertiesLoading
   const error = pipelineTab === 'closed-deals' ? closedError?.message : propertiesError?.message
