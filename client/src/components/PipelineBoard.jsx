@@ -60,17 +60,24 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
   const { data: closedDealsData, isLoading: closedLoading, error: closedError, refetch: refetchClosedDeals } = useClosedDeals()
 
   // Derive deals from cached data based on active tab
+  // Dashboard section mapping: "Submitted" = Notion Status "Pending", "Pending" = Notion Status "Sold"
   const deals = useMemo(() => {
     if (pipelineTab === 'closed-deals') {
       return Array.isArray(closedDealsData) ? closedDealsData : []
     }
     const rawData = Array.isArray(pipelineData) ? pipelineData : []
-    // Filter Submitted tab to show deals with NO Loan Status (just submitted from Properties)
+    // Filter Submitted tab to show deals with Notion Status = "Pending"
     if (pipelineTab === 'submitted') {
-      return rawData.filter(deal => !deal['Loan Status'] || deal['Loan Status'] === '')
+      return rawData.filter(deal => {
+        const status = (deal.Status || deal.status || '').toLowerCase().trim()
+        return status === 'pending'
+      })
     }
-    // Filter Pending tab to show deals WITH a Loan Status (in active loan process)
-    return rawData.filter(deal => deal['Loan Status'] && deal['Loan Status'] !== '')
+    // Filter Pending tab to show deals with Notion Status = "Sold"
+    return rawData.filter(deal => {
+      const status = (deal.Status || deal.status || '').toLowerCase().trim()
+      return status === 'sold'
+    })
   }, [pipelineTab, pipelineData, closedDealsData])
 
   const loading = pipelineTab === 'closed-deals' ? closedLoading : pipelineLoading
@@ -704,10 +711,74 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
           {/* Row View with Collapsible Sections */}
           {layoutMode === 'row' && (
             <div className="space-y-3">
+              {/* Unassigned Section - only show on Submitted tab for deals without Loan Status */}
+              {pipelineTab === 'submitted' && unassigned.length > 0 && (
+                <div className="rounded-xl overflow-hidden border border-amber-500/50">
+                  <button onClick={() => toggleColumn('unassigned')} className="bg-amber-600 w-full px-5 py-3 flex items-center justify-between hover:brightness-110 transition-all">
+                    <div className="flex items-center gap-3">
+                      <motion.span animate={{ rotate: expandedColumns['unassigned'] ? 180 : 0 }} className="text-white/80">▼</motion.span>
+                      <span className="font-semibold text-white">Unassigned</span>
+                      <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-sm font-medium text-white">{unassigned.length}</span>
+                    </div>
+                  </button>
+                  <AnimatePresence>
+                    {expandedColumns['unassigned'] && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}>
+                        <Droppable droppableId="unassigned">
+                          {(provided, snapshot) => (
+                            <div ref={provided.innerRef} {...provided.droppableProps} className={`bg-amber-500/10 border-amber-500/30 border-t-0 min-h-[60px] ${snapshot.isDraggingOver ? 'ring-2 ring-amber-500/50 ring-inset' : ''}`}>
+                              <div className="hidden sm:grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-gray-400 uppercase bg-gray-900/30">
+                                <div className="col-span-1"></div>
+                                <div className="col-span-3">Address</div>
+                                <div className="col-span-2">Buyer</div>
+                                <div className="col-span-2">Price</div>
+                                <div className="col-span-2">Closing Date</div>
+                                <div className="col-span-2">Agent</div>
+                              </div>
+                              <div className="divide-y divide-amber-700/30">
+                                {unassigned.map((deal, idx) => {
+                                  const urgency = getCloseDateUrgency(deal)
+                                  const rowBg = urgency === 'overdue' ? 'bg-red-900/20 hover:bg-red-900/30' : urgency === 'soon' ? 'bg-yellow-900/20 hover:bg-yellow-900/30' : 'hover:bg-amber-700/20'
+                                  return (
+                                    <Draggable key={deal.id} draggableId={deal.id} index={idx}>
+                                      {(provided, snapshot) => (
+                                        <div ref={provided.innerRef} {...provided.draggableProps} className={`${rowBg} px-4 py-3 grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 items-center transition-all ${snapshot.isDragging ? 'shadow-xl ring-2 ring-amber-500 bg-gray-800 rounded-lg z-50' : ''}`}>
+                                          <div {...provided.dragHandleProps} className="sm:col-span-1 flex items-center justify-center cursor-grab active:cursor-grabbing">
+                                            <span className="text-gray-500 hover:text-gray-300 text-lg">⋮⋮</span>
+                                          </div>
+                                          <div className="sm:col-span-3 cursor-pointer" onClick={() => setSelectedDeal(deal)}>
+                                            <p className="font-medium text-white truncate hover:text-amber-400">{deal.Address || 'No Address'}</p>
+                                          </div>
+                                          <div className="sm:col-span-2">
+                                            <p className="text-gray-400 text-sm truncate">{deal['Buyer Name'] || '-'}</p>
+                                          </div>
+                                          <div className="sm:col-span-2">
+                                            <p className="text-emerald-400 font-medium">{formatCurrency(deal['Sales Price'])}</p>
+                                          </div>
+                                          <div className="sm:col-span-2">
+                                            <p className={`text-sm ${urgency === 'overdue' ? 'text-red-400' : urgency === 'soon' ? 'text-yellow-400' : 'text-gray-400'}`}>{formatDate(deal['Scheduled Closing'])}</p>
+                                          </div>
+                                          <div className="sm:col-span-2">
+                                            <p className="text-gray-400 text-sm truncate">{deal.Agent || '-'}</p>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </Draggable>
+                                  )
+                                })}
+                                {provided.placeholder}
+                              </div>
+                            </div>
+                          )}
+                        </Droppable>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
               {LOAN_STATUS_COLUMNS.map((col) => {
                 const colors = colorMap[col.color]
                 const columnDeals = groupedDeals[col.key] || []
-                if (columnDeals.length === 0) return null
                 return (
                   <div key={col.key} className="rounded-xl overflow-hidden border border-gray-700">
                     <button onClick={() => toggleColumn(col.key)} className={`${colors.header} w-full px-5 py-3 flex items-center justify-between hover:brightness-110 transition-all`}>
@@ -734,6 +805,9 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
                                 </div>
                                 {/* Draggable Rows */}
                                 <div className="divide-y divide-gray-700/50">
+                                  {columnDeals.length === 0 && (
+                                    <p className="text-center text-gray-500 text-sm py-4">No deals</p>
+                                  )}
                                   {columnDeals.map((deal, idx) => {
                                     const urgency = getCloseDateUrgency(deal)
                                     const rowBg = urgency === 'overdue' ? 'bg-red-900/20 hover:bg-red-900/30' : urgency === 'soon' ? 'bg-yellow-900/20 hover:bg-yellow-900/30' : 'hover:bg-gray-700/30'
@@ -792,10 +866,30 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
             <>
               {/* Mobile Accordion */}
               <div className="sm:hidden space-y-3">
+                {/* Unassigned Section for Mobile - only on Submitted tab */}
+                {pipelineTab === 'submitted' && unassigned.length > 0 && (
+                  <div className="rounded-xl overflow-hidden shadow-lg">
+                    <button onClick={() => toggleColumn('unassigned')} className="bg-amber-600 w-full px-5 py-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold text-white text-base">Unassigned</span>
+                        <span className="bg-white/20 px-2.5 py-1 rounded-full text-sm font-medium text-white">{unassigned.length}</span>
+                      </div>
+                      <motion.span animate={{ rotate: expandedColumns['unassigned'] ? 180 : 0 }} className="text-white/80 text-lg">▼</motion.span>
+                    </button>
+                    <AnimatePresence>
+                      {expandedColumns['unassigned'] && (
+                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-amber-500/10 border-amber-500/30 border border-t-0">
+                          <div className="p-4 space-y-3">
+                            {unassigned.map((deal) => <MobileDealCard key={deal.id} deal={deal} onSelect={setSelectedDeal} formatCurrency={formatCurrency} formatDate={formatDate} />)}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
                 {LOAN_STATUS_COLUMNS.map((col) => {
                   const colors = colorMap[col.color]
                   const columnDeals = groupedDeals[col.key] || []
-                  if (columnDeals.length === 0) return null
                   return (
                     <div key={col.key} className="rounded-xl overflow-hidden shadow-lg">
                       <button onClick={() => toggleColumn(col.key)} className={`${colors.header} w-full px-5 py-4 flex items-center justify-between`}>
@@ -809,7 +903,9 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
                         {expandedColumns[col.key] && (
                           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className={`${colors.bg} ${colors.border} border border-t-0`}>
                             <div className="p-4 space-y-3">
-                              {columnDeals.map((deal) => <MobileDealCard key={deal.id} deal={deal} onSelect={setSelectedDeal} formatCurrency={formatCurrency} formatDate={formatDate} />)}
+                              {columnDeals.length === 0 ? (
+                                <p className="text-center text-gray-500 text-sm py-4">No deals</p>
+                              ) : columnDeals.map((deal) => <MobileDealCard key={deal.id} deal={deal} onSelect={setSelectedDeal} formatCurrency={formatCurrency} formatDate={formatDate} />)}
                             </div>
                           </motion.div>
                         )}
@@ -822,6 +918,40 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
               {/* Desktop Kanban */}
               <div className="hidden sm:block overflow-x-auto pb-4">
                 <div className="flex gap-4 min-w-max">
+                  {/* Unassigned Column for Desktop - only on Submitted tab */}
+                  {pipelineTab === 'submitted' && unassigned.length > 0 && (
+                    <div className="w-72 flex-shrink-0">
+                      <div className="bg-amber-600 rounded-t-xl px-4 py-3 flex items-center justify-between">
+                        <span className="font-semibold text-white">Unassigned</span>
+                        <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm text-white">{unassigned.length}</span>
+                      </div>
+                      <Droppable droppableId="unassigned">
+                        {(provided, snapshot) => (
+                          <div ref={provided.innerRef} {...provided.droppableProps} className={`bg-amber-500/10 border-amber-500/30 border border-t-0 rounded-b-xl p-3 min-h-[400px] space-y-3 ${snapshot.isDraggingOver ? 'ring-2 ring-amber-500/50' : ''}`}>
+                            {unassigned.map((deal, idx) => {
+                              const urgency = getCloseDateUrgency(deal)
+                              const cardBg = urgency === 'overdue' ? 'bg-red-900/40 border-red-500/50 hover:border-red-400' : urgency === 'soon' ? 'bg-yellow-900/30 border-yellow-500/50 hover:border-yellow-400' : 'bg-gray-800 border-amber-700/50 hover:border-amber-500'
+                              return (
+                                <Draggable key={deal.id} draggableId={deal.id} index={idx}>
+                                  {(provided, snapshot) => (
+                                    <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} onClick={() => setSelectedDeal(deal)} className={`${cardBg} rounded-xl p-3 border cursor-grab transition-all ${snapshot.isDragging ? 'shadow-xl ring-2 ring-amber-500 rotate-2' : ''}`}>
+                                      <p className="font-medium text-white text-sm truncate">{deal.Address || 'No Address'}</p>
+                                      {deal['Buyer Name'] && <p className="text-gray-400 text-xs mt-1 truncate">{deal['Buyer Name']}</p>}
+                                      <div className="flex items-center justify-between mt-2">
+                                        <span className="text-emerald-400 text-sm font-semibold">{formatCurrency(deal['Sales Price'])}</span>
+                                        {deal['Scheduled Closing'] && <span className="text-gray-500 text-xs">{formatDate(deal['Scheduled Closing'])}</span>}
+                                      </div>
+                                    </div>
+                                  )}
+                                </Draggable>
+                              )
+                            })}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+                    </div>
+                  )}
                   {LOAN_STATUS_COLUMNS.map((col) => {
                     const colors = colorMap[col.color]
                     const columnDeals = groupedDeals[col.key] || []
@@ -868,11 +998,6 @@ function PipelineBoard({ highlightedDealId, onClearHighlight, cityFilter, onClea
             </>
           )}
 
-          {unassigned.length > 0 && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mt-4">
-              <p className="text-amber-400 text-sm">⚠️ {unassigned.length} deal{unassigned.length > 1 ? 's' : ''} without Loan Status assigned</p>
-            </div>
-          )}
         </DragDropContext>
       )}
 

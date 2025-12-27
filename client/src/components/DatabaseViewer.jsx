@@ -556,6 +556,15 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
       })
     }
 
+    // Filter PROPERTIES by Status: only show Model, Available, or empty (exclude Pending/Sold)
+    if (databaseKey === 'PROPERTIES') {
+      result = result.filter(item => {
+        const status = (item.Status || item.status || '').toLowerCase().trim()
+        // Show if: empty/null, Available, Model, or Model Home
+        return !status || status === 'available' || status === 'model' || status === 'model home'
+      })
+    }
+
     // Apply dynamic filters from fieldPrefs.filters
     Object.entries(dynamicFilters).forEach(([fieldName, filterValue]) => {
       if (filterValue === '' || filterValue === null || filterValue === undefined) return
