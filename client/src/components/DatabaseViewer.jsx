@@ -269,7 +269,7 @@ const EXCLUDED_RELATIONS = {
   'TEAM_MEMBERS': ['Name']   // Name in Team Members is the primary field
 }
 
-export default function DatabaseViewer({ databaseKey, highlightedId, onClearHighlight, onNavigate, searchTerm = '', onClearSearch }) {
+export default function DatabaseViewer({ databaseKey, highlightedId, onClearHighlight, onNavigate, searchTerm = '', onClearSearch, user }) {
   const baseConfig = dbConfig[databaseKey] || dbConfig.TEAM_MEMBERS
   const Icon = baseConfig.icon
   const toast = useToast()
@@ -1036,7 +1036,11 @@ export default function DatabaseViewer({ databaseKey, highlightedId, onClearHigh
                   <div className="mt-4 pt-4 border-t border-gray-700">
                     {!showMoveToSubmitted ? (
                       <button
-                        onClick={() => setShowMoveToSubmitted(true)}
+                        onClick={() => {
+                          // Default agentAssist to logged-in user's name
+                          setMoveToSubmittedForm({ foreman: '', subdivision: '', agentAssist: user?.fullName || user?.name || '', buyerName: '' })
+                          setShowMoveToSubmitted(true)
+                        }}
                         className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
                       >
                         📋 Move to Submitted

@@ -455,7 +455,7 @@ function AdminDashboard({ user, setUser }) {
                 ) : activeView === 'DIVISIONS' ? (
                   <DivisionsView initialCity={selectedDivisionCity} onClearCity={() => setSelectedDivisionCity(null)} />
                 ) : (
-                  <DatabaseViewer databaseKey={activeView} databaseName={databases.find(db => db.key === activeView)?.name} highlightedId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} onNavigate={handleDealNavigate} searchTerm={searchTerm} onClearSearch={() => setSearchTerm('')} />
+                  <DatabaseViewer databaseKey={activeView} databaseName={databases.find(db => db.key === activeView)?.name} highlightedId={highlightedDealId} onClearHighlight={() => setHighlightedDealId(null)} onNavigate={handleDealNavigate} searchTerm={searchTerm} onClearSearch={() => setSearchTerm('')} user={user} />
                 )}
               </motion.div>
             )}

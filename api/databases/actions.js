@@ -7,43 +7,44 @@ const ADMIN_ONLY_ACTIONS = ['move-to-submitted', 'move-to-pending', 'move-to-pip
 
 const NOTION_API_KEY = process.env.NOTION_API_KEY
 
-// Move property to Submitted stage (creates Pipeline record linked to Property)
+// Move property to Submitted stage (updates Property Status to "Pending")
 async function moveToSubmitted(data) {
   console.log('moveToSubmitted called with:', JSON.stringify(data))
   const {
-    propertyId, address, salesPrice,
+    propertyId,
     // Required fields for Submitted
-    foreman, subdivision, agentAssist, buyerName
+    buyerName,
+    // Optional fields
+    foreman, subdivision, agentAssist
   } = data
 
   if (!propertyId) throw new Error('Property ID is required')
   if (!isValidUUID(propertyId)) throw new Error('Invalid property ID format')
   if (!buyerName) throw new Error('Buyer name is required')
 
+  // Build properties to update on the existing Property record
   const properties = {
-    Address: {
-      title: [{ type: 'text', text: { content: address || 'Unknown' } }]
-    },
-    // Loan Status is left blank - property is submitted, not yet in loan process
-    'Linked Property': {
-      relation: [{ id: propertyId }]
-    },
+    // Set Status to "Pending" which shows in Submitted tab
+    'Status': { select: { name: 'Pending' } },
     'Buyer Name': { rich_text: [{ type: 'text', text: { content: buyerName } }] },
     'Submitted Date': { date: { start: new Date().toISOString().split('T')[0] } }
   }
 
   // Optional fields
-  if (foreman) properties['Notes'] = { rich_text: [{ type: 'text', text: { content: `Foreman: ${foreman}` } }] }
-  if (subdivision) properties['Notes'] = {
-    rich_text: [{ type: 'text', text: { content: `${foreman ? `Foreman: ${foreman}\n` : ''}Subdivision: ${subdivision}` } }]
-  }
   if (agentAssist) properties['Assisting Agent'] = { rich_text: [{ type: 'text', text: { content: agentAssist } }] }
-  if (salesPrice) properties['Sales Price'] = { number: parseFloat(salesPrice) || 0 }
 
-  // Create new record in Pipeline with Submitted status
-  const response = await axios.post(
-    'https://api.notion.com/v1/pages',
-    { parent: { database_id: DATABASE_IDS.PIPELINE }, properties },
+  // Build notes from foreman and subdivision
+  const notesParts = []
+  if (foreman) notesParts.push(`Foreman: ${foreman}`)
+  if (subdivision) notesParts.push(`Subdivision: ${subdivision}`)
+  if (notesParts.length > 0) {
+    properties['Notes'] = { rich_text: [{ type: 'text', text: { content: notesParts.join('\n') } }] }
+  }
+
+  // Update the existing Property record (PATCH, not create new)
+  const response = await axios.patch(
+    `https://api.notion.com/v1/pages/${propertyId}`,
+    { properties },
     {
       headers: {
         'Authorization': `Bearer ${NOTION_API_KEY}`,
@@ -53,10 +54,7 @@ async function moveToSubmitted(data) {
     }
   )
 
-  // Do NOT archive the Property - it stays in Properties database
-  // The address can still be edited while in Submitted status
-
-  return { success: true, pipelineId: response.data.id, message: 'Property moved to Submitted successfully' }
+  return { success: true, propertyId: response.data.id, message: 'Property submitted successfully' }
 }
 
 // Move from Submitted to Pending (full form, copies address, archives Property)
