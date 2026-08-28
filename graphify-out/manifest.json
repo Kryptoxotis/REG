@@ -1,0 +1,707 @@
+{
+  "Aidan/find-all-duplicates.js": {
+    "mtime": 1777056980.0512702,
+    "ast_hash": "5e9bdd5d95f2eae836e8b19d780109da",
+    "semantic_hash": "5e9bdd5d95f2eae836e8b19d780109da"
+  },
+  "Aidan/find-duplicates.js": {
+    "mtime": 1777056980.0512702,
+    "ast_hash": "c3600d8e7ddd0e6297a988e30839ae6d",
+    "semantic_hash": "c3600d8e7ddd0e6297a988e30839ae6d"
+  },
+  "Aidan/find_duplicates.cjs": {
+    "mtime": 1777056980.0512702,
+    "ast_hash": "ef25941681e0ac8af5c758b0dc17ca74",
+    "semantic_hash": "ef25941681e0ac8af5c758b0dc17ca74"
+  },
+  "Miguel/api/auth/check-ip.js": {
+    "mtime": 1777056980.0665207,
+    "ast_hash": "aafc9fd4f9737a27e51380a5f200b2e1",
+    "semantic_hash": "aafc9fd4f9737a27e51380a5f200b2e1"
+  },
+  "Miguel/api/auth/ip-whitelist.js": {
+    "mtime": 1777056980.0692475,
+    "ast_hash": "f469f7ab13f4063087273db3aef249d1",
+    "semantic_hash": "f469f7ab13f4063087273db3aef249d1"
+  },
+  "Miguel/api/auth/login.js": {
+    "mtime": 1777056980.0692475,
+    "ast_hash": "392ca74d64e3b27556b6bf9064336605",
+    "semantic_hash": "392ca74d64e3b27556b6bf9064336605"
+  },
+  "Miguel/api/databases/[key].js": {
+    "mtime": 1777056980.0692475,
+    "ast_hash": "fd50e779386edd7075d241c6c85a3fd0",
+    "semantic_hash": "fd50e779386edd7075d241c6c85a3fd0"
+  },
+  "Miguel/api/databases/stats.js": {
+    "mtime": 1777056980.0692475,
+    "ast_hash": "55807b4b524dc0af2d3948cd91b092b1",
+    "semantic_hash": "55807b4b524dc0af2d3948cd91b092b1"
+  },
+  "Miguel/api/databases/team-kpis.js": {
+    "mtime": 1777056980.0692475,
+    "ast_hash": "edbb5db4f1b7b424ce28a8548ecee128",
+    "semantic_hash": "edbb5db4f1b7b424ce28a8548ecee128"
+  },
+  "Miguel/client/package.json": {
+    "mtime": 1777056980.0722117,
+    "ast_hash": "9aff99a437e2f5635e8f9aa860ece6c0",
+    "semantic_hash": "9aff99a437e2f5635e8f9aa860ece6c0"
+  },
+  "Miguel/client/postcss.config.js": {
+    "mtime": 1777056980.0722117,
+    "ast_hash": "ac96fa81e8dd4224012bce81068fe169",
+    "semantic_hash": "ac96fa81e8dd4224012bce81068fe169"
+  },
+  "Miguel/client/src/App.jsx": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "ea7c332369aa9bf950fc7b6a11142783",
+    "semantic_hash": "ea7c332369aa9bf950fc7b6a11142783"
+  },
+  "Miguel/client/src/components/DatabaseViewer.jsx": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "b1d0ca837f17caa1738fce49e4df6981",
+    "semantic_hash": "b1d0ca837f17caa1738fce49e4df6981"
+  },
+  "Miguel/client/src/components/DetailModal.jsx": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "54c51e6dc5bea7978be0a0fe8df727cf",
+    "semantic_hash": "54c51e6dc5bea7978be0a0fe8df727cf"
+  },
+  "Miguel/client/src/components/OfficeOverview.jsx": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "3a345ae8f68439223848e71ed959a003",
+    "semantic_hash": "3a345ae8f68439223848e71ed959a003"
+  },
+  "Miguel/client/src/components/ScheduleCalendar.jsx": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "0ea37339501e6f903a10f821edf7ecec",
+    "semantic_hash": "0ea37339501e6f903a10f821edf7ecec"
+  },
+  "Miguel/client/src/components/Settings.jsx": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "904f0d97fe1135b2d9eb928c02a7471a",
+    "semantic_hash": "904f0d97fe1135b2d9eb928c02a7471a"
+  },
+  "Miguel/client/src/components/StatsOverview.jsx": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "44ebc73a56de64f9b42c18b1ad9558a6",
+    "semantic_hash": "44ebc73a56de64f9b42c18b1ad9558a6"
+  },
+  "Miguel/client/src/components/TeamKPIView.jsx": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "2427985603251045deaab1da4581891a",
+    "semantic_hash": "2427985603251045deaab1da4581891a"
+  },
+  "Miguel/client/src/main.jsx": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "be1ec1931e7070477f01cf63e2732ea9",
+    "semantic_hash": "be1ec1931e7070477f01cf63e2732ea9"
+  },
+  "Miguel/client/src/pages/AdminDashboard.jsx": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "7e619e11d5952829367839386abf041b",
+    "semantic_hash": "7e619e11d5952829367839386abf041b"
+  },
+  "Miguel/client/src/pages/EmployeeDashboard.jsx": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "621a1b56a932e1e2ed5a3ff073743a2a",
+    "semantic_hash": "621a1b56a932e1e2ed5a3ff073743a2a"
+  },
+  "Miguel/client/src/pages/Login.jsx": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "dd360cd93163d6b03712959c347d60e0",
+    "semantic_hash": "dd360cd93163d6b03712959c347d60e0"
+  },
+  "Miguel/client/tailwind.config.js": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "9afb21cebd97d1d0507d3a6067926a05",
+    "semantic_hash": "9afb21cebd97d1d0507d3a6067926a05"
+  },
+  "Miguel/client/vite.config.js": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "319e576e788f3a6d1a8434518a56c1d4",
+    "semantic_hash": "319e576e788f3a6d1a8434518a56c1d4"
+  },
+  "Miguel/package.json": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "7fe5727391d8107ffbbda8df14fe7611",
+    "semantic_hash": "7fe5727391d8107ffbbda8df14fe7611"
+  },
+  "Miguel/server/index.js": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "6a88333d51a5785878e78b42155a3df8",
+    "semantic_hash": "6a88333d51a5785878e78b42155a3df8"
+  },
+  "Miguel/server/routes/auth.js": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "dc0a0cea6782a2c9da4364e65fcdbd7a",
+    "semantic_hash": "dc0a0cea6782a2c9da4364e65fcdbd7a"
+  },
+  "Miguel/server/routes/databases.js": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "98b10e4ce5583af8c3903f66dd456bb7",
+    "semantic_hash": "98b10e4ce5583af8c3903f66dd456bb7"
+  },
+  "Miguel/server/utils/notion.js": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "b29135758d483b574a31674379a4935a",
+    "semantic_hash": "b29135758d483b574a31674379a4935a"
+  },
+  "Miguel/update_schedule.py": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "f7957582f9affd58d83d56dd6dd75816",
+    "semantic_hash": "f7957582f9affd58d83d56dd6dd75816"
+  },
+  "Miguel/vercel.json": {
+    "mtime": 1777056980.0737176,
+    "ast_hash": "7be1b206c19ae01793d717ca207b80b0",
+    "semantic_hash": "7be1b206c19ae01793d717ca207b80b0"
+  },
+  "api/auth/check.js": {
+    "mtime": 1777056980.1039855,
+    "ast_hash": "b410b6b87a41b6c6556ae5c4fa578d75",
+    "semantic_hash": "b410b6b87a41b6c6556ae5c4fa578d75"
+  },
+  "api/auth/create-password.js": {
+    "mtime": 1777056980.1039855,
+    "ast_hash": "e8f62258d35836a15fee106b3914bcd5",
+    "semantic_hash": "e8f62258d35836a15fee106b3914bcd5"
+  },
+  "api/auth/login.js": {
+    "mtime": 1777056980.1039855,
+    "ast_hash": "6949b41a3944757db8977de38c22950e",
+    "semantic_hash": "6949b41a3944757db8977de38c22950e"
+  },
+  "api/auth/logout.js": {
+    "mtime": 1777056980.1039855,
+    "ast_hash": "ef608b03733a03156c94821ff5fb704c",
+    "semantic_hash": "ef608b03733a03156c94821ff5fb704c"
+  },
+  "api/auth/verify-permissions.js": {
+    "mtime": 1777056980.1039855,
+    "ast_hash": "ab1d8b1be2e120a0f0ef49d3a67cbff2",
+    "semantic_hash": "ab1d8b1be2e120a0f0ef49d3a67cbff2"
+  },
+  "api/databases/[key].js": {
+    "mtime": 1777056980.1039855,
+    "ast_hash": "0467311537f81dcc02a5992fb21274a9",
+    "semantic_hash": "0467311537f81dcc02a5992fb21274a9"
+  },
+  "api/databases/[key]/[id].js": {
+    "mtime": 1777056980.1039855,
+    "ast_hash": "ad75361bea31f67a464fefc71b3887aa",
+    "semantic_hash": "ad75361bea31f67a464fefc71b3887aa"
+  },
+  "api/databases/actions.js": {
+    "mtime": 1777056980.107482,
+    "ast_hash": "56b758394fbaf1fcb4bc447ca69e5218",
+    "semantic_hash": "56b758394fbaf1fcb4bc447ca69e5218"
+  },
+  "api/databases/schedule.js": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "5313c74302fc731e3ce14bcb561d4146",
+    "semantic_hash": "5313c74302fc731e3ce14bcb561d4146"
+  },
+  "api/databases/schema.js": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "9648b7ad892347372a82acbd17fb32f4",
+    "semantic_hash": "9648b7ad892347372a82acbd17fb32f4"
+  },
+  "api/databases/stats.js": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "ebe300ac68e008a026ab9711e38efeed",
+    "semantic_hash": "ebe300ac68e008a026ab9711e38efeed"
+  },
+  "api/databases/team-kpis.js": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "33ab84b23a43f528fc2804e9a3327479",
+    "semantic_hash": "33ab84b23a43f528fc2804e9a3327479"
+  },
+  "api/discord/auth/callback.js": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "2d30105bcbf05f1f04854b06ddbf8419",
+    "semantic_hash": "2d30105bcbf05f1f04854b06ddbf8419"
+  },
+  "api/discord/auth/url.js": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "6a07244193762885db144a684c2bb4d2",
+    "semantic_hash": "6a07244193762885db144a684c2bb4d2"
+  },
+  "api/discord/channels.js": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "41b8835745fc9db192d53917c7055c80",
+    "semantic_hash": "41b8835745fc9db192d53917c7055c80"
+  },
+  "api/discord/disconnect.js": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "2ae20771327d6b66de26c29e6876418a",
+    "semantic_hash": "2ae20771327d6b66de26c29e6876418a"
+  },
+  "api/discord/messages.js": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "70f928290603a6c2b4ba53c2382b4108",
+    "semantic_hash": "70f928290603a6c2b4ba53c2382b4108"
+  },
+  "api/discord/status.js": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "ba83d2f69c26ca33d7468b088de68771",
+    "semantic_hash": "ba83d2f69c26ca33d7468b088de68771"
+  },
+  "api/health.js": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "341f77d906ca36742cd120a64c98eefc",
+    "semantic_hash": "341f77d906ca36742cd120a64c98eefc"
+  },
+  "api/sync/properties.js": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "cf6f7c6fbbf17c9220b29188f7c9eadb",
+    "semantic_hash": "cf6f7c6fbbf17c9220b29188f7c9eadb"
+  },
+  "client/package.json": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "bdd00eafa0d366ce398bbbc3e0423657",
+    "semantic_hash": "bdd00eafa0d366ce398bbbc3e0423657"
+  },
+  "client/postcss.config.js": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "ac96fa81e8dd4224012bce81068fe169",
+    "semantic_hash": "ac96fa81e8dd4224012bce81068fe169"
+  },
+  "client/src/App.jsx": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "582074d1785d41ec4dbd63d6d252c980",
+    "semantic_hash": "582074d1785d41ec4dbd63d6d252c980"
+  },
+  "client/src/components/CSVSync.jsx": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "03eaad31fd3c030d8b34ac948aebf759",
+    "semantic_hash": "03eaad31fd3c030d8b34ac948aebf759"
+  },
+  "client/src/components/Chat.jsx": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "19cbfa02cea7811191e760a2377cee7c",
+    "semantic_hash": "19cbfa02cea7811191e760a2377cee7c"
+  },
+  "client/src/components/DatabaseViewer.jsx": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "c7f438b02faf77a96d266de64a5c4c9b",
+    "semantic_hash": "c7f438b02faf77a96d266de64a5c4c9b"
+  },
+  "client/src/components/DetailModal.jsx": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "12746d309643e34fa6ef139a4933fe0d",
+    "semantic_hash": "12746d309643e34fa6ef139a4933fe0d"
+  },
+  "client/src/components/DivisionsView.jsx": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "3cb5c6435ef0645d22961a5d2c6f7c07",
+    "semantic_hash": "3cb5c6435ef0645d22961a5d2c6f7c07"
+  },
+  "client/src/components/ErrorBoundary.jsx": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "815b7f8f53713b65758a933cedc0879a",
+    "semantic_hash": "815b7f8f53713b65758a933cedc0879a"
+  },
+  "client/src/components/FieldSettings.jsx": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "3a9ba5b118829d4fd27a1d9ccfbc5c55",
+    "semantic_hash": "3a9ba5b118829d4fd27a1d9ccfbc5c55"
+  },
+  "client/src/components/OfficeOverview.jsx": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "8c88c955fda79aee74e962cbdee1855d",
+    "semantic_hash": "8c88c955fda79aee74e962cbdee1855d"
+  },
+  "client/src/components/PipelineBoard.jsx": {
+    "mtime": 1777056980.107994,
+    "ast_hash": "6672af34ff4e417b59cf1f9299c2574b",
+    "semantic_hash": "6672af34ff4e417b59cf1f9299c2574b"
+  },
+  "client/src/components/ScheduleCalendar.jsx": {
+    "mtime": 1777056980.119411,
+    "ast_hash": "67169eb73daea3e7529017d262c6e7c8",
+    "semantic_hash": "67169eb73daea3e7529017d262c6e7c8"
+  },
+  "client/src/components/Settings.jsx": {
+    "mtime": 1777056980.119411,
+    "ast_hash": "879dbc018ef9b0b9dec61a080fbd5c23",
+    "semantic_hash": "879dbc018ef9b0b9dec61a080fbd5c23"
+  },
+  "client/src/components/StatsOverview.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "7c15b289d55f08465bbfd88016ea80b8",
+    "semantic_hash": "7c15b289d55f08465bbfd88016ea80b8"
+  },
+  "client/src/components/TeamKPIView.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "b2527db56bcd93f9178e2b98d35f2778",
+    "semantic_hash": "b2527db56bcd93f9178e2b98d35f2778"
+  },
+  "client/src/components/Toast.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "7281a78d56557c9fc50607a9ed88374b",
+    "semantic_hash": "7281a78d56557c9fc50607a9ed88374b"
+  },
+  "client/src/components/Toast.test.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "87885966cd02ec0ea8c623d43cd1e586",
+    "semantic_hash": "87885966cd02ec0ea8c623d43cd1e586"
+  },
+  "client/src/components/login/CreatePasswordForm.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "28b465927ad5218652653f990bba2b85",
+    "semantic_hash": "28b465927ad5218652653f990bba2b85"
+  },
+  "client/src/components/login/EmailForm.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "17b33f097e5a53bfba4d26e63427433b",
+    "semantic_hash": "17b33f097e5a53bfba4d26e63427433b"
+  },
+  "client/src/components/login/ErrorAlert.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "7cdf133bf02d6891da2dff8a3c918425",
+    "semantic_hash": "7cdf133bf02d6891da2dff8a3c918425"
+  },
+  "client/src/components/login/LeftBrandingPanel.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "2f66ca17a7775364bc4f9465f67d8213",
+    "semantic_hash": "2f66ca17a7775364bc4f9465f67d8213"
+  },
+  "client/src/components/login/LoadingSpinner.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "3643d4468b763262814e109b24b09b7b",
+    "semantic_hash": "3643d4468b763262814e109b24b09b7b"
+  },
+  "client/src/components/login/PasswordForm.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "50076c9aa098882f36c046b9e5bfd88e",
+    "semantic_hash": "50076c9aa098882f36c046b9e5bfd88e"
+  },
+  "client/src/components/login/StatusState.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "1d51e98f1817c050d5394a7eca91c778",
+    "semantic_hash": "1d51e98f1817c050d5394a7eca91c778"
+  },
+  "client/src/components/login/index.js": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "46f7d59b8d7029c26dd03b835778e435",
+    "semantic_hash": "46f7d59b8d7029c26dd03b835778e435"
+  },
+  "client/src/components/pipeline/DealDetailModal.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "d057aa50cedf0062972f1fe5ef409a13",
+    "semantic_hash": "d057aa50cedf0062972f1fe5ef409a13"
+  },
+  "client/src/components/pipeline/DetailRow.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "683f7d0006df7156aea927903aee3716",
+    "semantic_hash": "683f7d0006df7156aea927903aee3716"
+  },
+  "client/src/components/pipeline/MobileDealCard.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "844b80e83545d5f17abd5a0e0dd5fad9",
+    "semantic_hash": "844b80e83545d5f17abd5a0e0dd5fad9"
+  },
+  "client/src/components/pipeline/PipelineFilters.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "bf8a4c9e2b2c004f12a2539218e962f6",
+    "semantic_hash": "bf8a4c9e2b2c004f12a2539218e962f6"
+  },
+  "client/src/components/pipeline/index.js": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "55a59b7bce77456d4cf2bf963f3f8c30",
+    "semantic_hash": "55a59b7bce77456d4cf2bf963f3f8c30"
+  },
+  "client/src/components/pipeline/pipelineConstants.js": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "e4e5806ba2fbc8711f51c6c8d979b77e",
+    "semantic_hash": "e4e5806ba2fbc8711f51c6c8d979b77e"
+  },
+  "client/src/components/schedule/AdminListView.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "453b71b45ea18d7abcc722e9d21ed9be",
+    "semantic_hash": "453b71b45ea18d7abcc722e9d21ed9be"
+  },
+  "client/src/components/schedule/AdminPendingPanel.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "20113274ae781f71867e0c126628c207",
+    "semantic_hash": "20113274ae781f71867e0c126628c207"
+  },
+  "client/src/components/schedule/DaySelectionModal.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "64c380722d9016bbbc62951cb1b02143",
+    "semantic_hash": "64c380722d9016bbbc62951cb1b02143"
+  },
+  "client/src/components/schedule/ScheduleEventModal.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "7921e8119be4c366bde846ef2ca119db",
+    "semantic_hash": "7921e8119be4c366bde846ef2ca119db"
+  },
+  "client/src/components/schedule/ScheduleLegend.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "6c18e456da880011fb09127db66d0f68",
+    "semantic_hash": "6c18e456da880011fb09127db66d0f68"
+  },
+  "client/src/components/schedule/ScheduleStatusBanners.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "e6aee06361e3b087965b121f62d785df",
+    "semantic_hash": "e6aee06361e3b087965b121f62d785df"
+  },
+  "client/src/components/schedule/WeekSubmissionPanel.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "1aeba9103aa5a43772ba970c957d373c",
+    "semantic_hash": "1aeba9103aa5a43772ba970c957d373c"
+  },
+  "client/src/components/schedule/index.js": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "6d510c190e4963a5225751f610b9c5e8",
+    "semantic_hash": "6d510c190e4963a5225751f610b9c5e8"
+  },
+  "client/src/components/schedule/scheduleConstants.js": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "e07a7fcc77d14104b7b0faaa09e0bd4d",
+    "semantic_hash": "e07a7fcc77d14104b7b0faaa09e0bd4d"
+  },
+  "client/src/hooks/useApi.js": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "c8a8c6328a9bafb824d741ceac3c3ba4",
+    "semantic_hash": "c8a8c6328a9bafb824d741ceac3c3ba4"
+  },
+  "client/src/hooks/useDiscord.js": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "1b9dd440e2d5758393413ce8f84396d6",
+    "semantic_hash": "1b9dd440e2d5758393413ce8f84396d6"
+  },
+  "client/src/hooks/usePermissionCheck.js": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "659d04430286f9b869f98e2e048dc68e",
+    "semantic_hash": "659d04430286f9b869f98e2e048dc68e"
+  },
+  "client/src/lib/api.js": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "52446a6a370cf06e4bd8406c4b57644b",
+    "semantic_hash": "52446a6a370cf06e4bd8406c4b57644b"
+  },
+  "client/src/lib/queryClient.js": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "56dfb5f09953d26ab3b4345a93d49e2b",
+    "semantic_hash": "56dfb5f09953d26ab3b4345a93d49e2b"
+  },
+  "client/src/main.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "b89a0b8304ebeabcfa1edeb754ff944c",
+    "semantic_hash": "b89a0b8304ebeabcfa1edeb754ff944c"
+  },
+  "client/src/pages/AdminDashboard.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "d2e33a93b52135203e6a2e1180e79dde",
+    "semantic_hash": "d2e33a93b52135203e6a2e1180e79dde"
+  },
+  "client/src/pages/DiscordCallback.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "687df2e8929acbd9fbd43eeda7a8c90d",
+    "semantic_hash": "687df2e8929acbd9fbd43eeda7a8c90d"
+  },
+  "client/src/pages/EmployeeDashboard.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "ec9bc768df526d2f5538aabf30e7ac59",
+    "semantic_hash": "ec9bc768df526d2f5538aabf30e7ac59"
+  },
+  "client/src/pages/Login.jsx": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "c5fe1092badd45e3f9735ea723aa25f3",
+    "semantic_hash": "c5fe1092badd45e3f9735ea723aa25f3"
+  },
+  "client/src/test/setup.js": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "f2632c4f99ed66df77632226854d547a",
+    "semantic_hash": "f2632c4f99ed66df77632226854d547a"
+  },
+  "client/src/utils/activityLogger.js": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "7978f35c6abc2b6ee9d7679f2c015065",
+    "semantic_hash": "7978f35c6abc2b6ee9d7679f2c015065"
+  },
+  "client/tailwind.config.js": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "9afb21cebd97d1d0507d3a6067926a05",
+    "semantic_hash": "9afb21cebd97d1d0507d3a6067926a05"
+  },
+  "client/vite.config.js": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "3f2134593b0c922f24f0f5a1add3ee51",
+    "semantic_hash": "3f2134593b0c922f24f0f5a1add3ee51"
+  },
+  "client/vitest.config.js": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "97be8dff57bc43ada70ac8650175a34a",
+    "semantic_hash": "97be8dff57bc43ada70ac8650175a34a"
+  },
+  "config/databases.js": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "0efbdc04d395506633612de68e4d2c9f",
+    "semantic_hash": "0efbdc04d395506633612de68e4d2c9f"
+  },
+  "config/utils.js": {
+    "mtime": 1777056980.1199481,
+    "ast_hash": "cd2655ff22e634d2ff2229173caf8fdd",
+    "semantic_hash": "cd2655ff22e634d2ff2229173caf8fdd"
+  },
+  "discord-server/index.js": {
+    "mtime": 1777056980.1351938,
+    "ast_hash": "7d5f03c0d3325be09515b95590341359",
+    "semantic_hash": "7d5f03c0d3325be09515b95590341359"
+  },
+  "discord-server/package.json": {
+    "mtime": 1777056980.1351938,
+    "ast_hash": "bd6dfa00ec492123b759add430a1fbb8",
+    "semantic_hash": "bd6dfa00ec492123b759add430a1fbb8"
+  },
+  "package.json": {
+    "mtime": 1777056980.1351938,
+    "ast_hash": "be0242b5f6e15714884f0b425db4eb34",
+    "semantic_hash": "be0242b5f6e15714884f0b425db4eb34"
+  },
+  "scripts/create-notion-databases.cjs": {
+    "mtime": 1777056980.1351938,
+    "ast_hash": "f65af6b2b80384e318be4802f4e4d47d",
+    "semantic_hash": "f65af6b2b80384e318be4802f4e4d47d"
+  },
+  "scripts/import-pipeline-data.cjs": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "2d1f85f13ac07ebf627fdd09875bce2d",
+    "semantic_hash": "2d1f85f13ac07ebf627fdd09875bce2d"
+  },
+  "scripts/setup-relations.cjs": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "98bd70a2e092e84f39bec2104cc4f9a3",
+    "semantic_hash": "98bd70a2e092e84f39bec2104cc4f9a3"
+  },
+  "scripts/sync-from-json.cjs": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "d512abc44884b1144f5f37a2ac5ff7d3",
+    "semantic_hash": "d512abc44884b1144f5f37a2ac5ff7d3"
+  },
+  "scripts/sync-notion-properties.cjs": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "e882ae61cbbf76094c54259bd8768a0d",
+    "semantic_hash": "e882ae61cbbf76094c54259bd8768a0d"
+  },
+  "scripts/sync-properties-mcp.py": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "9cf228d0c23079718aa0d20a892025a5",
+    "semantic_hash": "9cf228d0c23079718aa0d20a892025a5"
+  },
+  "scripts/sync-properties.cjs": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "5bb8ecbe5b912fd61b1685ddd162bb92",
+    "semantic_hash": "5bb8ecbe5b912fd61b1685ddd162bb92"
+  },
+  "scripts/sync-properties.py": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "b7fb0b10c5aa6909ba72d616015b0cb8",
+    "semantic_hash": "b7fb0b10c5aa6909ba72d616015b0cb8"
+  },
+  "scripts/test-notion.cjs": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "0f5aab0a60135837777cb51d52807d4c",
+    "semantic_hash": "0f5aab0a60135837777cb51d52807d4c"
+  },
+  "server/__tests__/auth.test.js": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "52d56444bcb8c23bbcfb91bce7333acf",
+    "semantic_hash": "52d56444bcb8c23bbcfb91bce7333acf"
+  },
+  "server/index.js": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "54eafb98a6d37a578b28396fa8ba7a9b",
+    "semantic_hash": "54eafb98a6d37a578b28396fa8ba7a9b"
+  },
+  "server/middleware/auth.js": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "f5fb0f965501b2c8013f8c6743cb575b",
+    "semantic_hash": "f5fb0f965501b2c8013f8c6743cb575b"
+  },
+  "server/routes/auth.js": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "c0095db498b8ba27252c03218365b05a",
+    "semantic_hash": "c0095db498b8ba27252c03218365b05a"
+  },
+  "server/routes/databases.js": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "93be1feafd8d9e9310c46e591e33213d",
+    "semantic_hash": "93be1feafd8d9e9310c46e591e33213d"
+  },
+  "server/routes/discord.js": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "933ce15571842cf45a5205ac25525b2f",
+    "semantic_hash": "933ce15571842cf45a5205ac25525b2f"
+  },
+  "server/routes/handlers/index.js": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "0b699ed41b898d3240d0d9b275d52c60",
+    "semantic_hash": "0b699ed41b898d3240d0d9b275d52c60"
+  },
+  "server/routes/handlers/logActivity.js": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "316a522eef8a2fa0619fc2d693cad3c8",
+    "semantic_hash": "316a522eef8a2fa0619fc2d693cad3c8"
+  },
+  "server/routes/handlers/moveToClosed.js": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "13e1a7eab79cc5635fc96166cdca2030",
+    "semantic_hash": "13e1a7eab79cc5635fc96166cdca2030"
+  },
+  "server/routes/handlers/moveToPending.js": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "15040c05a072e5e26eda04a9d92e8aac",
+    "semantic_hash": "15040c05a072e5e26eda04a9d92e8aac"
+  },
+  "server/routes/handlers/moveToPipeline.js": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "6956003aa7fb2dc50518d71c50324cb9",
+    "semantic_hash": "6956003aa7fb2dc50518d71c50324cb9"
+  },
+  "server/routes/handlers/moveToSubmitted.js": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "d53ec0503c560e9fd42fa5407f0ee7d9",
+    "semantic_hash": "d53ec0503c560e9fd42fa5407f0ee7d9"
+  },
+  "server/routes/handlers/sendBackToProperties.js": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "06d675458fd1c4ce057ba96664db0eb8",
+    "semantic_hash": "06d675458fd1c4ce057ba96664db0eb8"
+  },
+  "server/routes/handlers/updateStatus.js": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "88f78e89e0d86198f439026c5b08d4b5",
+    "semantic_hash": "88f78e89e0d86198f439026c5b08d4b5"
+  },
+  "server/utils/logger.js": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "57a312f96d5115887c61aaa85b0989ea",
+    "semantic_hash": "57a312f96d5115887c61aaa85b0989ea"
+  },
+  "server/utils/notion.js": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "0fa14d825ad072cd5368f1653289e653",
+    "semantic_hash": "0fa14d825ad072cd5368f1653289e653"
+  },
+  "server/utils/sessionStore.js": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "2bb3b640270ecb15c33e24558d75e315",
+    "semantic_hash": "2bb3b640270ecb15c33e24558d75e315"
+  },
+  "server/utils/validation.js": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "b170db0a4750e78a61ea576d360e395a",
+    "semantic_hash": "b170db0a4750e78a61ea576d360e395a"
+  },
+  "vercel.json": {
+    "mtime": 1777056980.1392822,
+    "ast_hash": "d7f5d311dede586f42281ae23071fd61",
+    "semantic_hash": "d7f5d311dede586f42281ae23071fd61"
+  }
+}
